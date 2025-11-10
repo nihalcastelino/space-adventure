@@ -1,0 +1,17 @@
+{
+  "rules": {
+    "games": {
+      "$gameId": {
+        ".read": true,
+        ".write": true,
+        ".validate": "newData.hasChildren(['players', 'currentPlayerIndex', 'message', 'createdAt'])",
+        "players": {
+          "$playerId": {
+            ".validate": "newData.hasChildren(['id', 'name', 'position', 'lastCheckpoint', 'color', 'corner'])"
+          }
+        }
+      }
+    }
+  }
+}
+

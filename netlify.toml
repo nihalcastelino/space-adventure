@@ -1,0 +1,30 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+[dev]
+  command = "npm run dev"
+  port = 5173
+  targetPort = 5173
+
+# Headers for security
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Environment variables (set these in Netlify UI)
+# VITE_FIREBASE_API_KEY
+# VITE_FIREBASE_AUTH_DOMAIN
+# VITE_FIREBASE_DATABASE_URL
+# VITE_FIREBASE_PROJECT_ID
+# VITE_FIREBASE_STORAGE_BUCKET
+# VITE_FIREBASE_MESSAGING_SENDER_ID
+# VITE_FIREBASE_APP_ID
+
