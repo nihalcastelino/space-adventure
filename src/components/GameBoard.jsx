@@ -6,10 +6,23 @@ const SPACEPORTS = {
   4: 18, 9: 31, 15: 42, 21: 56, 28: 64,
   36: 70, 51: 77, 62: 85, 71: 91, 80: 96
 };
-const ALIENS = [14, 23, 29, 38, 45, 50, 54, 61, 68, 75, 82, 88, 94, 98];
-const CHECKPOINTS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90];
 
-export default function GameBoard({ players, animatingPlayer, animationType, alienBlink }) {
+// Default values for backward compatibility
+const DEFAULT_ALIENS = [14, 23, 29, 38, 45, 50, 54, 61, 68, 75, 82, 88, 94, 98];
+const DEFAULT_CHECKPOINTS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90];
+
+export default function GameBoard({
+  players,
+  animatingPlayer,
+  animationType,
+  alienBlink,
+  animatedPositions = {},
+  encounterType = null,
+  aliens = DEFAULT_ALIENS,
+  checkpoints = DEFAULT_CHECKPOINTS
+}) {
+  const ALIENS = aliens;
+  const CHECKPOINTS = checkpoints;
   const [sparkles, setSparkles] = useState([]);
 
   useEffect(() => {
@@ -53,11 +66,19 @@ export default function GameBoard({ players, animatingPlayer, animationType, ali
 
         if (cellNumber < 1 || cellNumber > 100) continue;
 
-        const playersHere = players.filter(p => p.position === cellNumber);
+        // Check for players - use animated position if available
+        const playersHere = players.filter(p => {
+          const pos = animatedPositions[p.id] !== undefined ? animatedPositions[p.id] : p.position;
+          return pos === cellNumber;
+        });
         const isSpaceport = SPACEPORTS[cellNumber];
         const isAlien = ALIENS.includes(cellNumber);
         const isCheckpoint = CHECKPOINTS.includes(cellNumber);
         const isFinish = cellNumber === BOARD_SIZE;
+
+        // Check if this cell has encounter effect
+        const hasSpaceportEffect = encounterType === 'spaceport' && playersHere.some(p => p.id === animatingPlayer);
+        const hasAlienEffect = encounterType === 'alien' && playersHere.some(p => p.id === animatingPlayer);
 
         const bgColor = getCellColor(cellNumber);
 
@@ -76,8 +97,13 @@ export default function GameBoard({ players, animatingPlayer, animationType, ali
               color: 'rgba(255, 255, 255, 0.5)',
               fontWeight: 'bold',
               aspectRatio: '1',
-              minHeight: '30px',
-              boxShadow: isSpaceport || isAlien || isCheckpoint || isFinish
+              minHeight: '0',
+              minWidth: '0',
+              boxShadow: hasSpaceportEffect
+                ? '0 0 30px rgba(16, 185, 129, 0.9), inset 0 0 20px rgba(16, 185, 129, 0.5)'
+                : hasAlienEffect
+                ? '0 0 30px rgba(239, 68, 68, 0.9), inset 0 0 20px rgba(239, 68, 68, 0.5)'
+                : isSpaceport || isAlien || isCheckpoint || isFinish
                 ? 'inset 0 0 20px rgba(0, 0, 0, 0.3), 0 0 10px ' + (
                     isFinish ? 'rgba(251, 191, 36, 0.3)' :
                     isSpaceport ? 'rgba(16, 185, 129, 0.3)' :
@@ -86,7 +112,8 @@ export default function GameBoard({ players, animatingPlayer, animationType, ali
                   )
                 : 'inset 0 0 10px rgba(0, 0, 0, 0.4)',
               transition: 'all 0.2s ease',
-              overflow: 'hidden'
+              overflow: 'hidden',
+              animation: hasSpaceportEffect ? 'warp-pulse 0.8s ease-in-out' : hasAlienEffect ? 'alien-shake 0.5s ease-in-out' : 'none'
             }}
           >
             {/* Cell number in corner */}
@@ -216,6 +243,22 @@ export default function GameBoard({ players, animatingPlayer, animationType, ali
           50% { opacity: 1; transform: scale(1) rotate(180deg); }
           100% { opacity: 0; transform: scale(0) rotate(360deg); }
         }
+        @keyframes warp-pulse {
+          0% { transform: scale(1); filter: brightness(1); }
+          25% { transform: scale(1.15); filter: brightness(1.5); }
+          50% { transform: scale(1.3); filter: brightness(2); }
+          75% { transform: scale(1.15); filter: brightness(1.5); }
+          100% { transform: scale(1); filter: brightness(1); }
+        }
+        @keyframes alien-shake {
+          0%, 100% { transform: translateX(0); }
+          10%, 30%, 50%, 70%, 90% { transform: translateX(-5px) rotate(-2deg); }
+          20%, 40%, 60%, 80% { transform: translateX(5px) rotate(2deg); }
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-5px); }
+        }
       `}</style>
       {/* Main Game Board - Square Grid */}
       <div
@@ -225,14 +268,15 @@ export default function GameBoard({ players, animatingPlayer, animationType, ali
           backgroundColor: 'rgba(15, 23, 42, 0.85)',
           border: '4px solid #fbbf24',
           borderRadius: '12px',
-          padding: '8px',
+          padding: '2px',
           display: 'grid',
-          gridTemplateColumns: 'repeat(10, 1fr)',
-          gridTemplateRows: 'repeat(10, 1fr)',
-          gap: '3px',
+          gridTemplateColumns: 'repeat(10, minmax(0, 1fr))',
+          gridTemplateRows: 'repeat(10, minmax(0, 1fr))',
+          gap: '1px',
           boxSizing: 'border-box',
           boxShadow: '0 0 30px rgba(251, 191, 36, 0.4), inset 0 0 30px rgba(0, 0, 0, 0.6)',
-          position: 'relative'
+          position: 'relative',
+          overflow: 'hidden'
         }}
       >
           {boardCells}

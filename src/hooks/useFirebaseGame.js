@@ -4,6 +4,7 @@ import { ref, set, onValue, update, get } from 'firebase/database';
 import { useGameSounds } from './useGameSounds';
 import { useGameHistory } from './useGameHistory';
 import { useLeaderboard } from './useLeaderboard';
+import { useRocketAnimation } from './useRocketAnimation';
 import { sanitizePlayerName, isValidPlayerName } from '../utils/sanitize';
 
 // Simple UUID generator
@@ -105,6 +106,7 @@ export function useFirebaseGame() {
   const { playSound } = useGameSounds();
   const { saveGameHistory } = useGameHistory();
   const { recordWin, recordGame } = useLeaderboard();
+  const { animatedPositions, animatingPlayer: rocketAnimatingPlayer, encounterType, animateMovement, setAnimatedPositions } = useRocketAnimation();
   const [gameState, setGameState] = useState(null);
   const [gameId, setGameId] = useState(null);
   const [playerId, setPlayerId] = useState(null);
@@ -187,9 +189,37 @@ export function useFirebaseGame() {
     }
 
     // Listen for changes - real-time sync
-    const unsubscribe = onValue(gameRefPath, (snapshot) => {
+    let previousState = null;
+    const unsubscribe = onValue(gameRefPath, async (snapshot) => {
       const data = snapshot.val();
       if (data) {
+        // Detect player position changes and animate
+        if (previousState && previousState.players && data.players) {
+          for (let i = 0; i < data.players.length; i++) {
+            const prevPlayer = previousState.players[i];
+            const currPlayer = data.players[i];
+
+            if (prevPlayer && currPlayer && prevPlayer.position !== currPlayer.position) {
+              // Position changed - animate it
+              const fromPos = prevPlayer.position;
+              const toPos = currPlayer.position;
+
+              // Determine what happened based on the message
+              const hasSpaceport = data.message?.includes('warped');
+              const hasAlien = data.message?.includes('eaten');
+
+              let alienTarget = toPos;
+              if (hasAlien) {
+                alienTarget = currPlayer.lastCheckpoint || 0;
+              }
+
+              // Trigger animation for this player
+              await animateMovement(currPlayer.id, fromPos, toPos, hasSpaceport, hasAlien, alienTarget);
+            }
+          }
+        }
+
+        previousState = data;
         setGameState(data);
         // Sync move count from server
         if (data.totalMoves !== undefined) {
@@ -224,9 +254,35 @@ export function useFirebaseGame() {
 
     // Setup permanent listener first
     let previousState = null;
-    const unsubscribe = onValue(gameRefPath, (snapshot) => {
+    const unsubscribe = onValue(gameRefPath, async (snapshot) => {
       const data = snapshot.val();
       if (data) {
+        // Detect player position changes and animate
+        if (previousState && previousState.players && data.players) {
+          for (let i = 0; i < data.players.length; i++) {
+            const prevPlayer = previousState.players[i];
+            const currPlayer = data.players[i];
+
+            if (prevPlayer && currPlayer && prevPlayer.position !== currPlayer.position) {
+              // Position changed - animate it
+              const fromPos = prevPlayer.position;
+              const toPos = currPlayer.position;
+
+              // Determine what happened based on the message
+              const hasSpaceport = data.message?.includes('warped');
+              const hasAlien = data.message?.includes('eaten');
+
+              let alienTarget = toPos;
+              if (hasAlien) {
+                alienTarget = currPlayer.lastCheckpoint || 0;
+              }
+
+              // Trigger animation for this player
+              await animateMovement(currPlayer.id, fromPos, toPos, hasSpaceport, hasAlien, alienTarget);
+            }
+          }
+        }
+
         // Detect state changes and play sounds
         if (previousState) {
           if (data.gameWon && !previousState.gameWon) {
@@ -361,13 +417,13 @@ export function useFirebaseGame() {
       const diceValue = rollDice();
       const updatedGame = { ...gameState };
       const currentPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
-      
+
       const result = processMove(updatedGame, currentPlayer, diceValue);
 
       if (result.won) {
         playSound('victory');
         const gameDuration = Date.now() - (updatedGame.startedAt || updatedGame.createdAt);
-        
+
         // Save to game history
         await saveGameHistory({
           gameId,
@@ -400,7 +456,7 @@ export function useFirebaseGame() {
         });
         return;
       }
-      
+
       // Play sounds based on move result
       if (result.spaceport) {
         playSound('spaceport');
@@ -509,10 +565,12 @@ export function useFirebaseGame() {
     gameId,
     playerId,
     connected,
-    animatingPlayer,
+    animatingPlayer: rocketAnimatingPlayer || animatingPlayer,
     animationType,
     alienBlink,
     diceRolling,
+    animatedPositions,
+    encounterType,
     createGame,
     joinGame,
     handleRollDice,

@@ -1,16 +1,25 @@
 import { useState, useEffect } from 'react';
 import { useGameSounds } from './useGameSounds';
+import { useDifficulty } from './useDifficulty';
 
 const BOARD_SIZE = 100;
 const SPACEPORTS = {
   4: 18, 9: 31, 15: 42, 21: 56, 28: 64,
   36: 70, 51: 77, 62: 85, 71: 91, 80: 96
 };
-const ALIENS = [14, 23, 29, 38, 45, 50, 54, 61, 68, 75, 82, 88, 94, 98];
-const CHECKPOINTS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90];
 
-export function useGameLogic() {
+export function useGameLogic(initialDifficulty = 'normal') {
   const { playSound } = useGameSounds();
+  const {
+    difficulty,
+    aliens: ALIENS,
+    checkpoints: CHECKPOINTS,
+    spawnedAliens,
+    removedCheckpoints,
+    processTurnEvents,
+    resetDifficulty,
+    changeDifficulty
+  } = useDifficulty(initialDifficulty);
   
   const playerColors = [
     'text-yellow-300',
@@ -35,6 +44,7 @@ export function useGameLogic() {
   const [animatingPlayer, setAnimatingPlayer] = useState(null);
   const [animationType, setAnimationType] = useState(null);
   const [alienBlink, setAlienBlink] = useState({});
+  const [difficultyEvents, setDifficultyEvents] = useState({ spawnedAlien: null, removedCheckpoint: null });
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -45,7 +55,7 @@ export function useGameLogic() {
       setAlienBlink(newBlink);
     }, 500);
     return () => clearInterval(interval);
-  }, []);
+  }, [ALIENS]);
 
   const getLastCheckpoint = (position) => {
     for (let i = CHECKPOINTS.length - 1; i >= 0; i--) {
@@ -226,7 +236,24 @@ export function useGameLogic() {
   const nextPlayer = () => {
     const nextIndex = (currentPlayerIndex + 1) % players.length;
     setCurrentPlayerIndex(nextIndex);
-    setMessage(`${players[nextIndex].name}'s turn! Press SPIN to roll!`);
+
+    // Process difficulty events (alien spawning, checkpoint removal)
+    const playerPositions = players.map(p => p.position);
+    const events = processTurnEvents(playerPositions);
+    setDifficultyEvents(events);
+
+    // Show difficulty event messages
+    let turnMessage = `${players[nextIndex].name}'s turn! Press SPIN to roll!`;
+    if (events.spawnedAlien) {
+      turnMessage = `⚠️ New alien spawned at position ${events.spawnedAlien}! ${players[nextIndex].name}'s turn!`;
+      playSound('alien');
+    }
+    if (events.removedCheckpoint) {
+      turnMessage = `💀 Checkpoint ${events.removedCheckpoint} disappeared! ${players[nextIndex].name}'s turn!`;
+      if (!events.spawnedAlien) playSound('alien'); // Only play if not already played
+    }
+
+    setMessage(turnMessage);
     setIsRolling(false);
     playSound('turn');
   };
@@ -241,6 +268,8 @@ export function useGameLogic() {
     setWinner(null);
     setAnimatingPlayer(null);
     setAnimationType(null);
+    setDifficultyEvents({ spawnedAlien: null, removedCheckpoint: null });
+    resetDifficulty(); // Reset difficulty state
   };
 
   return {
@@ -255,6 +284,13 @@ export function useGameLogic() {
     animatingPlayer,
     animationType,
     alienBlink,
+    aliens: ALIENS,
+    checkpoints: CHECKPOINTS,
+    difficulty,
+    difficultyEvents,
+    spawnedAliens,
+    removedCheckpoints,
+    changeDifficulty,
     addPlayer,
     removePlayer,
     rollDice,

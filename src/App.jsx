@@ -5,17 +5,27 @@ import GameModeSelector from './components/GameModeSelector';
 
 function App() {
   const [gameMode, setGameMode] = useState(null); // 'local' or 'online'
+  const [difficulty, setDifficulty] = useState('normal');
+
+  const handleSelectMode = (mode, selectedDifficulty) => {
+    setGameMode(mode);
+    setDifficulty(selectedDifficulty);
+  };
+
+  const handleBack = () => {
+    setGameMode(null);
+  };
 
   if (!gameMode) {
-    return <GameModeSelector onSelectMode={setGameMode} />;
+    return <GameModeSelector onSelectMode={handleSelectMode} />;
   }
 
   return (
     <div className="fixed inset-0">
       {gameMode === 'local' ? (
-        <LocalGame onBack={() => setGameMode(null)} />
+        <LocalGame onBack={handleBack} initialDifficulty={difficulty} />
       ) : (
-        <OnlineGame onBack={() => setGameMode(null)} />
+        <OnlineGame onBack={handleBack} initialDifficulty={difficulty} />
       )}
     </div>
   );

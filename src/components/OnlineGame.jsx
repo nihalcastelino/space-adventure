@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { Rocket, Wifi, WifiOff, ArrowLeft, Copy, Check, Trophy, History, Pause, Play, Bell, BellOff } from 'lucide-react';
+import { Rocket, Wifi, WifiOff, ArrowLeft, Copy, Check, Trophy, History, Pause, Play, Bell, BellOff, Settings } from 'lucide-react';
 import { useFirebaseGame } from '../hooks/useFirebaseGame';
 import GameBoard from './GameBoard';
 import PlayerPanel from './PlayerPanel';
+import CompactPlayerPanel from './CompactPlayerPanel';
 import GameControls from './GameControls';
 import ParticleEffects from './ParticleEffects';
+import GameSettings from './GameSettings';
 import Leaderboard from './Leaderboard';
 import GameHistory from './GameHistory';
 import { useGameSounds } from '../hooks/useGameSounds';
@@ -33,6 +35,8 @@ export default function OnlineGame({ onBack }) {
     animationType,
     alienBlink,
     diceRolling,
+    animatedPositions,
+    encounterType,
     createGame,
     joinGame,
     handleRollDice,
@@ -43,6 +47,16 @@ export default function OnlineGame({ onBack }) {
   
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const [hasAttemptedReconnect, setHasAttemptedReconnect] = useState(false);
 
   // Auto-reconnect on mount if game data exists in localStorage
@@ -413,29 +427,29 @@ export default function OnlineGame({ onBack }) {
       `}</style>
 
       {/* Connection status and game controls */}
-      <div className="fixed top-2 right-2 z-50 flex items-center gap-2">
+      <div className="fixed top-2 right-2 z-50 flex items-center gap-1 md:gap-2">
         {/* Game controls menu */}
         {connected && gameState && (
-          <div className="flex gap-2">
+          <div className="flex gap-1 md:gap-2">
             <button
               onClick={() => {
                 playSound('click');
                 setShowLeaderboard(true);
               }}
-              className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-yellow-400 transition-all transform hover:scale-110 active:scale-95"
+              className="glass rounded-lg p-1.5 md:p-2 shadow-lg border-2 border-gray-700 hover:border-yellow-400 transition-all transform hover:scale-110 active:scale-95"
               title="Leaderboard"
             >
-              <Trophy className="w-5 h-5 text-yellow-400" />
+              <Trophy className="w-4 h-4 md:w-5 md:h-5 text-yellow-400" />
             </button>
             <button
               onClick={() => {
                 playSound('click');
                 setShowHistory(true);
               }}
-              className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-blue-400 transition-all transform hover:scale-110 active:scale-95"
+              className="glass rounded-lg p-1.5 md:p-2 shadow-lg border-2 border-gray-700 hover:border-blue-400 transition-all transform hover:scale-110 active:scale-95"
               title="Game History"
             >
-              <History className="w-5 h-5 text-blue-400" />
+              <History className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
             </button>
             {gameState.isPaused ? (
               <button
@@ -443,10 +457,10 @@ export default function OnlineGame({ onBack }) {
                   playSound('click');
                   handleResumeGame();
                 }}
-                className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-green-400 transition-all transform hover:scale-110 active:scale-95"
+                className="glass rounded-lg p-1.5 md:p-2 shadow-lg border-2 border-gray-700 hover:border-green-400 transition-all transform hover:scale-110 active:scale-95"
                 title="Resume Game"
               >
-                <Play className="w-5 h-5 text-green-400" />
+                <Play className="w-4 h-4 md:w-5 md:h-5 text-green-400" />
               </button>
             ) : (
               <button
@@ -454,10 +468,10 @@ export default function OnlineGame({ onBack }) {
                   playSound('click');
                   handlePauseGame();
                 }}
-                className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-orange-400 transition-all transform hover:scale-110 active:scale-95"
+                className="glass rounded-lg p-1.5 md:p-2 shadow-lg border-2 border-gray-700 hover:border-orange-400 transition-all transform hover:scale-110 active:scale-95"
                 title="Pause Game"
               >
-                <Pause className="w-5 h-5 text-orange-400" />
+                <Pause className="w-4 h-4 md:w-5 md:h-5 text-orange-400" />
               </button>
             )}
             {isSupported && permission !== 'granted' && (
@@ -466,25 +480,25 @@ export default function OnlineGame({ onBack }) {
                   playSound('click');
                   requestPermission();
                 }}
-                className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-purple-400 transition-all transform hover:scale-110 active:scale-95"
+                className="glass rounded-lg p-1.5 md:p-2 shadow-lg border-2 border-gray-700 hover:border-purple-400 transition-all transform hover:scale-110 active:scale-95"
                 title="Enable turn notifications"
               >
-                <Bell className="w-5 h-5 text-purple-400" />
+                <Bell className="w-4 h-4 md:w-5 md:h-5 text-purple-400" />
               </button>
             )}
             {permission === 'granted' && (
               <button
-                className="glass rounded-lg p-2 shadow-lg border-2 border-purple-400 border-opacity-50 cursor-default"
+                className="glass rounded-lg p-1.5 md:p-2 shadow-lg border-2 border-purple-400 border-opacity-50 cursor-default"
                 title="Notifications enabled"
               >
-                <Bell className="w-5 h-5 text-purple-400" />
+                <Bell className="w-4 h-4 md:w-5 md:h-5 text-purple-400" />
               </button>
             )}
           </div>
         )}
 
         {/* Connection status */}
-        <div className={`flex items-center gap-2 glass rounded-lg px-3 py-2 border-2 ${
+        <div className={`hidden sm:flex items-center gap-2 glass rounded-lg px-3 py-2 border-2 ${
           connected ? 'border-green-400 border-opacity-50' : 'border-red-400 border-opacity-50'
         }`}>
           {connected ? (
@@ -501,25 +515,35 @@ export default function OnlineGame({ onBack }) {
         </div>
       </div>
 
-      {/* Back button and room code */}
-      <div className="fixed top-2 left-2 z-50 flex items-center gap-2">
+      {/* Back button, settings button, and room code */}
+      <div className="fixed top-2 left-2 z-50 flex items-center gap-1 md:gap-2">
         <button
           onClick={handleBack}
-          className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-blue-400 transition-all transform hover:scale-110 active:scale-95"
+          className="glass rounded-lg p-1.5 md:p-2 shadow-lg border-2 border-gray-700 hover:border-blue-400 transition-all transform hover:scale-110 active:scale-95"
         >
-          <ArrowLeft className="w-5 h-5 text-white" />
+          <ArrowLeft className="w-4 h-4 md:w-5 md:h-5 text-white" />
+        </button>
+        <button
+          onClick={() => {
+            playSound('click');
+            setShowSettings(true);
+          }}
+          className="glass rounded-lg p-1.5 md:p-2 shadow-lg border-2 border-gray-700 hover:border-yellow-400 transition-all transform hover:scale-110 active:scale-95"
+          title="Game Settings"
+        >
+          <Settings className="w-4 h-4 md:w-5 md:h-5 text-yellow-300" />
         </button>
 
         {/* Room code display */}
         {gameId && (
-          <div className="glass rounded-lg px-3 py-2 flex items-center gap-2 border-2 border-yellow-400 border-opacity-30">
-            <span className="text-xs text-gray-400">Room:</span>
-            <code className="text-sm text-yellow-300 font-mono font-bold">{gameId}</code>
+          <div className="glass rounded-lg px-2 py-1.5 md:px-3 md:py-2 flex items-center gap-1 md:gap-2 border-2 border-yellow-400 border-opacity-30">
+            <span className="hidden md:inline text-xs text-gray-400">Room:</span>
+            <code className="text-xs md:text-sm text-yellow-300 font-mono font-bold truncate max-w-[120px] md:max-w-none">{gameId}</code>
             <button
               onClick={copyGameId}
               className="text-white hover:text-blue-400 transition-colors transform hover:scale-110 active:scale-95"
             >
-              {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+              {copied ? <Check className="w-3 h-3 md:w-4 md:h-4 text-green-400" /> : <Copy className="w-3 h-3 md:w-4 md:h-4" />}
             </button>
           </div>
         )}
@@ -553,54 +577,51 @@ export default function OnlineGame({ onBack }) {
 
       {/* Game History Modal */}
       {showHistory && (
-        <GameHistory 
+        <GameHistory
           onClose={() => setShowHistory(false)}
           playerName={gameState?.players.find(p => p.id === playerId)?.name}
         />
       )}
 
-      {/* Title */}
-      <div className="fixed top-2 left-1/2 transform -translate-x-1/2 z-10">
-        <h1 className="text-base md:text-3xl font-bold text-center flex items-center justify-center gap-2 glass px-3 md:px-6 py-2 rounded-lg shadow-2xl border-2 border-yellow-400 border-opacity-30">
-          <Rocket className="w-4 h-4 md:w-8 md:h-8 text-yellow-300 animate-float" />
-          <span className="hidden sm:inline text-yellow-300">
+      {/* Game Settings Modal */}
+      <GameSettings
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        difficulty={gameState?.difficulty || 'normal'}
+        onChangeDifficulty={(newDifficulty) => {
+          // TODO: Implement difficulty change for online game
+          console.log('Difficulty change requested:', newDifficulty);
+          setShowSettings(false);
+        }}
+      />
+
+      {/* Title - Hidden on small screens to save space */}
+      <div className="hidden md:fixed md:top-2 md:left-1/2 md:transform md:-translate-x-1/2 z-10">
+        <h1 className="text-3xl font-bold text-center flex items-center justify-center gap-2 glass px-6 py-2 rounded-lg shadow-2xl border-2 border-yellow-400 border-opacity-30">
+          <Rocket className="w-8 h-8 text-yellow-300 animate-float" />
+          <span className="text-yellow-300">
             Space Race to 100!
-          </span>
-          <span className="sm:hidden text-yellow-300">
-            Space Race!
           </span>
         </h1>
       </div>
 
-      {/* Player Panels */}
-      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 10 }}>
-        {gameState.players.map((player, index) => (
-          <div
-            key={player.id}
-            className={`fixed pointer-events-auto ${
-              index === 0 ? 'top-14 md:top-16 left-2 md:left-4' :
-              index === 1 ? 'top-14 md:top-16 right-2 md:right-4' :
-              index === 2 ? 'bottom-20 md:bottom-4 left-2 md:left-4' :
-              'bottom-20 md:bottom-4 right-2 md:right-4'
-            }`}
-          >
-            <PlayerPanel
-              player={player}
-              isCurrentPlayer={gameState.currentPlayerIndex === index}
-              onRollDice={isMyTurn ? handleRollDice : null}
-              isRolling={gameState.isRolling}
-              gameWon={gameState.gameWon}
-              isOnline={true}
-              isMyPlayer={player.id === playerId}
-              animatingPlayer={animatingPlayer}
-              animationType={animationType}
-            />
+      {/* Waiting for Players Message */}
+      {gameState.players.length < 2 && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-30 pointer-events-none">
+          <div className="glass rounded-lg px-4 py-2 border-2 border-gray-700 border-opacity-30">
+            <p className="text-white text-sm font-medium">Waiting for players...</p>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
-      {/* Game Controls */}
-      <div className="fixed bottom-2 md:bottom-4 left-1/2 transform -translate-x-1/2 z-10 w-[calc(100%-1rem)] md:w-96">
+      {/* Game Controls - responsive with safe bottom spacing */}
+      <div
+        className="fixed left-1/2 transform -translate-x-1/2 z-10 w-[min(280px,calc(100%-1rem))] md:w-96"
+        style={{
+          bottom: windowWidth < 640 ? '8px' : '16px', // Safe area for mobile
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)' // iOS safe area
+        }}
+      >
         <GameControls
           diceValue={gameState.diceValue}
           message={gameState.message}
@@ -610,51 +631,163 @@ export default function OnlineGame({ onBack }) {
         />
       </div>
 
-      {/* Game Board Container */}
+      {/* Player Panels - Fixed in screen corners with safe spacing */}
+      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 25 }}>
+        {/* Top panels */}
+        <div className="absolute top-14 left-0 right-0 px-2 flex justify-between gap-2">
+          {/* Player 2: Top-Left */}
+          {gameState.players[1] && (
+            <div className="pointer-events-auto">
+              {windowWidth >= 1024 ? (
+                <PlayerPanel
+                  player={gameState.players[1]}
+                  isCurrentPlayer={gameState.currentPlayerIndex === 1}
+                  onRollDice={gameState.currentPlayerIndex === 1 && gameState.players[1].id === playerId ? handleRollDice : null}
+                  isRolling={gameState.isRolling}
+                  gameWon={gameState.gameWon}
+                  isOnline={true}
+                  isMyPlayer={gameState.players[1].id === playerId}
+                  animatingPlayer={animatingPlayer}
+                  animationType={animationType}
+                />
+              ) : (
+                <CompactPlayerPanel
+                  player={gameState.players[1]}
+                  isCurrentPlayer={gameState.currentPlayerIndex === 1}
+                  isMyPlayer={gameState.players[1].id === playerId}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Player 1: Top-Right */}
+          {gameState.players[0] && (
+            <div className="pointer-events-auto ml-auto">
+              {windowWidth >= 1024 ? (
+                <PlayerPanel
+                  player={gameState.players[0]}
+                  isCurrentPlayer={gameState.currentPlayerIndex === 0}
+                  onRollDice={gameState.currentPlayerIndex === 0 && gameState.players[0].id === playerId ? handleRollDice : null}
+                  isRolling={gameState.isRolling}
+                  gameWon={gameState.gameWon}
+                  isOnline={true}
+                  isMyPlayer={gameState.players[0].id === playerId}
+                  animatingPlayer={animatingPlayer}
+                  animationType={animationType}
+                />
+              ) : (
+                <CompactPlayerPanel
+                  player={gameState.players[0]}
+                  isCurrentPlayer={gameState.currentPlayerIndex === 0}
+                  isMyPlayer={gameState.players[0].id === playerId}
+                />
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Bottom panels */}
+        <div className="absolute bottom-40 left-0 right-0 px-2 flex justify-between gap-2">
+          {/* Player 3: Bottom-Left */}
+          {gameState.players[2] && (
+            <div className="pointer-events-auto">
+              {windowWidth >= 1024 ? (
+                <PlayerPanel
+                  player={gameState.players[2]}
+                  isCurrentPlayer={gameState.currentPlayerIndex === 2}
+                  onRollDice={gameState.currentPlayerIndex === 2 && gameState.players[2].id === playerId ? handleRollDice : null}
+                  isRolling={gameState.isRolling}
+                  gameWon={gameState.gameWon}
+                  isOnline={true}
+                  isMyPlayer={gameState.players[2].id === playerId}
+                  animatingPlayer={animatingPlayer}
+                  animationType={animationType}
+                />
+              ) : (
+                <CompactPlayerPanel
+                  player={gameState.players[2]}
+                  isCurrentPlayer={gameState.currentPlayerIndex === 2}
+                  isMyPlayer={gameState.players[2].id === playerId}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Player 4: Bottom-Right */}
+          {gameState.players[3] && (
+            <div className="pointer-events-auto ml-auto">
+              {windowWidth >= 1024 ? (
+                <PlayerPanel
+                  player={gameState.players[3]}
+                  isCurrentPlayer={gameState.currentPlayerIndex === 3}
+                  onRollDice={gameState.currentPlayerIndex === 3 && gameState.players[3].id === playerId ? handleRollDice : null}
+                  isRolling={gameState.isRolling}
+                  gameWon={gameState.gameWon}
+                  isOnline={true}
+                  isMyPlayer={gameState.players[3].id === playerId}
+                  animatingPlayer={animatingPlayer}
+                  animationType={animationType}
+                />
+              ) : (
+                <CompactPlayerPanel
+                  player={gameState.players[3]}
+                  isCurrentPlayer={gameState.currentPlayerIndex === 3}
+                  isMyPlayer={gameState.players[3].id === playerId}
+                />
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Game Board Container - responsive with safe spacing */}
       <div
-        className="fixed"
+        className="fixed left-1/2 -translate-x-1/2 -translate-y-1/2"
         style={{
           top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
           zIndex: 5,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: '8px',
-          maxWidth: '600px',
-          maxHeight: '90vh'
+          gap: '4px',
+          maxWidth: '800px',
+          width: windowWidth < 640 ? 'min(85vw, 600px)' : 'min(90vw, 600px)',
+          maxHeight: windowWidth < 640 
+            ? 'calc(100vh - 280px)' // Mobile: account for controls and panels
+            : '90vh'
         }}
       >
+        {/* Board Content */}
+        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', width: '100%' }}>
         {/* Starting Area - Outside the square board */}
         {gameState.players.filter(p => p.position === 0).length > 0 && (
           <div
+            className="w-[min(75vw,600px)] md:w-[min(60vw,600px)] lg:w-[min(70vw,600px)] xl:w-[min(90vw,600px)]"
             style={{
-              width: 'min(90vw, 600px)',
-              minHeight: '60px',
-              backgroundColor: 'rgba(16, 185, 129, 0.2)',
-              border: '3px solid rgba(16, 185, 129, 0.6)',
+              minHeight: '45px',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              border: '2px solid rgba(16, 185, 129, 0.3)',
               borderRadius: '8px',
-              padding: '8px',
+              padding: '6px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '12px',
-              boxShadow: '0 0 20px rgba(16, 185, 129, 0.4), inset 0 0 20px rgba(0, 0, 0, 0.3)',
+              gap: '8px',
+              boxShadow: '0 0 10px rgba(16, 185, 129, 0.2), inset 0 0 15px rgba(0, 0, 0, 0.4)',
               position: 'relative'
             }}
           >
             <div style={{
               position: 'absolute',
-              top: '4px',
+              top: '3px',
               left: '8px',
-              fontSize: '10px',
+              fontSize: '9px',
               color: 'rgba(255, 255, 255, 0.7)',
               fontWeight: 'bold'
             }}>
               🚀 Starting Spaceport
             </div>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', marginTop: '16px' }}>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', marginTop: '12px' }}>
               {gameState.players.filter(p => p.position === 0).map(player => {
                 const isAnimating = animatingPlayer === player.id;
                 const animationClass = isAnimating && animationType ? `animate-rocket-${animationType}` : '';
@@ -678,13 +811,13 @@ export default function OnlineGame({ onBack }) {
                     <Rocket
                       className={`${player.color} ${animationClass}`}
                       style={{
-                        width: '24px',
-                        height: '24px',
+                        width: '20px',
+                        height: '20px',
                         filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 8px currentColor)',
                         animation: animationClass ? undefined : 'float 2s ease-in-out infinite'
                       }}
                     />
-                    <span style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.9)', fontWeight: 'bold' }}>
+                    <span style={{ fontSize: '9px', color: 'rgba(255, 255, 255, 0.9)', fontWeight: 'bold' }}>
                       {player.name}
                     </span>
                   </div>
@@ -696,9 +829,8 @@ export default function OnlineGame({ onBack }) {
 
         {/* Game Board - always square */}
         <div
+          className="w-[min(75vw,600px)] h-[min(75vw,600px)] md:w-[min(60vw,600px)] md:h-[min(60vw,600px)] lg:w-[min(70vw,600px)] lg:h-[min(70vw,600px)] xl:w-[min(90vw,600px)] xl:h-[min(90vw,600px)]"
           style={{
-            width: 'min(90vw, 600px)',
-            height: 'min(90vw, 600px)',
             maxWidth: '600px',
             maxHeight: '600px'
           }}
@@ -708,7 +840,10 @@ export default function OnlineGame({ onBack }) {
             animatingPlayer={animatingPlayer}
             animationType={animationType}
             alienBlink={alienBlink}
+            animatedPositions={animatedPositions}
+            encounterType={encounterType}
           />
+        </div>
         </div>
       </div>
     </div>

@@ -1,14 +1,25 @@
 import { useState, useEffect } from 'react';
-import { Rocket, Zap, Plus, Minus, ArrowLeft } from 'lucide-react';
+import { Rocket, Zap, Plus, Minus, ArrowLeft, Settings } from 'lucide-react';
 import GameBoard from './GameBoard';
 import PlayerPanel from './PlayerPanel';
+import CompactPlayerPanel from './CompactPlayerPanel';
 import GameControls from './GameControls';
 import ParticleEffects from './ParticleEffects';
+import GameSettings from './GameSettings';
 import { useGameLogic } from '../hooks/useGameLogic';
 import { useGameSounds } from '../hooks/useGameSounds';
 
-export default function LocalGame({ onBack }) {
+export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
   const { playSound } = useGameSounds();
+  const [showSettings, setShowSettings] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const {
     players,
     numPlayers,
@@ -21,11 +32,15 @@ export default function LocalGame({ onBack }) {
     animatingPlayer,
     animationType,
     alienBlink,
+    aliens,
+    checkpoints,
+    difficulty,
+    changeDifficulty,
     addPlayer,
     removePlayer,
     rollDice,
     resetGame
-  } = useGameLogic();
+  } = useGameLogic(initialDifficulty);
 
   return (
     <div
@@ -85,16 +100,36 @@ export default function LocalGame({ onBack }) {
         }
       `}</style>
 
-      {/* Back button - mobile friendly */}
-      <button
-        onClick={() => {
-          playSound('click');
-          onBack();
-        }}
-        className="fixed top-2 left-2 z-50 glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-blue-400 transition-all transform hover:scale-110 active:scale-95"
-      >
-        <ArrowLeft className="w-5 h-5 text-white" />
-      </button>
+      {/* Game Settings Modal */}
+      <GameSettings
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        difficulty={difficulty}
+        onChangeDifficulty={changeDifficulty}
+      />
+
+      {/* Back button and Settings button */}
+      <div className="fixed top-2 left-2 z-50 flex items-center gap-2">
+        <button
+          onClick={() => {
+            playSound('click');
+            onBack();
+          }}
+          className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-blue-400 transition-all transform hover:scale-110 active:scale-95"
+        >
+          <ArrowLeft className="w-5 h-5 text-white" />
+        </button>
+        <button
+          onClick={() => {
+            playSound('click');
+            setShowSettings(true);
+          }}
+          className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-yellow-400 transition-all transform hover:scale-110 active:scale-95"
+          title="Game Settings"
+        >
+          <Settings className="w-5 h-5 text-yellow-300" />
+        </button>
+      </div>
 
       {/* Title - responsive */}
       <div className="fixed top-2 left-1/2 transform -translate-x-1/2 z-10">
@@ -109,33 +144,15 @@ export default function LocalGame({ onBack }) {
         </h1>
       </div>
 
-      {/* Player Panels - responsive layout */}
-      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 10 }}>
-        {players.map((player, index) => (
-          <div
-            key={player.id}
-            className={`fixed pointer-events-auto ${
-              index === 0 ? 'top-16 md:top-4 left-2 md:left-4' :
-              index === 1 ? 'top-16 md:top-4 right-2 md:right-4' :
-              index === 2 ? 'bottom-20 md:bottom-4 left-2 md:left-4' :
-              'bottom-20 md:bottom-4 right-2 md:right-4'
-            }`}
-          >
-            <PlayerPanel
-              player={player}
-              isCurrentPlayer={currentPlayerIndex === index}
-              onRollDice={rollDice}
-              isRolling={isRolling}
-              gameWon={gameWon}
-              animatingPlayer={animatingPlayer}
-              animationType={animationType}
-            />
-          </div>
-        ))}
-      </div>
 
-      {/* Game Controls - responsive */}
-      <div className="fixed bottom-2 md:bottom-4 left-1/2 transform -translate-x-1/2 z-10 w-[calc(100%-1rem)] md:w-96">
+      {/* Game Controls - responsive with safe bottom spacing */}
+      <div
+        className="fixed left-1/2 transform -translate-x-1/2 z-10 w-[min(280px,calc(100%-1rem))] md:w-96"
+        style={{
+          bottom: windowWidth < 640 ? '8px' : '16px',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)' // iOS safe area
+        }}
+      >
         <GameControls
           diceValue={diceValue}
           message={message}
@@ -144,6 +161,103 @@ export default function LocalGame({ onBack }) {
           onRemovePlayer={removePlayer}
           numPlayers={numPlayers}
         />
+      </div>
+
+      {/* Player Panels - Fixed in screen corners with safe spacing */}
+      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 25 }}>
+        {/* Top panels */}
+        <div className="absolute top-14 left-0 right-0 px-2 flex justify-between gap-2">
+          {/* Player 2: Top-Left */}
+          {players[1] && (
+            <div className="pointer-events-auto">
+              {windowWidth >= 1024 ? (
+                <PlayerPanel
+                  player={players[1]}
+                  isCurrentPlayer={currentPlayerIndex === 1}
+                  onRollDice={currentPlayerIndex === 1 ? rollDice : null}
+                  isRolling={isRolling}
+                  gameWon={gameWon}
+                  isMyPlayer={false}
+                />
+              ) : (
+                <CompactPlayerPanel
+                  player={players[1]}
+                  isCurrentPlayer={currentPlayerIndex === 1}
+                  isMyPlayer={false}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Player 1: Top-Right */}
+          {players[0] && (
+            <div className="pointer-events-auto ml-auto">
+              {windowWidth >= 1024 ? (
+                <PlayerPanel
+                  player={players[0]}
+                  isCurrentPlayer={currentPlayerIndex === 0}
+                  onRollDice={currentPlayerIndex === 0 ? rollDice : null}
+                  isRolling={isRolling}
+                  gameWon={gameWon}
+                  isMyPlayer={false}
+                />
+              ) : (
+                <CompactPlayerPanel
+                  player={players[0]}
+                  isCurrentPlayer={currentPlayerIndex === 0}
+                  isMyPlayer={false}
+                />
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Bottom panels */}
+        <div className="absolute bottom-40 left-0 right-0 px-2 flex justify-between gap-2">
+          {/* Player 3: Bottom-Left */}
+          {players[2] && (
+            <div className="pointer-events-auto">
+              {windowWidth >= 1024 ? (
+                <PlayerPanel
+                  player={players[2]}
+                  isCurrentPlayer={currentPlayerIndex === 2}
+                  onRollDice={currentPlayerIndex === 2 ? rollDice : null}
+                  isRolling={isRolling}
+                  gameWon={gameWon}
+                  isMyPlayer={false}
+                />
+              ) : (
+                <CompactPlayerPanel
+                  player={players[2]}
+                  isCurrentPlayer={currentPlayerIndex === 2}
+                  isMyPlayer={false}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Player 4: Bottom-Right */}
+          {players[3] && (
+            <div className="pointer-events-auto ml-auto">
+              {windowWidth >= 1024 ? (
+                <PlayerPanel
+                  player={players[3]}
+                  isCurrentPlayer={currentPlayerIndex === 3}
+                  onRollDice={currentPlayerIndex === 3 ? rollDice : null}
+                  isRolling={isRolling}
+                  gameWon={gameWon}
+                  isMyPlayer={false}
+                />
+              ) : (
+                <CompactPlayerPanel
+                  player={players[3]}
+                  isCurrentPlayer={currentPlayerIndex === 3}
+                  isMyPlayer={false}
+                />
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Game Board Container - responsive */}
@@ -158,15 +272,18 @@ export default function LocalGame({ onBack }) {
           flexDirection: 'column',
           alignItems: 'center',
           gap: '8px',
-          maxWidth: '600px',
+          maxWidth: '800px',
+          width: '100vw',
           maxHeight: '90vh'
         }}
       >
+        {/* Board Content */}
+        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', width: '100%' }}>
         {/* Starting Area - Outside the square board */}
         {players.filter(p => p.position === 0).length > 0 && (
           <div
+            className="w-[min(90vw,600px)] md:w-[min(60vw,600px)] lg:w-[min(70vw,600px)] xl:w-[min(90vw,600px)]"
             style={{
-              width: 'min(90vw, 600px)',
               minHeight: '60px',
               backgroundColor: 'rgba(16, 185, 129, 0.2)',
               border: '3px solid rgba(16, 185, 129, 0.6)',
@@ -232,9 +349,8 @@ export default function LocalGame({ onBack }) {
 
         {/* Game Board - always square */}
         <div
+          className="w-[min(90vw,600px)] h-[min(90vw,600px)] md:w-[min(60vw,600px)] md:h-[min(60vw,600px)] lg:w-[min(70vw,600px)] lg:h-[min(70vw,600px)] xl:w-[min(90vw,600px)] xl:h-[min(90vw,600px)]"
           style={{
-            width: 'min(90vw, 600px)',
-            height: 'min(90vw, 600px)',
             maxWidth: '600px',
             maxHeight: '600px'
           }}
@@ -244,7 +360,10 @@ export default function LocalGame({ onBack }) {
             animatingPlayer={animatingPlayer}
             animationType={animationType}
             alienBlink={alienBlink}
+            aliens={aliens}
+            checkpoints={checkpoints}
           />
+        </div>
         </div>
       </div>
     </div>
