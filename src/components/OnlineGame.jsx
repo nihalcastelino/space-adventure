@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Rocket, Wifi, WifiOff, ArrowLeft, Copy, Check, Trophy, History, Pause, Play } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Rocket, Wifi, WifiOff, ArrowLeft, Copy, Check, Trophy, History, Pause, Play, Bell, BellOff } from 'lucide-react';
 import { useFirebaseGame } from '../hooks/useFirebaseGame';
 import GameBoard from './GameBoard';
 import PlayerPanel from './PlayerPanel';
@@ -8,11 +8,14 @@ import ParticleEffects from './ParticleEffects';
 import Leaderboard from './Leaderboard';
 import GameHistory from './GameHistory';
 import { useGameSounds } from '../hooks/useGameSounds';
+import { useNotifications } from '../hooks/useNotifications';
 
 const STORAGE_KEY = 'space-adventure-game';
 
 export default function OnlineGame({ onBack }) {
   const { playSound } = useGameSounds();
+  const { permission, isSupported, requestPermission, sendNotification } = useNotifications();
+  const previousTurnRef = useRef(null);
   const [playerName, setPlayerName] = useState('');
   const [showNameInput, setShowNameInput] = useState(true);
   const [showRoomInput, setShowRoomInput] = useState(false);
@@ -135,6 +138,26 @@ export default function OnlineGame({ onBack }) {
       localStorage.removeItem(STORAGE_KEY);
     }
   }, [gameState?.gameWon]);
+
+  // Send notification when it's player's turn
+  useEffect(() => {
+    if (!gameState || !playerId || gameState.gameWon || gameState.isPaused) return;
+
+    const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+    const isMyTurn = currentPlayer?.id === playerId;
+    const currentTurnId = currentPlayer?.id;
+
+    // Check if turn changed to this player
+    if (isMyTurn && previousTurnRef.current !== currentTurnId) {
+      sendNotification("It's Your Turn!", {
+        body: "Time to roll the dice in Space Race!",
+        icon: '/icon-192.png',
+        requireInteraction: false
+      });
+    }
+
+    previousTurnRef.current = currentTurnId;
+  }, [gameState, playerId, sendNotification]);
 
   const handleBack = () => {
     playSound('click');
@@ -435,6 +458,26 @@ export default function OnlineGame({ onBack }) {
                 title="Pause Game"
               >
                 <Pause className="w-5 h-5 text-orange-400" />
+              </button>
+            )}
+            {isSupported && permission !== 'granted' && (
+              <button
+                onClick={() => {
+                  playSound('click');
+                  requestPermission();
+                }}
+                className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-purple-400 transition-all transform hover:scale-110 active:scale-95"
+                title="Enable turn notifications"
+              >
+                <Bell className="w-5 h-5 text-purple-400" />
+              </button>
+            )}
+            {permission === 'granted' && (
+              <button
+                className="glass rounded-lg p-2 shadow-lg border-2 border-purple-400 border-opacity-50 cursor-default"
+                title="Notifications enabled"
+              >
+                <Bell className="w-5 h-5 text-purple-400" />
               </button>
             )}
           </div>
