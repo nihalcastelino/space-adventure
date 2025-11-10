@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { database } from '../lib/firebase';
-import { ref, set, onValue, update } from 'firebase/database';
+import { ref, set, onValue, update, get } from 'firebase/database';
 import { useGameSounds } from './useGameSounds';
 import { useGameHistory } from './useGameHistory';
 import { useLeaderboard } from './useLeaderboard';
+import { sanitizePlayerName, isValidPlayerName } from '../utils/sanitize';
 
 // Simple UUID generator
 function uuidv4() {
@@ -129,9 +130,14 @@ export function useFirebaseGame() {
   }, [gameState]);
 
   const createGame = async (playerName) => {
+    if (!isValidPlayerName(playerName)) {
+      throw new Error('Invalid player name');
+    }
+
+    const sanitizedName = sanitizePlayerName(playerName);
     const newGameId = uuidv4();
     const newPlayerId = uuidv4();
-    
+
     const playerColors = [
       'text-yellow-300',
       'text-blue-300',
@@ -144,7 +150,7 @@ export function useFirebaseGame() {
       id: newGameId,
       players: [{
         id: newPlayerId,
-        name: playerName,
+        name: sanitizedName,
         position: 0,
         lastCheckpoint: 0,
         color: playerColors[0],
@@ -158,130 +164,170 @@ export function useFirebaseGame() {
       winner: null,
       isPaused: false,
       pausedBy: null,
+      pausedAt: null,
       startedAt: Date.now(),
       totalMoves: 0,
-      message: `${playerName}'s turn! Press SPIN to start!`,
+      message: `${sanitizedName}'s turn! Press SPIN to start!`,
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
 
-    const gameRef = ref(database, `games/${newGameId}`);
-    await set(gameRef, game);
-    
+    const gameRefPath = ref(database, `games/${newGameId}`);
+    await set(gameRefPath, game);
+
     setGameId(newGameId);
     setPlayerId(newPlayerId);
     setGameState(game);
-    setConnected(true);
-    
+    moveCountRef.current = 0;
+
+    // Clean up existing listener if any
+    if (gameRef.current) {
+      gameRef.current();
+      gameRef.current = null;
+    }
+
     // Listen for changes - real-time sync
-    const unsubscribe = onValue(gameRef, (snapshot) => {
+    const unsubscribe = onValue(gameRefPath, (snapshot) => {
       const data = snapshot.val();
       if (data) {
         setGameState(data);
+        // Sync move count from server
+        if (data.totalMoves !== undefined) {
+          moveCountRef.current = data.totalMoves;
+        }
         setAnimatingPlayer(null);
         setAnimationType(null);
         setDiceRolling(false);
       }
     });
-    
+
     gameRef.current = unsubscribe;
+    setConnected(true);
 
     return newGameId;
   };
 
   const joinGame = async (gameIdToJoin, playerName) => {
-    return new Promise((resolve, reject) => {
-      const newPlayerId = uuidv4();
-      const gameRef = ref(database, `games/${gameIdToJoin}`);
-      
-      // First check if game exists
-      onValue(gameRef, async (snapshot) => {
-        const game = snapshot.val();
-        if (!game) {
-          reject(new Error('Game not found'));
-          return;
-        }
+    if (!isValidPlayerName(playerName)) {
+      throw new Error('Invalid player name');
+    }
 
-        if (game.players.length >= 4) {
-          reject(new Error('Game is full'));
-          return;
-        }
+    const sanitizedName = sanitizePlayerName(playerName);
+    const newPlayerId = uuidv4();
+    const gameRefPath = ref(database, `games/${gameIdToJoin}`);
 
-        const playerColors = [
-          'text-yellow-300',
-          'text-blue-300',
-          'text-green-300',
-          'text-pink-300'
-        ];
-        const playerCorners = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+    // Clean up existing listener if any
+    if (gameRef.current) {
+      gameRef.current();
+      gameRef.current = null;
+    }
 
-        const newPlayer = {
-          id: newPlayerId,
-          name: playerName,
-          position: 0,
-          lastCheckpoint: 0,
-          color: playerColors[game.players.length],
-          corner: playerCorners[game.players.length],
-          createdAt: Date.now()
-        };
-
-        const updatedPlayers = [...game.players, newPlayer];
-        const updates = {
-          players: updatedPlayers,
-          message: `${playerName} joined! ${game.players[0].name}'s turn!`,
-          updatedAt: Date.now()
-        };
-
-        try {
-          await update(gameRef, updates);
-          setGameId(gameIdToJoin);
-          setPlayerId(newPlayerId);
-          setConnected(true);
-          resolve();
-        } catch (err) {
-          reject(err);
-        }
-      }, { onlyOnce: true });
-
-      // Listen for changes - real-time sync across all devices
-      let previousState = null;
-      const unsubscribe = onValue(gameRef, (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-          // Detect state changes and play sounds
-          if (previousState) {
-            // Check for game won
-            if (data.gameWon && !previousState.gameWon) {
-              playSound('victory');
-            }
-            // Check for dice roll completion
-            if (data.diceValue && !previousState.diceValue && previousState.isRolling) {
-              playSound('rocket');
-            }
-            // Check for spaceport/alien/checkpoint in message
-            if (data.message !== previousState.message) {
-              if (data.message.includes('warped')) {
-                playSound('spaceport');
-              } else if (data.message.includes('eaten') || data.message.includes('encountered')) {
-                playSound('alien');
-              } else if (data.message.includes('checkpoint')) {
-                playSound('checkpoint');
-              } else if (data.message.includes("'s turn")) {
-                playSound('turn');
-              }
+    // Setup permanent listener first
+    let previousState = null;
+    const unsubscribe = onValue(gameRefPath, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        // Detect state changes and play sounds
+        if (previousState) {
+          if (data.gameWon && !previousState.gameWon) {
+            playSound('victory');
+          }
+          if (data.diceValue && !previousState.diceValue && previousState.isRolling) {
+            playSound('rocket');
+          }
+          if (data.message !== previousState.message) {
+            if (data.message.includes('warped')) {
+              playSound('spaceport');
+            } else if (data.message.includes('eaten') || data.message.includes('encountered')) {
+              playSound('alien');
+            } else if (data.message.includes('checkpoint')) {
+              playSound('checkpoint');
+            } else if (data.message.includes("'s turn")) {
+              playSound('turn');
             }
           }
-          previousState = data;
-          setGameState(data);
-          // Real-time position updates - all players see all positions
-          setAnimatingPlayer(null);
-          setAnimationType(null);
-          setDiceRolling(false);
         }
-      });
-      
-      gameRef.current = unsubscribe;
+        previousState = data;
+        setGameState(data);
+        // Sync move count from server
+        if (data.totalMoves !== undefined) {
+          moveCountRef.current = data.totalMoves;
+        }
+        setAnimatingPlayer(null);
+        setAnimationType(null);
+        setDiceRolling(false);
+      }
     });
+
+    gameRef.current = unsubscribe;
+
+    // Then validate and join
+    try {
+      const snapshot = await get(gameRefPath);
+      const game = snapshot.val();
+
+      if (!game) {
+        throw new Error('Game not found');
+      }
+
+      // Check if player is already in the game (reconnection case)
+      const existingPlayer = game.players.find(p => p.name === sanitizedName);
+
+      if (existingPlayer) {
+        // Reconnecting to existing player
+        setGameId(gameIdToJoin);
+        setPlayerId(existingPlayer.id);
+        setConnected(true);
+        moveCountRef.current = game.totalMoves || 0;
+        return gameIdToJoin;
+      }
+
+      // New player joining
+      if (game.players.length >= 4) {
+        throw new Error('Game is full (maximum 4 players)');
+      }
+
+      const playerColors = [
+        'text-yellow-300',
+        'text-blue-300',
+        'text-green-300',
+        'text-pink-300'
+      ];
+      const playerCorners = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+
+      const newPlayer = {
+        id: newPlayerId,
+        name: sanitizedName,
+        position: 0,
+        lastCheckpoint: 0,
+        color: playerColors[game.players.length],
+        corner: playerCorners[game.players.length],
+        createdAt: Date.now()
+      };
+
+      const updatedPlayers = [...game.players, newPlayer];
+      const updates = {
+        players: updatedPlayers,
+        message: `${sanitizedName} joined! ${game.players[0].name}'s turn!`,
+        updatedAt: Date.now()
+      };
+
+      await update(gameRefPath, updates);
+
+      setGameId(gameIdToJoin);
+      setPlayerId(newPlayerId);
+      setConnected(true);
+      moveCountRef.current = game.totalMoves || 0;
+
+      return gameIdToJoin;
+    } catch (err) {
+      // Cleanup listener on error
+      if (gameRef.current) {
+        gameRef.current();
+        gameRef.current = null;
+      }
+      throw err;
+    }
   };
 
   const handleRollDice = async () => {
@@ -429,17 +475,19 @@ export function useFirebaseGame() {
 
   const handleResetGame = async () => {
     if (!gameState) return;
-    
+
     playSound('click');
-    
-    const gameRef = ref(database, `games/${gameId}`);
+
+    const gameRefPath = ref(database, `games/${gameId}`);
     const updatedPlayers = gameState.players.map(p => ({
       ...p,
       position: 0,
       lastCheckpoint: 0
     }));
 
-    await update(gameRef, {
+    moveCountRef.current = 0;
+
+    await update(gameRefPath, {
       players: updatedPlayers,
       currentPlayerIndex: 0,
       diceValue: null,
@@ -447,6 +495,11 @@ export function useFirebaseGame() {
       gameWon: false,
       winner: null,
       isRolling: false,
+      isPaused: false,
+      pausedBy: null,
+      pausedAt: null,
+      totalMoves: 0,
+      startedAt: Date.now(),
       updatedAt: Date.now()
     });
   };

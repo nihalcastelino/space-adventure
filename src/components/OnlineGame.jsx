@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Rocket, Wifi, WifiOff, ArrowLeft, Copy, Check, Trophy, History, Pause, Play } from 'lucide-react';
 import { useFirebaseGame } from '../hooks/useFirebaseGame';
 import GameBoard from './GameBoard';
@@ -9,6 +9,8 @@ import Leaderboard from './Leaderboard';
 import GameHistory from './GameHistory';
 import { useGameSounds } from '../hooks/useGameSounds';
 
+const STORAGE_KEY = 'space-adventure-game';
+
 export default function OnlineGame({ onBack }) {
   const { playSound } = useGameSounds();
   const [playerName, setPlayerName] = useState('');
@@ -17,6 +19,7 @@ export default function OnlineGame({ onBack }) {
   const [roomCode, setRoomCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState(null);
+  const [isReconnecting, setIsReconnecting] = useState(false);
 
   const {
     gameState,
@@ -37,6 +40,48 @@ export default function OnlineGame({ onBack }) {
   
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [hasAttemptedReconnect, setHasAttemptedReconnect] = useState(false);
+
+  // Auto-reconnect on mount if game data exists in localStorage
+  useEffect(() => {
+    // Only try once
+    if (hasAttemptedReconnect) return;
+
+    const tryReconnect = async () => {
+      try {
+        const savedData = localStorage.getItem(STORAGE_KEY);
+        if (!savedData) {
+          setHasAttemptedReconnect(true);
+          return;
+        }
+
+        const { gameId: savedGameId, playerName: savedPlayerName } = JSON.parse(savedData);
+        if (!savedGameId || !savedPlayerName) {
+          setHasAttemptedReconnect(true);
+          return;
+        }
+
+        setIsReconnecting(true);
+        setPlayerName(savedPlayerName);
+
+        // Try to rejoin the game
+        await joinGame(savedGameId, savedPlayerName);
+        setShowNameInput(false);
+        setShowRoomInput(false);
+        setIsReconnecting(false);
+        setHasAttemptedReconnect(true);
+      } catch (err) {
+        // Reconnection failed - game might be deleted or invalid
+        console.log('Reconnection failed:', err.message);
+        localStorage.removeItem(STORAGE_KEY);
+        setIsReconnecting(false);
+        setShowNameInput(true);
+        setHasAttemptedReconnect(true);
+      }
+    };
+
+    tryReconnect();
+  }, [hasAttemptedReconnect, joinGame]);
 
   const handleCreateGame = async () => {
     if (!playerName.trim()) {
@@ -74,6 +119,29 @@ export default function OnlineGame({ onBack }) {
     }
   };
 
+  // Save game data to localStorage when connected
+  useEffect(() => {
+    if (gameId && playerId && playerName) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        gameId,
+        playerName
+      }));
+    }
+  }, [gameId, playerId, playerName]);
+
+  // Clear localStorage when game ends
+  useEffect(() => {
+    if (gameState?.gameWon) {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  }, [gameState?.gameWon]);
+
+  const handleBack = () => {
+    playSound('click');
+    localStorage.removeItem(STORAGE_KEY);
+    onBack();
+  };
+
   const copyGameId = () => {
     if (gameId) {
       playSound('click');
@@ -82,6 +150,27 @@ export default function OnlineGame({ onBack }) {
       setTimeout(() => setCopied(false), 2000);
     }
   };
+
+  // Reconnecting screen
+  if (isReconnecting) {
+    return (
+      <div
+        className="fixed inset-0 flex items-center justify-center"
+        style={{
+          backgroundImage: 'url(/space-bg.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundColor: '#000'
+        }}
+      >
+        <div className="text-center space-y-4">
+          <Wifi className="w-16 h-16 text-blue-400 mx-auto animate-pulse" />
+          <h2 className="text-2xl font-bold text-white">Reconnecting...</h2>
+          <p className="text-gray-400">Restoring your previous game</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!connected && !showNameInput && !showRoomInput) {
     return (
@@ -98,7 +187,7 @@ export default function OnlineGame({ onBack }) {
           <WifiOff className="w-16 h-16 text-red-400 mx-auto animate-pulse" />
           <h2 className="text-2xl font-bold text-white">Connecting...</h2>
           <button
-            onClick={onBack}
+            onClick={handleBack}
             className="mt-4 bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg"
           >
             Go Back
@@ -133,9 +222,14 @@ export default function OnlineGame({ onBack }) {
             placeholder="Your name"
             className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border-2 border-gray-700 focus:border-blue-400 focus:outline-none mb-4"
             onKeyPress={(e) => {
-              if (e.key === 'Enter' && playerName.trim()) {
-                setShowRoomInput(true);
-                setError(null);
+              if (e.key === 'Enter') {
+                if (playerName.trim()) {
+                  setShowNameInput(false);
+                  setShowRoomInput(true);
+                  setError(null);
+                } else {
+                  setError('Please enter your name');
+                }
               }
             }}
             autoFocus
@@ -143,9 +237,13 @@ export default function OnlineGame({ onBack }) {
           <div className="flex gap-2">
             <button
               onClick={() => {
+                playSound('click');
                 if (playerName.trim()) {
+                  setShowNameInput(false);
                   setShowRoomInput(true);
                   setError(null);
+                } else {
+                  setError('Please enter your name');
                 }
               }}
               className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-all"
@@ -153,7 +251,7 @@ export default function OnlineGame({ onBack }) {
               Continue
             </button>
             <button
-              onClick={onBack}
+              onClick={handleBack}
               className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg"
             >
               Back
@@ -291,96 +389,98 @@ export default function OnlineGame({ onBack }) {
         }
       `}</style>
 
-      {/* Connection status */}
-      <div className={`fixed top-2 right-2 z-50 flex items-center gap-2 glass rounded-lg px-3 py-2 border-2 ${
-        connected ? 'border-green-400 border-opacity-50' : 'border-red-400 border-opacity-50'
-      }`}>
-        {connected ? (
-          <>
-            <Wifi className="w-4 h-4 text-green-400 animate-pulse" />
-            <span className="text-xs text-white">Connected</span>
-          </>
-        ) : (
-          <>
-            <WifiOff className="w-4 h-4 text-red-400 animate-pulse" />
-            <span className="text-xs text-white">Disconnected</span>
-          </>
+      {/* Connection status and game controls */}
+      <div className="fixed top-2 right-2 z-50 flex items-center gap-2">
+        {/* Game controls menu */}
+        {connected && gameState && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                playSound('click');
+                setShowLeaderboard(true);
+              }}
+              className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-yellow-400 transition-all transform hover:scale-110 active:scale-95"
+              title="Leaderboard"
+            >
+              <Trophy className="w-5 h-5 text-yellow-400" />
+            </button>
+            <button
+              onClick={() => {
+                playSound('click');
+                setShowHistory(true);
+              }}
+              className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-blue-400 transition-all transform hover:scale-110 active:scale-95"
+              title="Game History"
+            >
+              <History className="w-5 h-5 text-blue-400" />
+            </button>
+            {gameState.isPaused ? (
+              <button
+                onClick={() => {
+                  playSound('click');
+                  handleResumeGame();
+                }}
+                className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-green-400 transition-all transform hover:scale-110 active:scale-95"
+                title="Resume Game"
+              >
+                <Play className="w-5 h-5 text-green-400" />
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  playSound('click');
+                  handlePauseGame();
+                }}
+                className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-orange-400 transition-all transform hover:scale-110 active:scale-95"
+                title="Pause Game"
+              >
+                <Pause className="w-5 h-5 text-orange-400" />
+              </button>
+            )}
+          </div>
         )}
-      </div>
 
-      {/* Back button */}
-      <button
-        onClick={() => {
-          playSound('click');
-          onBack();
-        }}
-        className="fixed top-2 left-2 z-50 glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-blue-400 transition-all transform hover:scale-110 active:scale-95"
-      >
-        <ArrowLeft className="w-5 h-5 text-white" />
-      </button>
-
-      {/* Room code display */}
-      {gameId && (
-        <div className="fixed top-2 left-1/2 transform -translate-x-1/2 z-50 glass rounded-lg px-4 py-2 flex items-center gap-2 border-2 border-yellow-400 border-opacity-30">
-          <span className="text-xs text-gray-400">Room:</span>
-          <code className="text-sm text-yellow-300 font-mono font-bold">{gameId}</code>
-          <button
-            onClick={copyGameId}
-            className="text-white hover:text-blue-400 transition-colors transform hover:scale-110 active:scale-95"
-          >
-            {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
-          </button>
-        </div>
-      )}
-
-      {/* Game controls menu - positioned above GameControls */}
-      {connected && gameState && (
-        <div className="fixed bottom-24 md:bottom-28 left-1/2 transform -translate-x-1/2 z-50 flex gap-2">
-          <button
-            onClick={() => {
-              playSound('click');
-              setShowLeaderboard(true);
-            }}
-            className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-yellow-400 transition-all transform hover:scale-110 active:scale-95"
-            title="Leaderboard"
-          >
-            <Trophy className="w-5 h-5 text-yellow-400" />
-          </button>
-          <button
-            onClick={() => {
-              playSound('click');
-              setShowHistory(true);
-            }}
-            className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-blue-400 transition-all transform hover:scale-110 active:scale-95"
-            title="Game History"
-          >
-            <History className="w-5 h-5 text-blue-400" />
-          </button>
-          {gameState.isPaused ? (
-            <button
-              onClick={() => {
-                playSound('click');
-                handleResumeGame();
-              }}
-              className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-green-400 transition-all transform hover:scale-110 active:scale-95"
-              title="Resume Game"
-            >
-              <Play className="w-5 h-5 text-green-400" />
-            </button>
+        {/* Connection status */}
+        <div className={`flex items-center gap-2 glass rounded-lg px-3 py-2 border-2 ${
+          connected ? 'border-green-400 border-opacity-50' : 'border-red-400 border-opacity-50'
+        }`}>
+          {connected ? (
+            <>
+              <Wifi className="w-4 h-4 text-green-400 animate-pulse" />
+              <span className="text-xs text-white">Connected</span>
+            </>
           ) : (
-            <button
-              onClick={() => {
-                playSound('click');
-                handlePauseGame();
-              }}
-              className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-orange-400 transition-all transform hover:scale-110 active:scale-95"
-              title="Pause Game"
-            >
-              <Pause className="w-5 h-5 text-orange-400" />
-            </button>
+            <>
+              <WifiOff className="w-4 h-4 text-red-400 animate-pulse" />
+              <span className="text-xs text-white">Disconnected</span>
+            </>
           )}
         </div>
-      )}
+      </div>
+
+      {/* Back button and room code */}
+      <div className="fixed top-2 left-2 z-50 flex items-center gap-2">
+        <button
+          onClick={handleBack}
+          className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-blue-400 transition-all transform hover:scale-110 active:scale-95"
+        >
+          <ArrowLeft className="w-5 h-5 text-white" />
+        </button>
+
+        {/* Room code display */}
+        {gameId && (
+          <div className="glass rounded-lg px-3 py-2 flex items-center gap-2 border-2 border-yellow-400 border-opacity-30">
+            <span className="text-xs text-gray-400">Room:</span>
+            <code className="text-sm text-yellow-300 font-mono font-bold">{gameId}</code>
+            <button
+              onClick={copyGameId}
+              className="text-white hover:text-blue-400 transition-colors transform hover:scale-110 active:scale-95"
+            >
+              {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Pause overlay */}
       {gameState?.isPaused && (
@@ -417,9 +517,9 @@ export default function OnlineGame({ onBack }) {
       )}
 
       {/* Title */}
-      <div className="fixed top-14 md:top-2 left-1/2 transform -translate-x-1/2 z-10">
-        <h1 className="text-xl md:text-3xl font-bold text-center flex items-center justify-center gap-2 glass px-4 md:px-6 py-2 rounded-lg shadow-2xl border-2 border-yellow-400 border-opacity-30">
-          <Rocket className="w-5 h-5 md:w-8 md:h-8 text-yellow-300 animate-float" />
+      <div className="fixed top-2 left-1/2 transform -translate-x-1/2 z-10">
+        <h1 className="text-base md:text-3xl font-bold text-center flex items-center justify-center gap-2 glass px-3 md:px-6 py-2 rounded-lg shadow-2xl border-2 border-yellow-400 border-opacity-30">
+          <Rocket className="w-4 h-4 md:w-8 md:h-8 text-yellow-300 animate-float" />
           <span className="hidden sm:inline text-yellow-300">
             Space Race to 100!
           </span>
@@ -435,8 +535,8 @@ export default function OnlineGame({ onBack }) {
           <div
             key={player.id}
             className={`fixed pointer-events-auto ${
-              index === 0 ? 'top-20 md:top-4 left-2 md:left-4' :
-              index === 1 ? 'top-20 md:top-4 right-2 md:right-4' :
+              index === 0 ? 'top-14 md:top-16 left-2 md:left-4' :
+              index === 1 ? 'top-14 md:top-16 right-2 md:right-4' :
               index === 2 ? 'bottom-20 md:bottom-4 left-2 md:left-4' :
               'bottom-20 md:bottom-4 right-2 md:right-4'
             }`}

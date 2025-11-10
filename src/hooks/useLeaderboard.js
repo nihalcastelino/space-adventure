@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { database } from '../lib/firebase';
 import { ref, set, onValue, query, orderByChild, limitToLast, get, push } from 'firebase/database';
+import { sanitizePlayerName } from '../utils/sanitize';
 
 export function useLeaderboard() {
   const [leaderboard, setLeaderboard] = useState([]);
@@ -16,12 +17,12 @@ export function useLeaderboard() {
         const entries = Object.entries(data)
           .map(([id, entry]) => ({ id, ...entry }))
           .sort((a, b) => {
-            // Sort by wins (desc), then by win rate, then by games played
+            // Sort by wins (desc), then by win rate, then by total games
             if (b.wins !== a.wins) return b.wins - a.wins;
-            const aRate = a.gamesPlayed > 0 ? a.wins / a.gamesPlayed : 0;
-            const bRate = b.gamesPlayed > 0 ? b.wins / b.gamesPlayed : 0;
+            const aRate = a.totalGames > 0 ? a.wins / a.totalGames : 0;
+            const bRate = b.totalGames > 0 ? b.wins / b.totalGames : 0;
             if (bRate !== aRate) return bRate - aRate;
-            return b.gamesPlayed - a.gamesPlayed;
+            return b.totalGames - a.totalGames;
           });
         setLeaderboard(entries);
       } else {
@@ -37,16 +38,15 @@ export function useLeaderboard() {
 
   // Record a win
   const recordWin = async (playerName, gameId, gameDuration) => {
-    const leaderboardRef = ref(database, 'leaderboard');
-    const playerKey = playerName.toLowerCase().replace(/\s+/g, '_');
+    const sanitizedName = sanitizePlayerName(playerName);
+    const playerKey = sanitizedName.toLowerCase().replace(/\s+/g, '_');
     const playerRef = ref(database, `leaderboard/${playerKey}`);
 
     try {
       const snapshot = await get(playerRef);
       const currentData = snapshot.val() || {
-        name: playerName,
+        name: sanitizedName,
         wins: 0,
-        gamesPlayed: 0,
         totalGames: 0,
         lastWin: null,
         bestTime: null
@@ -54,13 +54,12 @@ export function useLeaderboard() {
 
       const updatedData = {
         ...currentData,
-        name: playerName,
+        name: sanitizedName,
         wins: currentData.wins + 1,
-        gamesPlayed: currentData.gamesPlayed + 1,
         totalGames: currentData.totalGames + 1,
         lastWin: Date.now(),
-        bestTime: currentData.bestTime 
-          ? Math.min(currentData.bestTime, gameDuration) 
+        bestTime: currentData.bestTime
+          ? Math.min(currentData.bestTime, gameDuration)
           : gameDuration
       };
 
@@ -74,21 +73,21 @@ export function useLeaderboard() {
 
   // Record a game (for players who didn't win)
   const recordGame = async (playerName) => {
-    const playerKey = playerName.toLowerCase().replace(/\s+/g, '_');
+    const sanitizedName = sanitizePlayerName(playerName);
+    const playerKey = sanitizedName.toLowerCase().replace(/\s+/g, '_');
     const playerRef = ref(database, `leaderboard/${playerKey}`);
 
     try {
       const snapshot = await get(playerRef);
       const currentData = snapshot.val() || {
-        name: playerName,
+        name: sanitizedName,
         wins: 0,
-        gamesPlayed: 0,
         totalGames: 0
       };
 
       const updatedData = {
         ...currentData,
-        name: playerName,
+        name: sanitizedName,
         totalGames: currentData.totalGames + 1
       };
 

@@ -11,8 +11,8 @@ export default function Leaderboard({ onClose }) {
       .slice(0, 10)
       .map((entry, index) => {
         const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
-        const winRate = entry.gamesPlayed > 0 
-          ? ((entry.wins / entry.gamesPlayed) * 100).toFixed(1) 
+        const winRate = entry.totalGames > 0
+          ? ((entry.wins / entry.totalGames) * 100).toFixed(1)
           : '0.0';
         return `${medal} ${entry.name} - ${entry.wins} wins (${winRate}% win rate)`;
       })
@@ -42,8 +42,8 @@ export default function Leaderboard({ onClose }) {
       .slice(0, 10)
       .map((entry, index) => {
         const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
-        const winRate = entry.gamesPlayed > 0 
-          ? ((entry.wins / entry.gamesPlayed) * 100).toFixed(1) 
+        const winRate = entry.totalGames > 0
+          ? ((entry.wins / entry.totalGames) * 100).toFixed(1)
           : '0.0';
         return `${medal} ${entry.name} - ${entry.wins} wins (${winRate}% win rate)`;
       })
