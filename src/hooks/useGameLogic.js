@@ -3,6 +3,7 @@ import { useGameSounds } from './useGameSounds';
 import { useDifficulty } from './useDifficulty';
 import { useJeopardyMechanics } from './useJeopardyMechanics';
 import { usePlayerAssistance } from './usePlayerAssistance';
+import { useRoguePlayer } from './useRoguePlayer';
 
 const BOARD_SIZE = 100;
 const SPACEPORTS = {
@@ -28,6 +29,9 @@ export function useGameLogic(initialDifficulty = 'normal') {
 
   // Initialize player assistance system
   const assistance = usePlayerAssistance();
+
+  // Initialize rogue player system
+  const rogue = useRoguePlayer(true);
 
   const playerColors = [
     'text-yellow-300',
@@ -59,6 +63,8 @@ export function useGameLogic(initialDifficulty = 'normal') {
   const [animationType, setAnimationType] = useState(null);
   const [alienBlink, setAlienBlink] = useState({});
   const [difficultyEvents, setDifficultyEvents] = useState({ spawnedAlien: null, removedCheckpoint: null });
+  const [turnCount, setTurnCount] = useState(0);
+  const [lastRogueSpawnTurn, setLastRogueSpawnTurn] = useState(-20); // Start negative so first spawn happens early
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -262,6 +268,37 @@ export function useGameLogic(initialDifficulty = 'normal') {
 
     // Pause to show landing
     await new Promise(resolve => setTimeout(resolve, 600));
+
+    // Check for rogue encounter (direct hit or pass-through)
+    const rogueEncounter = rogue.checkRogueEncounter(startPos, newPosition, currentPlayer.id);
+    
+    if (rogueEncounter && rogueEncounter.knocked) {
+      setMessage(rogueEncounter.message);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      playSound('alien');
+      setAnimationType('eaten');
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Calculate knockback position
+      const knockbackPosition = Math.max(0, newPosition - rogueEncounter.knockbackDistance);
+      const checkpoint = getLastCheckpoint(knockbackPosition);
+      
+      updatedPlayers[currentPlayerIndex].position = Math.max(checkpoint, knockbackPosition);
+      updatedPlayers[currentPlayerIndex].lastCheckpoint = checkpoint;
+      setPlayers(updatedPlayers);
+
+      setMessage(`↩️ ${currentPlayer.name} knocked back to position ${updatedPlayers[currentPlayerIndex].position}!`);
+      
+      setAnimationType('landing');
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      setAnimationType(null);
+      setAnimatingPlayer(null);
+
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      nextPlayer();
+      return;
+    }
 
     // Check for hazard collisions
     const hazardResult = jeopardy.checkHazardCollision(currentPlayer.id, newPosition);
@@ -492,6 +529,10 @@ export function useGameLogic(initialDifficulty = 'normal') {
   const nextPlayer = () => {
     const nextIndex = (currentPlayerIndex + 1) % players.length;
     setCurrentPlayerIndex(nextIndex);
+    
+    // Increment turn counter
+    const newTurnCount = turnCount + 1;
+    setTurnCount(newTurnCount);
 
     // Advance jeopardy turn (spawns hazards, updates timers)
     jeopardy.nextTurn();
@@ -501,13 +542,51 @@ export function useGameLogic(initialDifficulty = 'normal') {
     const events = processTurnEvents(playerPositions);
     setDifficultyEvents(events);
 
+    // Rogue player logic
+    let rogueSpawnMessage = null;
+    
+    // Check if rogue should despawn
+    if (rogue.rogueState.active && rogue.shouldDespawn()) {
+      rogue.despawnRogue();
+    }
+    
+    // Check if any player reached position 90+ (despawn rogue)
+    if (rogue.rogueState.active && playerPositions.some(pos => pos >= 90)) {
+      rogue.despawnRogue();
+    }
+    
+    // Move rogue if active (after despawn checks)
+    if (rogue.rogueState.active) {
+      rogue.moveRogue(playerPositions);
+    }
+    
+    // Check if rogue should spawn (every 10-15 turns, but not if already active)
+    if (!rogue.rogueState.active) {
+      const turnsSinceLastSpawn = newTurnCount - lastRogueSpawnTurn;
+      const shouldSpawn = turnsSinceLastSpawn >= 10 && (Math.random() < 0.3 || turnsSinceLastSpawn >= 15);
+      
+      if (shouldSpawn) {
+        rogue.spawnRogue(playerPositions);
+        // State update is async, so we'll check in next render cycle
+        setTimeout(() => {
+          if (rogue.rogueState.active) {
+            setLastRogueSpawnTurn(newTurnCount);
+          }
+        }, 0);
+        rogueSpawnMessage = `👽 Rogue Alien has appeared!`;
+        playSound('alien');
+      }
+    }
+
     // Check if next player is in jail
     const nextPlayerJailState = jeopardy.getJailState(players[nextIndex].id);
 
     // Show difficulty event messages
     let turnMessage = `${players[nextIndex].name}'s turn! Press SPIN to roll!`;
 
-    if (nextPlayerJailState.inJail) {
+    if (rogueSpawnMessage) {
+      turnMessage = `${rogueSpawnMessage} ${players[nextIndex].name}'s turn!`;
+    } else if (nextPlayerJailState.inJail) {
       turnMessage = `🚔 ${players[nextIndex].name} is in jail! Roll for doubles or wait ${nextPlayerJailState.turnsRemaining} turn${nextPlayerJailState.turnsRemaining > 1 ? 's' : ''}!`;
     } else if (events.spawnedAlien) {
       turnMessage = `⚠️ New alien spawned at position ${events.spawnedAlien}! ${players[nextIndex].name}'s turn!`;
@@ -515,7 +594,7 @@ export function useGameLogic(initialDifficulty = 'normal') {
     }
     if (events.removedCheckpoint) {
       turnMessage = `💀 Checkpoint ${events.removedCheckpoint} disappeared! ${players[nextIndex].name}'s turn!`;
-      if (!events.spawnedAlien) playSound('alien'); // Only play if not already played
+      if (!events.spawnedAlien && !rogueSpawnMessage) playSound('alien'); // Only play if not already played
     }
 
     setMessage(turnMessage);
@@ -540,9 +619,12 @@ export function useGameLogic(initialDifficulty = 'normal') {
     setAnimatingPlayer(null);
     setAnimationType(null);
     setDifficultyEvents({ spawnedAlien: null, removedCheckpoint: null });
+    setTurnCount(0);
+    setLastRogueSpawnTurn(-20);
     resetDifficulty(); // Reset difficulty state
     jeopardy.resetHazards(); // Reset jeopardy hazards
     assistance.resetAll(); // Reset assistance state
+    rogue.resetRogue(); // Reset rogue state
   };
 
   return {
@@ -574,7 +656,9 @@ export function useGameLogic(initialDifficulty = 'normal') {
     jailStates: jeopardy.getJailState, // Function to get jail state for any player
     payBail: jeopardy.payBail,
     // Player assistance
-    assistanceStatus: assistance.getAssistanceStatus
+    assistanceStatus: assistance.getAssistanceStatus,
+    // Rogue player
+    rogueState: rogue.rogueState
   };
 }
 

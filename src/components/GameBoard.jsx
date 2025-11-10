@@ -20,7 +20,8 @@ export default function GameBoard({
   encounterType = null,
   aliens = DEFAULT_ALIENS,
   checkpoints = DEFAULT_CHECKPOINTS,
-  hazards = null // Jeopardy mechanics hazards
+  hazards = null, // Jeopardy mechanics hazards
+  rogueState = null // Rogue player state
 }) {
   const ALIENS = aliens;
   const CHECKPOINTS = checkpoints;
@@ -122,6 +123,7 @@ export default function GameBoard({
         const isCheckpoint = CHECKPOINTS.includes(cellNumber);
         const isFinish = cellNumber === BOARD_SIZE;
         const hazard = getHazardAtCell(cellNumber);
+        const isRogue = rogueState && rogueState.active && rogueState.position === cellNumber;
 
         // Check if this cell has encounter effect
         const hasSpaceportEffect = encounterType === 'spaceport' && playersHere.some(p => p.id === animatingPlayer);
@@ -195,7 +197,7 @@ export default function GameBoard({
             )}
 
             {/* Alien */}
-            {isAlien && (
+            {isAlien && !isRogue && (
               <div style={{
                 position: 'absolute',
                 top: '50%',
@@ -210,8 +212,25 @@ export default function GameBoard({
               </div>
             )}
 
+            {/* Rogue Alien */}
+            {isRogue && (
+              <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                fontSize: '36px',
+                zIndex: 6,
+                filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 15px rgba(168, 85, 247, 0.9)) drop-shadow(0 0 25px rgba(34, 197, 94, 0.6)) contrast(1.4) saturate(1.5)',
+                animation: 'pulse 1.5s ease-in-out infinite',
+                textShadow: '0 0 20px rgba(168, 85, 247, 0.8), 0 0 30px rgba(34, 197, 94, 0.6)'
+              }}>
+                👽
+              </div>
+            )}
+
             {/* Checkpoint */}
-            {isCheckpoint && !isSpaceport && !isAlien && (
+            {isCheckpoint && !isSpaceport && !isAlien && !isRogue && (
               <div style={{
                 position: 'absolute',
                 top: '50%',

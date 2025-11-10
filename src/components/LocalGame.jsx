@@ -9,10 +9,11 @@ import GameSettings from './GameSettings';
 import SpaceJail from './SpaceJail';
 import { useGameLogic } from '../hooks/useGameLogic';
 import { useGameSounds } from '../hooks/useGameSounds';
-import { useProgression } from '../hooks/useProgression';
-import { useCurrency } from '../hooks/useCurrency';
-import { ProgressBar } from './ProgressionUI';
-import { CoinDisplay } from './PowerUpUI';
+// Optional imports - comment out if files don't exist in build
+// import { useProgression } from '../hooks/useProgression';
+// import { useCurrency } from '../hooks/useCurrency';
+// import { ProgressBar } from './ProgressionUI';
+// import { CoinDisplay } from './PowerUpUI';
 
 export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
   const { playSound } = useGameSounds();
@@ -25,9 +26,18 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Initialize progression and currency systems
-  const progression = useProgression();
-  const currency = useCurrency();
+  // Initialize progression and currency systems (optional - commented out for build)
+  // const progression = useProgression();
+  // const currency = useCurrency();
+  
+  // Stub objects to prevent errors (used by SpaceJail component)
+  const progression = { level: 1, xp: 0, getProgressToNextLevel: () => 0 };
+  const currency = { 
+    coins: 0, 
+    removeCoins: () => {}, 
+    earnCoins: () => {},
+    earnGameReward: () => 0
+  };
 
   const {
     players,
@@ -52,7 +62,8 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
     changePlayerIcon,
     hazards,
     jailStates,
-    payBail
+    payBail,
+    rogueState
   } = useGameLogic(initialDifficulty);
 
   return (
@@ -157,9 +168,8 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
         </h1>
       </div>
 
-      {/* HUD Overlay - Progress & Coins */}
-      <div className="fixed top-16 left-2 right-2 z-20 flex items-start justify-between pointer-events-none">
-        {/* Left: Progress Bar */}
+      {/* HUD Overlay - Progress & Coins (commented out for build - uncomment when hooks are committed) */}
+      {/* <div className="fixed top-16 left-2 right-2 z-20 flex items-start justify-between pointer-events-none">
         <div className="pointer-events-auto w-64 hidden md:block">
           <ProgressBar
             level={progression.level}
@@ -167,12 +177,10 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
             getProgressToNextLevel={progression.getProgressToNextLevel}
           />
         </div>
-
-        {/* Right: Coins */}
         <div className="pointer-events-auto ml-auto">
           <CoinDisplay coins={currency.coins} />
         </div>
-      </div>
+      </div> */}
 
       {/* Game Controls - responsive with safe bottom spacing */}
       <div
@@ -412,6 +420,7 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
             animationType={animationType}
             alienBlink={alienBlink}
             aliens={aliens}
+            rogueState={rogueState}
             checkpoints={checkpoints}
             hazards={hazards}
           />
