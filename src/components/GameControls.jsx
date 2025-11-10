@@ -51,6 +51,11 @@ export default function GameControls({ diceValue, message, onReset, onAddPlayer,
           <p className="text-white font-medium text-xs md:text-sm text-center animate-shimmer">
             {message}
           </p>
+          {isOnline && message?.includes('paused') && (
+            <p className="text-orange-300 text-xs text-center mt-1 animate-pulse">
+              ⏸ Game is paused
+            </p>
+          )}
         </div>
 
         <div className="flex gap-2">

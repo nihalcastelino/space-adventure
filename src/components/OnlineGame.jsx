@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Rocket, Wifi, WifiOff, ArrowLeft, Copy, Check } from 'lucide-react';
+import { Rocket, Wifi, WifiOff, ArrowLeft, Copy, Check, Trophy, History, Pause, Play } from 'lucide-react';
 import { useFirebaseGame } from '../hooks/useFirebaseGame';
 import GameBoard from './GameBoard';
 import PlayerPanel from './PlayerPanel';
 import GameControls from './GameControls';
 import ParticleEffects from './ParticleEffects';
+import Leaderboard from './Leaderboard';
+import GameHistory from './GameHistory';
 import { useGameSounds } from '../hooks/useGameSounds';
 
 export default function OnlineGame({ onBack }) {
@@ -28,8 +30,13 @@ export default function OnlineGame({ onBack }) {
     createGame,
     joinGame,
     handleRollDice,
-    handleResetGame
+    handleResetGame,
+    handlePauseGame,
+    handleResumeGame
   } = useFirebaseGame();
+  
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const handleCreateGame = async () => {
     if (!playerName.trim()) {
@@ -324,6 +331,89 @@ export default function OnlineGame({ onBack }) {
             {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
           </button>
         </div>
+      )}
+
+      {/* Game controls menu - positioned above GameControls */}
+      {connected && gameState && (
+        <div className="fixed bottom-24 md:bottom-28 left-1/2 transform -translate-x-1/2 z-50 flex gap-2">
+          <button
+            onClick={() => {
+              playSound('click');
+              setShowLeaderboard(true);
+            }}
+            className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-yellow-400 transition-all transform hover:scale-110 active:scale-95"
+            title="Leaderboard"
+          >
+            <Trophy className="w-5 h-5 text-yellow-400" />
+          </button>
+          <button
+            onClick={() => {
+              playSound('click');
+              setShowHistory(true);
+            }}
+            className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-blue-400 transition-all transform hover:scale-110 active:scale-95"
+            title="Game History"
+          >
+            <History className="w-5 h-5 text-blue-400" />
+          </button>
+          {gameState.isPaused ? (
+            <button
+              onClick={() => {
+                playSound('click');
+                handleResumeGame();
+              }}
+              className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-green-400 transition-all transform hover:scale-110 active:scale-95"
+              title="Resume Game"
+            >
+              <Play className="w-5 h-5 text-green-400" />
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                playSound('click');
+                handlePauseGame();
+              }}
+              className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-orange-400 transition-all transform hover:scale-110 active:scale-95"
+              title="Pause Game"
+            >
+              <Pause className="w-5 h-5 text-orange-400" />
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Pause overlay */}
+      {gameState?.isPaused && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-40">
+          <div className="glass rounded-lg p-8 text-center border-2 border-orange-400">
+            <Pause className="w-16 h-16 text-orange-400 mx-auto mb-4 animate-pulse" />
+            <h2 className="text-3xl font-bold text-white mb-2">Game Paused</h2>
+            <p className="text-gray-300 mb-4">
+              Paused by {gameState.pausedBy}
+            </p>
+            {gameState.players.find(p => p.id === playerId)?.name === gameState.pausedBy && (
+              <button
+                onClick={handleResumeGame}
+                className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg transition-all transform hover:scale-105"
+              >
+                Resume Game
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Leaderboard Modal */}
+      {showLeaderboard && (
+        <Leaderboard onClose={() => setShowLeaderboard(false)} />
+      )}
+
+      {/* Game History Modal */}
+      {showHistory && (
+        <GameHistory 
+          onClose={() => setShowHistory(false)}
+          playerName={gameState?.players.find(p => p.id === playerId)?.name}
+        />
       )}
 
       {/* Title */}

@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { database } from '../lib/firebase';
 import { ref, set, onValue, update } from 'firebase/database';
 import { useGameSounds } from './useGameSounds';
+import { useGameHistory } from './useGameHistory';
+import { useLeaderboard } from './useLeaderboard';
 
 // Simple UUID generator
 function uuidv4() {
@@ -100,6 +102,8 @@ function processMove(game, player, steps) {
 
 export function useFirebaseGame() {
   const { playSound } = useGameSounds();
+  const { saveGameHistory } = useGameHistory();
+  const { recordWin, recordGame } = useLeaderboard();
   const [gameState, setGameState] = useState(null);
   const [gameId, setGameId] = useState(null);
   const [playerId, setPlayerId] = useState(null);
@@ -109,6 +113,7 @@ export function useFirebaseGame() {
   const [alienBlink, setAlienBlink] = useState({});
   const [diceRolling, setDiceRolling] = useState(false);
   const gameRef = useRef(null);
+  const moveCountRef = useRef(0);
 
   // Animate aliens
   useEffect(() => {
@@ -151,6 +156,10 @@ export function useFirebaseGame() {
       isRolling: false,
       gameWon: false,
       winner: null,
+      isPaused: false,
+      pausedBy: null,
+      startedAt: Date.now(),
+      totalMoves: 0,
       message: `${playerName}'s turn! Press SPIN to start!`,
       createdAt: Date.now(),
       updatedAt: Date.now()
@@ -164,8 +173,8 @@ export function useFirebaseGame() {
     setGameState(game);
     setConnected(true);
     
-    // Listen for changes
-    onValue(gameRef, (snapshot) => {
+    // Listen for changes - real-time sync
+    const unsubscribe = onValue(gameRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
         setGameState(data);
@@ -174,6 +183,8 @@ export function useFirebaseGame() {
         setDiceRolling(false);
       }
     });
+    
+    gameRef.current = unsubscribe;
 
     return newGameId;
   };
@@ -232,9 +243,9 @@ export function useFirebaseGame() {
         }
       }, { onlyOnce: true });
 
-      // Listen for changes
+      // Listen for changes - real-time sync across all devices
       let previousState = null;
-      onValue(gameRef, (snapshot) => {
+      const unsubscribe = onValue(gameRef, (snapshot) => {
         const data = snapshot.val();
         if (data) {
           // Detect state changes and play sounds
@@ -262,16 +273,19 @@ export function useFirebaseGame() {
           }
           previousState = data;
           setGameState(data);
+          // Real-time position updates - all players see all positions
           setAnimatingPlayer(null);
           setAnimationType(null);
           setDiceRolling(false);
         }
       });
+      
+      gameRef.current = unsubscribe;
     });
   };
 
   const handleRollDice = async () => {
-    if (!gameState || gameState.isRolling || gameState.gameWon) return;
+    if (!gameState || gameState.isRolling || gameState.gameWon || gameState.isPaused) return;
     
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
     if (currentPlayer.id !== playerId) {
@@ -294,6 +308,7 @@ export function useFirebaseGame() {
     setAnimatingPlayer(currentPlayer.id);
     setAnimationType('liftoff');
     playSound('rocket');
+    moveCountRef.current += 1;
 
     // Simulate dice roll
     setTimeout(async () => {
@@ -305,12 +320,35 @@ export function useFirebaseGame() {
 
       if (result.won) {
         playSound('victory');
+        const gameDuration = Date.now() - (updatedGame.startedAt || updatedGame.createdAt);
+        
+        // Save to game history
+        await saveGameHistory({
+          gameId,
+          players: updatedGame.players,
+          winner: currentPlayer,
+          startedAt: updatedGame.startedAt || updatedGame.createdAt,
+          completedAt: Date.now(),
+          totalMoves: moveCountRef.current,
+          gameMode: 'online'
+        });
+
+        // Update leaderboard
+        await recordWin(currentPlayer.name, gameId, gameDuration);
+        updatedGame.players.forEach(player => {
+          if (player.id !== currentPlayer.id) {
+            recordGame(player.name);
+          }
+        });
+
         await update(gameRef, {
           players: updatedGame.players,
           diceValue,
           isRolling: false,
           gameWon: true,
           winner: currentPlayer,
+          completedAt: Date.now(),
+          gameDuration,
           message: result.message,
           updatedAt: Date.now()
         });
@@ -344,10 +382,49 @@ export function useFirebaseGame() {
         currentPlayerIndex: updatedGame.currentPlayerIndex,
         diceValue,
         isRolling: false,
+        totalMoves: moveCountRef.current,
         message: updatedGame.message,
         updatedAt: Date.now()
       });
     }, 1500);
+  };
+
+  const handlePauseGame = async () => {
+    if (!gameState || gameState.gameWon || gameState.isPaused) return;
+    
+    const currentPlayer = gameState.players.find(p => p.id === playerId);
+    if (!currentPlayer) return;
+
+    const gameRef = ref(database, `games/${gameId}`);
+    await update(gameRef, {
+      isPaused: true,
+      pausedBy: currentPlayer.name,
+      pausedAt: Date.now(),
+      message: `Game paused by ${currentPlayer.name}`,
+      updatedAt: Date.now()
+    });
+  };
+
+  const handleResumeGame = async () => {
+    if (!gameState || !gameState.isPaused) return;
+    
+    const currentPlayer = gameState.players.find(p => p.id === playerId);
+    if (!currentPlayer) return;
+
+    // Only the player who paused can resume, or any player if paused for > 5 minutes
+    const pausedDuration = Date.now() - (gameState.pausedAt || 0);
+    if (gameState.pausedBy !== currentPlayer.name && pausedDuration < 5 * 60 * 1000) {
+      return;
+    }
+
+    const gameRef = ref(database, `games/${gameId}`);
+    await update(gameRef, {
+      isPaused: false,
+      pausedBy: null,
+      pausedAt: null,
+      message: `${gameState.players[gameState.currentPlayerIndex].name}'s turn! Press SPIN to roll!`,
+      updatedAt: Date.now()
+    });
   };
 
   const handleResetGame = async () => {
@@ -386,7 +463,9 @@ export function useFirebaseGame() {
     createGame,
     joinGame,
     handleRollDice,
-    handleResetGame
+    handleResetGame,
+    handlePauseGame,
+    handleResumeGame
   };
 }
 

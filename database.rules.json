@@ -11,6 +11,20 @@
           }
         }
       }
+    },
+    "leaderboard": {
+      ".read": true,
+      ".write": true,
+      "$playerKey": {
+        ".validate": "newData.hasChildren(['name', 'wins', 'gamesPlayed', 'totalGames'])"
+      }
+    },
+    "gameHistory": {
+      ".read": true,
+      ".write": true,
+      "$gameId": {
+        ".validate": "newData.hasChildren(['gameId', 'players', 'winner', 'completedAt'])"
+      }
     }
   }
 }
