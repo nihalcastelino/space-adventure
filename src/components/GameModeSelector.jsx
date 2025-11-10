@@ -1,4 +1,4 @@
-import { Rocket, Users, Wifi, Zap, Shield, Skull } from 'lucide-react';
+import { Rocket, Users, Wifi, Zap, Shield, Skull, Bot } from 'lucide-react';
 import { useState } from 'react';
 import { useGameSounds } from '../hooks/useGameSounds';
 
@@ -100,7 +100,18 @@ export default function GameModeSelector({ onSelectMode }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mt-4 md:mt-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mt-4 md:mt-8">
+          <button
+            onClick={() => handleSelectMode('ai')}
+            className="bg-gray-900 bg-opacity-95 rounded-lg p-4 md:p-8 shadow-2xl border-2 border-gray-700 hover:border-purple-400 transition-all transform hover:scale-105 group"
+          >
+            <Bot className="w-10 h-10 md:w-16 md:h-16 text-purple-300 mx-auto mb-2 md:mb-4 group-hover:scale-110 transition-transform" />
+            <h2 className="text-lg md:text-2xl font-bold text-white mb-1 md:mb-2">vs AI</h2>
+            <p className="text-sm md:text-base text-gray-400">
+              Challenge an AI opponent
+            </p>
+          </button>
+
           <button
             onClick={() => handleSelectMode('local')}
             className="bg-gray-900 bg-opacity-95 rounded-lg p-4 md:p-8 shadow-2xl border-2 border-gray-700 hover:border-blue-400 transition-all transform hover:scale-105 group"

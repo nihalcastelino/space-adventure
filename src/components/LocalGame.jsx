@@ -6,8 +6,13 @@ import CompactPlayerPanel from './CompactPlayerPanel';
 import GameControls from './GameControls';
 import ParticleEffects from './ParticleEffects';
 import GameSettings from './GameSettings';
+import SpaceJail from './SpaceJail';
 import { useGameLogic } from '../hooks/useGameLogic';
 import { useGameSounds } from '../hooks/useGameSounds';
+import { useProgression } from '../hooks/useProgression';
+import { useCurrency } from '../hooks/useCurrency';
+import { ProgressBar } from './ProgressionUI';
+import { CoinDisplay } from './PowerUpUI';
 
 export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
   const { playSound } = useGameSounds();
@@ -19,6 +24,10 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Initialize progression and currency systems
+  const progression = useProgression();
+  const currency = useCurrency();
 
   const {
     players,
@@ -39,7 +48,11 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
     addPlayer,
     removePlayer,
     rollDice,
-    resetGame
+    resetGame,
+    changePlayerIcon,
+    hazards,
+    jailStates,
+    payBail
   } = useGameLogic(initialDifficulty);
 
   return (
@@ -144,6 +157,22 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
         </h1>
       </div>
 
+      {/* HUD Overlay - Progress & Coins */}
+      <div className="fixed top-16 left-2 right-2 z-20 flex items-start justify-between pointer-events-none">
+        {/* Left: Progress Bar */}
+        <div className="pointer-events-auto w-64 hidden md:block">
+          <ProgressBar
+            level={progression.level}
+            xp={progression.xp}
+            getProgressToNextLevel={progression.getProgressToNextLevel}
+          />
+        </div>
+
+        {/* Right: Coins */}
+        <div className="pointer-events-auto ml-auto">
+          <CoinDisplay coins={currency.coins} />
+        </div>
+      </div>
 
       {/* Game Controls - responsive with safe bottom spacing */}
       <div
@@ -178,12 +207,17 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
                   isRolling={isRolling}
                   gameWon={gameWon}
                   isMyPlayer={false}
+                  onChangeIcon={changePlayerIcon}
                 />
               ) : (
                 <CompactPlayerPanel
                   player={players[1]}
                   isCurrentPlayer={currentPlayerIndex === 1}
+                  onRollDice={currentPlayerIndex === 1 ? rollDice : null}
+                  isRolling={isRolling}
+                  gameWon={gameWon}
                   isMyPlayer={false}
+                  onChangeIcon={changePlayerIcon}
                 />
               )}
             </div>
@@ -200,12 +234,17 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
                   isRolling={isRolling}
                   gameWon={gameWon}
                   isMyPlayer={false}
+                  onChangeIcon={changePlayerIcon}
                 />
               ) : (
                 <CompactPlayerPanel
                   player={players[0]}
                   isCurrentPlayer={currentPlayerIndex === 0}
+                  onRollDice={currentPlayerIndex === 0 ? rollDice : null}
+                  isRolling={isRolling}
+                  gameWon={gameWon}
                   isMyPlayer={false}
+                  onChangeIcon={changePlayerIcon}
                 />
               )}
             </div>
@@ -225,12 +264,17 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
                   isRolling={isRolling}
                   gameWon={gameWon}
                   isMyPlayer={false}
+                  onChangeIcon={changePlayerIcon}
                 />
               ) : (
                 <CompactPlayerPanel
                   player={players[2]}
                   isCurrentPlayer={currentPlayerIndex === 2}
+                  onRollDice={currentPlayerIndex === 2 ? rollDice : null}
+                  isRolling={isRolling}
+                  gameWon={gameWon}
                   isMyPlayer={false}
+                  onChangeIcon={changePlayerIcon}
                 />
               )}
             </div>
@@ -247,12 +291,17 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
                   isRolling={isRolling}
                   gameWon={gameWon}
                   isMyPlayer={false}
+                  onChangeIcon={changePlayerIcon}
                 />
               ) : (
                 <CompactPlayerPanel
                   player={players[3]}
                   isCurrentPlayer={currentPlayerIndex === 3}
+                  onRollDice={currentPlayerIndex === 3 ? rollDice : null}
+                  isRolling={isRolling}
+                  gameWon={gameWon}
                   isMyPlayer={false}
+                  onChangeIcon={changePlayerIcon}
                 />
               )}
             </div>
@@ -328,15 +377,17 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
                                 'rgba(249, 168, 212, 0.6)'}`
                     }}
                   >
-                    <Rocket
-                      className={`${player.color} ${animationClass}`}
+                    <div
+                      className={animationClass}
                       style={{
-                        width: '24px',
-                        height: '24px',
+                        fontSize: '24px',
                         filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 8px currentColor)',
-                        animation: animationClass ? undefined : 'float 2s ease-in-out infinite'
+                        animation: animationClass ? undefined : 'float 2s ease-in-out infinite',
+                        lineHeight: 1
                       }}
-                    />
+                    >
+                      {player.icon || '🚀'}
+                    </div>
                     <span style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.9)', fontWeight: 'bold' }}>
                       {player.name}
                     </span>
@@ -362,10 +413,38 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
             alienBlink={alienBlink}
             aliens={aliens}
             checkpoints={checkpoints}
+            hazards={hazards}
           />
         </div>
         </div>
       </div>
+
+      {/* Space Jail Overlay */}
+      {players.map(player => {
+        const jailState = jailStates(player.id);
+        if (jailState.inJail && currentPlayerIndex === players.indexOf(player)) {
+          return (
+            <SpaceJail
+              key={player.id}
+              playerId={player.id}
+              playerName={player.name}
+              turnsRemaining={jailState.turnsRemaining}
+              bailCost={50}
+              playerCoins={currency.coins}
+              onPayBail={() => {
+                const result = payBail(player.id);
+                if (result.success) {
+                  currency.removeCoins(result.cost);
+                  playSound('click');
+                }
+              }}
+              onRollForDoubles={rollDice}
+              isCurrentPlayer={true}
+            />
+          );
+        }
+        return null;
+      })}
     </div>
   );
 }

@@ -1,12 +1,24 @@
 import { Rocket } from 'lucide-react';
 import { useGameSounds } from '../hooks/useGameSounds';
+import { useState } from 'react';
+import IconSelector from './IconSelector';
 
-export default function PlayerPanel({ player, isCurrentPlayer, onRollDice, isRolling, gameWon, isOnline, isMyPlayer, animatingPlayer, animationType }) {
+export default function PlayerPanel({ player, isCurrentPlayer, onRollDice, isRolling, gameWon, isOnline, isMyPlayer, animatingPlayer, animationType, onChangeIcon }) {
   const { playSound } = useGameSounds();
   const isAnimating = animatingPlayer === player.id;
   const animationClass = isAnimating && animationType ? `animate-rocket-${animationType}` : '';
+  const [showIconSelector, setShowIconSelector] = useState(false);
 
   return (
+    <>
+      <IconSelector
+        isOpen={showIconSelector}
+        onClose={() => setShowIconSelector(false)}
+        onSelectIcon={(iconData) => onChangeIcon && onChangeIcon(player.id, iconData)}
+        currentIcon={player.icon || '🚀'}
+        playerName={player.name}
+      />
+
     <div className={`w-32 sm:w-40 md:w-48 lg:w-64 glass rounded-lg p-2 sm:p-3 md:p-4 shadow-2xl border-2 transition-all duration-300 ${
       isCurrentPlayer
         ? 'border-blue-400 border-opacity-70 scale-105 shadow-blue-500/50'
@@ -24,6 +36,19 @@ export default function PlayerPanel({ player, isCurrentPlayer, onRollDice, isRol
           <div>Pos: <span className="font-bold text-white text-sm sm:text-base md:text-lg">{player.position}</span></div>
           <div>CP: <span className="font-bold text-blue-300 text-xs sm:text-sm">{player.lastCheckpoint}</span></div>
         </div>
+        {onChangeIcon && (
+          <button
+            onClick={() => {
+              playSound('click');
+              setShowIconSelector(true);
+            }}
+            className="mt-2 w-full glass rounded px-2 py-1 border border-gray-700 hover:border-yellow-400 transition-all flex items-center justify-center gap-1"
+            title={`Change ${player.name}'s vehicle`}
+          >
+            <span className="text-lg">{player.icon || '🚀'}</span>
+            <span className="text-white text-[10px] sm:text-xs">Change</span>
+          </button>
+        )}
       </div>
       {isCurrentPlayer && onRollDice && (
         <div className="mt-2 md:mt-3">
@@ -54,6 +79,7 @@ export default function PlayerPanel({ player, isCurrentPlayer, onRollDice, isRol
         </div>
       )}
     </div>
+    </>
   );
 }
 

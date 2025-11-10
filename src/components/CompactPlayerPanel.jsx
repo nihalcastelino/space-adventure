@@ -1,7 +1,22 @@
 import { Rocket } from 'lucide-react';
+import { useGameSounds } from '../hooks/useGameSounds';
+import { useState } from 'react';
+import IconSelector from './IconSelector';
 
-export default function CompactPlayerPanel({ player, isCurrentPlayer, isMyPlayer = false, onRollDice, isRolling, gameWon }) {
+export default function CompactPlayerPanel({ player, isCurrentPlayer, isMyPlayer = false, onRollDice, isRolling, gameWon, onChangeIcon }) {
+  const { playSound } = useGameSounds();
+  const [showIconSelector, setShowIconSelector] = useState(false);
+
   return (
+    <>
+      <IconSelector
+        isOpen={showIconSelector}
+        onClose={() => setShowIconSelector(false)}
+        onSelectIcon={(iconData) => onChangeIcon && onChangeIcon(player.id, iconData)}
+        currentIcon={player.icon || '🚀'}
+        playerName={player.name}
+      />
+
     <div
       className={`glass rounded-lg p-2 border-2 transition-all ${
         isCurrentPlayer
@@ -28,12 +43,42 @@ export default function CompactPlayerPanel({ player, isCurrentPlayer, isMyPlayer
         </div>
       </div>
 
-      {/* Current Turn Indicator */}
-      {isCurrentPlayer && (
+      {/* Icon Change Button */}
+      {onChangeIcon && (
+        <button
+          onClick={() => {
+            playSound('click');
+            setShowIconSelector(true);
+          }}
+          className="w-full mt-1 glass rounded px-1 py-0.5 border border-gray-700 hover:border-yellow-400 transition-all flex items-center justify-center gap-1"
+          title={`Change ${player.name}'s vehicle`}
+        >
+          <span className="text-sm">{player.icon || '🚀'}</span>
+          <span className="text-white text-[9px]">Change</span>
+        </button>
+      )}
+
+      {/* Roll Dice Button */}
+      {isCurrentPlayer && onRollDice && (
+        <button
+          onClick={() => {
+            playSound('click');
+            onRollDice();
+          }}
+          disabled={isRolling || gameWon}
+          className="w-full mt-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-1 px-1 rounded text-[10px] transition-all transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed"
+        >
+          {isRolling ? '...' : '🎲 SPIN'}
+        </button>
+      )}
+
+      {/* Current Turn Indicator (when no roll button) */}
+      {isCurrentPlayer && !onRollDice && (
         <div className="mt-1 text-center">
           <span className="text-yellow-300 text-[9px] font-bold animate-pulse">▶ TURN</span>
         </div>
       )}
     </div>
+    </>
   );
 }

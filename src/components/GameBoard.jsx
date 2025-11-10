@@ -19,7 +19,8 @@ export default function GameBoard({
   animatedPositions = {},
   encounterType = null,
   aliens = DEFAULT_ALIENS,
-  checkpoints = DEFAULT_CHECKPOINTS
+  checkpoints = DEFAULT_CHECKPOINTS,
+  hazards = null // Jeopardy mechanics hazards
 }) {
   const ALIENS = aliens;
   const CHECKPOINTS = checkpoints;
@@ -44,7 +45,52 @@ export default function GameBoard({
     return () => clearInterval(interval);
   }, []);
 
+  // Check if cell has hazards
+  const getHazardAtCell = (cellNumber) => {
+    if (!hazards) return null;
+
+    // Check black holes
+    const blackHole = hazards.blackHoles.find(bh => bh.position === cellNumber);
+    if (blackHole) {
+      return {
+        type: blackHole.isCollapsed ? 'blackHole' : 'blackHoleWarning',
+        icon: blackHole.isCollapsed ? '🕳️' : '⚠️',
+        turnsUntilCollapse: blackHole.turnsUntilCollapse
+      };
+    }
+
+    // Check patrol zones
+    if (hazards.patrolZones.includes(cellNumber)) {
+      return {
+        type: 'patrol',
+        icon: '🚨'
+      };
+    }
+
+    // Check meteor impacts
+    const meteor = hazards.meteorImpacts.find(m => m.position === cellNumber);
+    if (meteor) {
+      return {
+        type: 'meteor',
+        icon: '🔥',
+        turnsRemaining: meteor.turnsRemaining
+      };
+    }
+
+    return null;
+  };
+
   const getCellColor = (cellNumber) => {
+    const hazard = getHazardAtCell(cellNumber);
+
+    // Hazards override normal colors
+    if (hazard) {
+      if (hazard.type === 'blackHole') return 'rgba(88, 28, 135, 0.5)'; // Purple for black hole
+      if (hazard.type === 'blackHoleWarning') return 'rgba(251, 146, 60, 0.4)'; // Orange warning
+      if (hazard.type === 'patrol') return 'rgba(185, 28, 28, 0.4)'; // Dark red for patrol
+      if (hazard.type === 'meteor') return 'rgba(234, 88, 12, 0.5)'; // Orange-red for meteor
+    }
+
     if (cellNumber === BOARD_SIZE) return 'rgba(251, 191, 36, 0.25)'; // Gold for finish
     if (SPACEPORTS[cellNumber]) return 'rgba(16, 185, 129, 0.25)'; // Green for spaceport
     if (ALIENS.includes(cellNumber)) return 'rgba(239, 68, 68, 0.25)'; // Red for alien
@@ -75,6 +121,7 @@ export default function GameBoard({
         const isAlien = ALIENS.includes(cellNumber);
         const isCheckpoint = CHECKPOINTS.includes(cellNumber);
         const isFinish = cellNumber === BOARD_SIZE;
+        const hazard = getHazardAtCell(cellNumber);
 
         // Check if this cell has encounter effect
         const hasSpaceportEffect = encounterType === 'spaceport' && playersHere.some(p => p.id === animatingPlayer);
@@ -193,6 +240,71 @@ export default function GameBoard({
               </div>
             )}
 
+            {/* Hazards */}
+            {hazard && (
+              <>
+                {/* Hazard Icon */}
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  fontSize: '32px',
+                  zIndex: 6,
+                  filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 12px currentColor) contrast(1.3) saturate(1.4)',
+                  animation: hazard.type === 'blackHole'
+                    ? 'black-hole-swirl 2s linear infinite'
+                    : hazard.type === 'blackHoleWarning'
+                    ? 'warning-pulse 1s ease-in-out infinite'
+                    : hazard.type === 'patrol'
+                    ? 'patrol-blink 1s step-end infinite'
+                    : hazard.type === 'meteor'
+                    ? 'meteor-flicker 0.5s ease-in-out infinite'
+                    : 'none'
+                }}>
+                  {hazard.icon}
+                </div>
+
+                {/* Warning Countdown */}
+                {hazard.type === 'blackHoleWarning' && (
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '2px',
+                    right: '2px',
+                    fontSize: '10px',
+                    fontWeight: 'bold',
+                    color: '#fff',
+                    backgroundColor: 'rgba(239, 68, 68, 0.9)',
+                    padding: '2px 4px',
+                    borderRadius: '3px',
+                    zIndex: 7,
+                    boxShadow: '0 0 8px rgba(239, 68, 68, 0.8)',
+                    animation: 'warning-pulse 1s ease-in-out infinite'
+                  }}>
+                    {hazard.turnsUntilCollapse}
+                  </div>
+                )}
+
+                {/* Meteor Timer */}
+                {hazard.type === 'meteor' && (
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '2px',
+                    right: '2px',
+                    fontSize: '9px',
+                    fontWeight: 'bold',
+                    color: '#fff',
+                    backgroundColor: 'rgba(234, 88, 12, 0.9)',
+                    padding: '2px 4px',
+                    borderRadius: '3px',
+                    zIndex: 7
+                  }}>
+                    {hazard.turnsRemaining}
+                  </div>
+                )}
+              </>
+            )}
+
             {/* Players */}
             {playersHere.length > 0 && (
               <div style={{
@@ -205,20 +317,30 @@ export default function GameBoard({
                 gap: '2px',
                 flexWrap: 'wrap',
                 justifyContent: 'center',
-                alignItems: 'center'
+                alignItems: 'center',
+                transition: 'all 0.15s ease-in-out'
               }}>
-                {playersHere.map(player => (
-                  <Rocket
-                    key={player.id}
-                    className={`${player.color}`}
-                    style={{
-                      width: '28px',
-                      height: '28px',
-                      filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 12px currentColor) contrast(1.4) saturate(1.6)',
-                      animation: 'float 2s ease-in-out infinite'
-                    }}
-                  />
-                ))}
+                {playersHere.map(player => {
+                  const playerIcon = player.icon || '🚀';
+                  const isAnimating = animatingPlayer === player.id;
+                  const animationClass = isAnimating && animationType ? `animate-rocket-${animationType}` : '';
+
+                  return (
+                    <div
+                      key={player.id}
+                      className={`player-rocket-moving ${animationClass}`}
+                      style={{
+                        fontSize: '28px',
+                        filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 12px currentColor) contrast(1.4) saturate(1.6)',
+                        animation: 'float 2s ease-in-out infinite',
+                        transition: 'transform 0.15s ease-in-out',
+                        lineHeight: 1
+                      }}
+                    >
+                      {playerIcon}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -258,6 +380,24 @@ export default function GameBoard({
         @keyframes float {
           0%, 100% { transform: translateY(0px); }
           50% { transform: translateY(-5px); }
+        }
+        /* Jeopardy Hazard Animations */
+        @keyframes black-hole-swirl {
+          0% { transform: translate(-50%, -50%) rotate(0deg) scale(1); }
+          50% { transform: translate(-50%, -50%) rotate(180deg) scale(1.1); }
+          100% { transform: translate(-50%, -50%) rotate(360deg) scale(1); }
+        }
+        @keyframes warning-pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.7; transform: scale(1.1); }
+        }
+        @keyframes patrol-blink {
+          0%, 49% { opacity: 1; }
+          50%, 100% { opacity: 0.3; }
+        }
+        @keyframes meteor-flicker {
+          0%, 100% { opacity: 1; filter: brightness(1); }
+          50% { opacity: 0.8; filter: brightness(1.5); }
         }
       `}</style>
       {/* Main Game Board - Square Grid */}
