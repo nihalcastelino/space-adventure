@@ -86,25 +86,31 @@ exports.handler = async (event) => {
 async function handleCheckoutComplete(session) {
   const userId = session.metadata?.user_id;
   const tier = session.metadata?.tier;
+  const customerId = session.customer;
 
   if (!userId || !tier) return;
 
+  // Store customer ID if present
+  const updateData = {
+    stripe_customer_id: customerId || undefined,
+  };
+
   // For one-time payments (lifetime), activate immediately
   if (tier === 'lifetime') {
-    await supabase
-      .from('space_adventure_profiles')
-      .update({
-        premium_tier: tier,
-        subscription_status: {
-          active: true,
-          expires_at: null,
-          auto_renew: false,
-        },
-        stripe_subscription_id: null,
-      })
-      .eq('id', userId);
+    updateData.premium_tier = tier;
+    updateData.subscription_status = {
+      active: true,
+      expires_at: null,
+      auto_renew: false,
+    };
+    updateData.stripe_subscription_id = null;
   }
-  // For subscriptions, wait for invoice.paid event
+  // For subscriptions, wait for invoice.paid event (but store customer ID now)
+
+  await supabase
+    .from('space_adventure_profiles')
+    .update(updateData)
+    .eq('id', userId);
 }
 
 async function handleSubscriptionCreated(subscription) {

@@ -171,10 +171,13 @@ export function usePremium() {
 
     if (data) {
       setTier(data.premium_tier || 'free');
-      setSubscriptionStatus(data.subscription_status || {
-        active: false,
-        expiresAt: null,
-        autoRenew: false,
+      
+      // Convert snake_case from database to camelCase for component state
+      const status = data.subscription_status || {};
+      setSubscriptionStatus({
+        active: status.active || false,
+        expiresAt: status.expires_at || null,
+        autoRenew: status.auto_renew !== undefined ? status.auto_renew : false,
       });
     }
   }, []);
@@ -274,7 +277,10 @@ export function usePremium() {
     if (!subscriptionStatus.expiresAt) return 0;
 
     const now = Date.now();
-    const expiresAt = new Date(subscriptionStatus.expiresAt).getTime();
+    // Handle both ISO string and timestamp
+    const expiresAt = typeof subscriptionStatus.expiresAt === 'string' 
+      ? new Date(subscriptionStatus.expiresAt).getTime()
+      : subscriptionStatus.expiresAt;
     const diff = expiresAt - now;
 
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
