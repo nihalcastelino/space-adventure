@@ -153,8 +153,11 @@ npm run dev
    
 2. **Verify Supabase Site URL:**
    - Go to Supabase Dashboard → Settings → Authentication
-   - **Site URL** should be: `http://localhost:3000` (for dev)
+   - **Site URL** should be: 
+     - `http://localhost:3000` (for local development)
+     - `https://spacerace.games` (for production)
    - This is where Supabase redirects AFTER handling the OAuth callback
+   - **Note:** You can add multiple redirect URLs in the "Redirect URLs" section for flexibility
 
 3. **Check Authorized JavaScript Origins:**
    - In Google Cloud Console, add: `http://localhost:3000`

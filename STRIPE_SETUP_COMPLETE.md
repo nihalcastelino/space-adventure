@@ -7,16 +7,19 @@
 
 2. **Created Stripe Client** ✅
    - `src/lib/stripe.js` - Stripe helper functions
+   - Updated to use API version `2025-10-29.clover` (matches your webhook)
 
 3. **Created Netlify Functions** ✅
    - `netlify/functions/create-checkout.js` - Creates checkout sessions
    - `netlify/functions/webhook.js` - Handles Stripe webhooks
    - `netlify/functions/create-portal.js` - Customer portal for subscription management
+   - All updated to use API version `2025-10-29.clover`
 
 4. **Updated usePremium Hook** ✅
    - Now uses Stripe Checkout instead of simulation
    - Loads premium status from Supabase
    - Handles checkout redirects
+   - Fixed data conversion (snake_case ↔ camelCase)
 
 5. **Updated App.jsx** ✅
    - Handles Stripe checkout success redirects

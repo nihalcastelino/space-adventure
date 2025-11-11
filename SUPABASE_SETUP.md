@@ -47,8 +47,8 @@ The code includes fallback values to use the same Supabase project as bible-serv
 You can optionally override with your own project by creating `.env.local`:
 
 ```env
-VITE_SUPABASE_URL=https://ixmthkimboopkdzcnpdv.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+VITE_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key-here
 ```
 
 **Note:** The code will use the shared Supabase project by default, so you can skip this step if you want to use the same project.

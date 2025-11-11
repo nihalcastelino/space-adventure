@@ -94,13 +94,14 @@ export function PremiumTierCard({ tier, currentTier, onPurchase, isPopular = fal
   );
 }
 
-export function PremiumModal({ currentTier, subscriptionStatus, onPurchase, onCancel, onRestore, onClose }) {
+export function PremiumModal({ currentTier, subscriptionStatus, onPurchase, onCancel, onRestore, onClose, error }) {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handlePurchase = async (tierId) => {
     setIsProcessing(true);
-    await onPurchase(tierId);
+    const result = await onPurchase(tierId);
     setIsProcessing(false);
+    return result;
   };
 
   return (
@@ -124,6 +125,19 @@ export function PremiumModal({ currentTier, subscriptionStatus, onPurchase, onCa
             </p>
           </div>
         </div>
+
+        {/* Error message */}
+        {error && (
+          <div className="p-4 bg-red-900 bg-opacity-40 border-b border-red-400">
+            <div className="flex items-center gap-3">
+              <X className="w-6 h-6 text-red-400" />
+              <div>
+                <div className="text-white font-bold">Error</div>
+                <div className="text-red-400 text-sm">{error}</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Subscription status */}
         {subscriptionStatus.active && currentTier !== 'free' && (

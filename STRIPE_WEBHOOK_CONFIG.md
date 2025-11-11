@@ -13,12 +13,12 @@
 ### Recommended: Use the First One (18 Events)
 
 **API Version:** `2025-10-29.clover`  
-**Signing Secret:** `whsec_E4YUifa4tQMvfKcQPy4uOHCwgvKeavFy`  
+**Signing Secret:** `whsec_xxxxx` (get from Stripe Dashboard)  
 **Events:** 18 events (more comprehensive)
 
 **Add to Netlify Environment Variables:**
 ```
-STRIPE_WEBHOOK_SECRET=whsec_E4YUifa4tQMvfKcQPy4uOHCwgvKeavFy
+STRIPE_WEBHOOK_SECRET=whsec_xxxxx
 ```
 
 ---
@@ -31,7 +31,7 @@ STRIPE_WEBHOOK_SECRET=whsec_E4YUifa4tQMvfKcQPy4uOHCwgvKeavFy
 2. Click **Environment variables**
 3. Add new variable:
    - **Key:** `STRIPE_WEBHOOK_SECRET`
-   - **Value:** `whsec_E4YUifa4tQMvfKcQPy4uOHCwgvKeavFy`
+   - **Value:** `whsec_xxxxx` (copy from Stripe Dashboard)
 4. Click **Save**
 5. **Redeploy** your site (or wait for auto-deploy)
 
@@ -101,7 +101,7 @@ I've updated all Stripe code to use API version `2025-10-29.clover` to match you
 ## 📝 Summary
 
 **Your Webhook URL:** ✅ `https://spacerace.games/.netlify/functions/webhook`  
-**Webhook Secret:** `whsec_E4YUifa4tQMvfKcQPy4uOHCwgvKeavFy`  
+**Webhook Secret:** `whsec_xxxxx` (get from Stripe Dashboard)  
 **API Version:** `2025-10-29.clover` ✅  
 **Status:** Ready to use!
 

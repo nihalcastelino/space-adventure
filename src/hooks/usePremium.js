@@ -184,23 +184,37 @@ export function usePremium() {
 
   // Purchase premium - redirects to Stripe Checkout
   const purchasePremium = useCallback(async (tierId) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return { success: false, error: 'Please sign in to purchase' };
+    console.log('Purchase premium called with tierId:', tierId);
+    
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error('User not authenticated:', userError);
+      return { success: false, error: 'Please sign in to purchase premium. Click "Sign In" in the top right corner.' };
     }
 
+    console.log('User authenticated:', user.email);
+
     const priceId = PAYMENT_IDS[tierId === 'monthly' ? 'STRIPE_MONTHLY' : 'STRIPE_LIFETIME'];
-    if (!priceId || priceId.startsWith('price_xxxx')) {
-      return { success: false, error: 'Price ID not configured. Please add Stripe Price IDs to .env' };
+    console.log('Price ID:', priceId);
+    
+    if (!priceId || priceId.startsWith('price_xxxx') || priceId === 'price_xxxxxxxxxxxxx') {
+      console.error('Price ID not configured');
+      return { 
+        success: false, 
+        error: 'Stripe Price IDs not configured. Please add VITE_STRIPE_PRICE_MONTHLY and VITE_STRIPE_PRICE_LIFETIME to your environment variables.' 
+      };
     }
 
     try {
       // Get auth token
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        return { success: false, error: 'Not authenticated' };
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        console.error('Session error:', sessionError);
+        return { success: false, error: 'Session expired. Please sign in again.' };
       }
 
+      console.log('Creating checkout session...');
+      
       // Call Netlify Function to create checkout session
       const response = await fetch('/.netlify/functions/create-checkout', {
         method: 'POST',
@@ -211,20 +225,31 @@ export function usePremium() {
         body: JSON.stringify({ priceId, tier: tierId }),
       });
 
+      console.log('Checkout response status:', response.status);
+
       if (!response.ok) {
-        const error = await response.json();
-        return { success: false, error: error.error || 'Failed to create checkout session' };
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Checkout error:', errorData);
+        return { 
+          success: false, 
+          error: errorData.error || `Failed to create checkout session (${response.status}). Please try again or contact support.` 
+        };
       }
 
-      const { url } = await response.json();
+      const data = await response.json();
+      console.log('Checkout session created, redirecting to:', data.url);
+      
+      if (!data.url) {
+        return { success: false, error: 'No checkout URL received. Please try again.' };
+      }
       
       // Redirect to Stripe Checkout
-      window.location.href = url;
+      window.location.href = data.url;
       
       return { success: true };
     } catch (error) {
       console.error('Error creating checkout:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: `Network error: ${error.message}. Please check your connection and try again.` };
     }
   }, []);
 

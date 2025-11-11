@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Trophy, TrendingUp, Calendar, Award, Crown, Star, Coins, Zap } from 'lucide-react';
+import { X, Trophy, TrendingUp, Calendar, Award, Crown, Star, Coins, Zap, Sparkles } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useProgression } from '../hooks/useProgression';
 import { useCurrency } from '../hooks/useCurrency';
@@ -9,6 +9,7 @@ import { useGameHistory } from '../hooks/useGameHistory';
 import { useUserData } from '../hooks/useUserData';
 import { useGameSounds } from '../hooks/useGameSounds';
 import AdSenseAd from './AdSenseAd';
+import PremiumModal from './PremiumModal';
 
 /**
  * User Profile Modal
@@ -27,6 +28,7 @@ export default function UserProfile({ isOpen, onClose }) {
   const [userProfile, setUserProfile] = useState(null);
   const [playerStats, setPlayerStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
 
   useEffect(() => {
     if (isOpen && isAuthenticated && user) {
@@ -239,7 +241,7 @@ export default function UserProfile({ isOpen, onClose }) {
             </div>
 
             {/* Subscription Info */}
-            {premium.isPremium && (
+            {premium.isPremium ? (
               <div className="bg-gradient-to-r from-yellow-900 to-orange-900 rounded-lg p-6 border-2 border-yellow-400">
                 <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
                   <Crown className="w-5 h-5 text-yellow-400" />
@@ -266,6 +268,26 @@ export default function UserProfile({ isOpen, onClose }) {
                   )}
                 </div>
               </div>
+            ) : (
+              <div className="bg-gradient-to-r from-yellow-900 to-purple-900 rounded-lg p-6 border-2 border-yellow-400">
+                <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-yellow-400" />
+                  Unlock Premium Features
+                </h3>
+                <p className="text-gray-300 mb-4 text-sm">
+                  Get access to all difficulty levels, game variants, no ads, and exclusive rewards!
+                </p>
+                <button
+                  onClick={() => {
+                    playSound('click');
+                    setShowPremiumModal(true);
+                  }}
+                  className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-black font-bold py-3 px-6 rounded-lg transition-all transform hover:scale-105 flex items-center justify-center gap-2"
+                >
+                  <Crown className="w-5 h-5" />
+                  Upgrade to Premium
+                </button>
+              </div>
             )}
 
             {/* AdSense Ad - Safe placement in profile (not during gameplay) */}
@@ -282,6 +304,11 @@ export default function UserProfile({ isOpen, onClose }) {
           </div>
         )}
       </div>
+
+      {/* Premium Modal */}
+      {showPremiumModal && (
+        <PremiumModal onClose={() => setShowPremiumModal(false)} />
+      )}
     </div>
   );
 }
