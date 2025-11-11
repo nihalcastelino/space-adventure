@@ -1,6 +1,27 @@
 import { Rocket, Zap, Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
+// Hook to get responsive font size
+const useResponsiveSize = () => {
+  const [size, setSize] = useState({ spaceport: 32, rocket: 28 });
+  
+  useEffect(() => {
+    const updateSize = () => {
+      const width = window.innerWidth;
+      setSize({
+        spaceport: width < 640 ? 18 : width < 768 ? 24 : 32,
+        rocket: width < 640 ? 16 : width < 768 ? 20 : 28
+      });
+    };
+    
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, []);
+  
+  return size;
+};
+
 const DEFAULT_BOARD_SIZE = 100;
 const SPACEPORTS = {
   4: 18, 9: 31, 15: 42, 21: 56, 28: 64,
@@ -27,6 +48,7 @@ export default function GameBoard({
   const ALIENS = aliens;
   const CHECKPOINTS = checkpoints;
   const [sparkles, setSparkles] = useState([]);
+  const responsiveSize = useResponsiveSize();
 
   const BOARD_SIZE = boardSize; // Use variant-specific board size
   
@@ -192,7 +214,7 @@ export default function GameBoard({
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
-                fontSize: '32px',
+                fontSize: `${responsiveSize.spaceport}px`,
                 zIndex: 5,
                 filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 10px rgba(16, 185, 129, 0.8)) contrast(1.3) saturate(1.4)',
                 animation: 'float 3s ease-in-out infinite'
@@ -354,7 +376,7 @@ export default function GameBoard({
                       key={player.id}
                       className={`player-rocket-moving ${animationClass}`}
                       style={{
-                        fontSize: '28px',
+                        fontSize: `${responsiveSize.rocket}px`,
                         filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 12px currentColor) contrast(1.4) saturate(1.6)',
                         animation: 'float 2s ease-in-out infinite',
                         transition: 'transform 0.15s ease-in-out',

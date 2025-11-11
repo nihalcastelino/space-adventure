@@ -4,6 +4,7 @@ import OnlineGame from './components/OnlineGame';
 import AIGame from './components/AIGame';
 import GameModeSelector from './components/GameModeSelector';
 import PremiumModal from './components/PremiumModal';
+import InstallPrompt from './components/InstallPrompt';
 import { supabase } from './lib/supabase';
 
 function App() {
@@ -90,13 +91,14 @@ function App() {
   if (!gameMode) {
     return (
       <>
-        <GameModeSelector 
-          onSelectMode={handleSelectMode} 
+        <GameModeSelector
+          onSelectMode={handleSelectMode}
           onUpgrade={() => setShowPremiumModal(true)}
         />
         {showPremiumModal && (
           <PremiumModal onClose={() => setShowPremiumModal(false)} />
         )}
+        <InstallPrompt />
       </>
     );
   }
@@ -104,28 +106,29 @@ function App() {
   return (
     <div className="fixed inset-0">
       {gameMode === 'ai' ? (
-        <AIGame 
-          onBack={handleBack} 
-          initialDifficulty={difficulty} 
+        <AIGame
+          onBack={handleBack}
+          initialDifficulty={difficulty}
           aiDifficulty={difficulty}
           gameVariant={gameVariant}
           randomizationSeed={randomizationSeed}
         />
       ) : gameMode === 'local' ? (
-        <LocalGame 
-          onBack={handleBack} 
+        <LocalGame
+          onBack={handleBack}
           initialDifficulty={difficulty}
           gameVariant={gameVariant}
           randomizationSeed={randomizationSeed}
         />
       ) : (
-        <OnlineGame 
-          onBack={handleBack} 
+        <OnlineGame
+          onBack={handleBack}
           initialDifficulty={difficulty}
           gameVariant={gameVariant}
           randomizationSeed={randomizationSeed}
         />
       )}
+      <InstallPrompt />
     </div>
   );
 }

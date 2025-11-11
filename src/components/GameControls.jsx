@@ -25,13 +25,13 @@ export default function GameControls({ diceValue, message, onReset, onAddPlayer,
       }}></div>
 
       <div className="relative z-10">
-        <div className="bg-gray-800 bg-opacity-50 p-1.5 md:p-3 rounded text-center mb-1.5 md:mb-3 backdrop-blur-sm border border-white border-opacity-5">
-          <div className="text-[10px] md:text-xs text-gray-400 mb-0.5 md:mb-1 flex items-center justify-center gap-1">
-            <Star className="w-2.5 h-2.5 md:w-3 md:h-3 fill-yellow-300 text-yellow-300 opacity-70" />
+        <div className="bg-gray-800 bg-opacity-50 p-1 sm:p-1.5 md:p-3 rounded text-center mb-1 sm:mb-1.5 md:mb-3 backdrop-blur-sm border border-white border-opacity-5">
+          <div className="text-[9px] sm:text-[10px] md:text-xs text-gray-400 mb-0.5 flex items-center justify-center gap-1">
+            <Star className="w-2 h-2 sm:w-2.5 sm:h-2.5 md:w-3 md:h-3 fill-yellow-300 text-yellow-300 opacity-70" />
             <span className="hidden sm:inline">Dice Roll</span>
           </div>
           <div
-            className={`text-3xl md:text-5xl font-bold text-white transition-all duration-300 ${
+            className={`text-xl sm:text-2xl md:text-5xl font-bold text-white transition-all duration-300 ${
               diceRolling ? 'animate-dice-roll scale-110' : 'scale-100'
             }`}
             style={{

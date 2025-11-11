@@ -19,7 +19,7 @@ export default function PlayerPanel({ player, isCurrentPlayer, onRollDice, isRol
         playerName={player.name}
       />
 
-    <div className={`w-32 sm:w-40 md:w-48 lg:w-64 glass rounded-lg p-2 sm:p-3 md:p-4 shadow-2xl border-2 transition-all duration-300 ${
+    <div className={`w-28 sm:w-36 md:w-48 lg:w-64 glass rounded-lg p-1.5 sm:p-2 md:p-4 shadow-2xl border-2 transition-all duration-300 ${
       isCurrentPlayer
         ? 'border-blue-400 border-opacity-70 scale-105 shadow-blue-500/50'
         : 'border-gray-700'
