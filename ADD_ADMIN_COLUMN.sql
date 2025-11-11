@@ -22,33 +22,38 @@ WHERE email = 'nihalcastelino@gmail.com';
 -- SET is_admin = TRUE
 -- WHERE id = 'YOUR_USER_ID_HERE';
 
--- Add RLS policy for admins to update any user's premium status
-CREATE POLICY "Admins can update any user premium status"
-  ON space_adventure_profiles FOR UPDATE
-  USING (
-    -- User is admin
-    EXISTS (
-      SELECT 1 FROM space_adventure_profiles
-      WHERE id = auth.uid() AND is_admin = TRUE
-    )
-  )
-  WITH CHECK (
-    -- User is admin
-    EXISTS (
-      SELECT 1 FROM space_adventure_profiles
-      WHERE id = auth.uid() AND is_admin = TRUE
-    )
+-- Create a function to check if user is admin (bypasses RLS to prevent recursion)
+CREATE OR REPLACE FUNCTION is_admin(user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM space_adventure_profiles
+    WHERE id = user_id AND is_admin = TRUE
   );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Add RLS policy for admins to view all users
-CREATE POLICY "Admins can view all users"
+-- Drop existing policies that might conflict
+DROP POLICY IF EXISTS "Users can view own game profile" ON space_adventure_profiles;
+DROP POLICY IF EXISTS "Users can update own game profile" ON space_adventure_profiles;
+
+-- Add RLS policy for admins to view all users OR users view own
+CREATE POLICY "Users can view own profile or admins view all"
   ON space_adventure_profiles FOR SELECT
   USING (
-    -- User is admin OR viewing own profile
     auth.uid() = id OR
-    EXISTS (
-      SELECT 1 FROM space_adventure_profiles
-      WHERE id = auth.uid() AND is_admin = TRUE
-    )
+    is_admin(auth.uid())
+  );
+
+-- Add RLS policy for admins to update any user OR users update own
+CREATE POLICY "Users can update own profile or admins update any"
+  ON space_adventure_profiles FOR UPDATE
+  USING (
+    auth.uid() = id OR
+    is_admin(auth.uid())
+  )
+  WITH CHECK (
+    auth.uid() = id OR
+    is_admin(auth.uid())
   );
 

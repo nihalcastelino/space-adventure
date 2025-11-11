@@ -15,7 +15,7 @@ export function PremiumTierCard({ tier, currentTier, onPurchase, isPopular = fal
   const isCurrent = currentTier === tier.id;
 
   return (
-    <div className={`relative p-6 rounded-lg border-2 transition-all ${
+    <div className={`relative p-6 rounded-lg border-2 transition-all pointer-events-auto ${
       isPopular
         ? 'bg-gradient-to-br from-yellow-900 to-purple-900 border-yellow-400 shadow-lg shadow-yellow-500/30 scale-105'
         : 'bg-gradient-to-br from-gray-800 to-gray-900 border-gray-700'
@@ -78,14 +78,22 @@ export function PremiumTierCard({ tier, currentTier, onPurchase, isPopular = fal
             e.preventDefault();
             e.stopPropagation();
             console.log('Tier card button clicked:', tier.id);
-            onPurchase(tier.id);
+            if (onPurchase) {
+              onPurchase(tier.id);
+            } else {
+              console.error('onPurchase function not provided');
+            }
           }}
-          className={`w-full py-3 rounded-lg font-bold transition-all cursor-pointer ${
+          onMouseDown={(e) => {
+            e.stopPropagation();
+          }}
+          className={`w-full py-3 rounded-lg font-bold transition-all cursor-pointer relative z-10 pointer-events-auto ${
             isPopular
               ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-black'
               : 'bg-gray-700 hover:bg-gray-600 text-white'
           }`}
           type="button"
+          style={{ position: 'relative', zIndex: 10 }}
         >
           {tier.interval === 'once' ? 'Buy Now' : 'Subscribe'}
         </button>
@@ -127,12 +135,19 @@ export function PremiumModal({ currentTier, subscriptionStatus, onPurchase, onCa
     }}>
       <div className="bg-gray-900 rounded-lg max-w-6xl w-full max-h-[90vh] flex flex-col border-2 border-yellow-400 my-4 relative" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="p-6 border-b border-gray-700 bg-gradient-to-r from-yellow-900 to-purple-900">
+        <div className="p-6 border-b border-gray-700 bg-gradient-to-r from-yellow-900 to-purple-900 relative">
           <button
-            onClick={onClose}
-            className="float-right p-2 hover:bg-gray-800 rounded-lg transition-colors"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('Close button clicked');
+              onClose();
+            }}
+            className="absolute top-4 right-4 p-2 hover:bg-gray-800 rounded-lg transition-colors z-50 cursor-pointer"
+            type="button"
+            aria-label="Close"
           >
-            <X className="w-6 h-6 text-gray-400" />
+            <X className="w-6 h-6 text-gray-400 hover:text-white" />
           </button>
           <div className="text-center">
             <Crown className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
@@ -188,8 +203,8 @@ export function PremiumModal({ currentTier, subscriptionStatus, onPurchase, onCa
         )}
 
         {/* Tiers grid */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div className="flex-1 overflow-y-auto p-6 relative z-0">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 relative z-0">
             <PremiumTierCard
               tier={PREMIUM_TIERS.FREE}
               currentTier={currentTier}
@@ -272,7 +287,7 @@ export function PremiumModal({ currentTier, subscriptionStatus, onPurchase, onCa
 
         {/* Processing overlay */}
         {isProcessing && (
-          <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center rounded-lg z-50 pointer-events-none">
+          <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center rounded-lg z-40 pointer-events-none">
             <div className="text-center">
               <div className="w-16 h-16 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
               <p className="text-white font-bold">Processing payment...</p>
