@@ -277,9 +277,9 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal', gameVa
       </div>
 
 
-      {/* Game Controls - responsive with safe bottom spacing */}
+      {/* Game Controls - responsive with safe bottom spacing, reduced width to avoid overlap */}
       <div
-        className="fixed left-1/2 transform -translate-x-1/2 z-10 w-[min(280px,calc(100%-1rem))] md:w-96"
+        className="fixed left-1/2 transform -translate-x-1/2 z-10 w-[min(240px,calc(100%-1rem))] md:w-80"
         style={{
           bottom: windowWidth < 640 ? '8px' : '16px',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)' // iOS safe area
@@ -315,10 +315,10 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal', gameVa
         </button>
       )}
 
-      {/* Player Panels - Fixed in screen corners with safe spacing */}
+      {/* Player Panels - Fixed in screen corners with safe spacing, increased padding to prevent overlap */}
       <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 25 }}>
         {/* Top panels - Adjusted spacing for mobile to avoid overlap */}
-        <div className="absolute top-12 sm:top-14 md:top-16 left-0 right-0 px-2 flex justify-between gap-2">
+        <div className="absolute top-12 sm:top-14 md:top-16 left-0 right-0 px-1 sm:px-2 md:px-3 flex justify-between gap-1 sm:gap-2">
           {/* Player 2: Top-Left */}
           {players[1] && (
             <div className="pointer-events-auto">
@@ -458,10 +458,10 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal', gameVa
       >
         {/* Board Content */}
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', width: '100%' }}>
-        {/* Starting Area - Outside the square board */}
+        {/* Starting Area - Outside the square board, reduced width to avoid player panel overlap */}
         {players.filter(p => p.position === 0).length > 0 && (
           <div
-            className="w-[min(90vw,600px)] md:w-[min(60vw,600px)] lg:w-[min(70vw,600px)] xl:w-[min(90vw,600px)]"
+            className="w-[min(70vw,400px)] md:w-[min(50vw,450px)] lg:w-[min(55vw,500px)] xl:w-[min(60vw,550px)]"
             style={{
               minHeight: '60px',
               backgroundColor: 'rgba(16, 185, 129, 0.2)',
