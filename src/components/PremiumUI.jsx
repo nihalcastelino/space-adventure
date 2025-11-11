@@ -74,12 +74,18 @@ export function PremiumTierCard({ tier, currentTier, onPurchase, isPopular = fal
       {/* Action button */}
       {tier.id !== 'free' && !isCurrent && (
         <button
-          onClick={() => onPurchase(tier.id)}
-          className={`w-full py-3 rounded-lg font-bold transition-all ${
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Tier card button clicked:', tier.id);
+            onPurchase(tier.id);
+          }}
+          className={`w-full py-3 rounded-lg font-bold transition-all cursor-pointer ${
             isPopular
               ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-black'
               : 'bg-gray-700 hover:bg-gray-600 text-white'
           }`}
+          type="button"
         >
           {tier.interval === 'once' ? 'Buy Now' : 'Subscribe'}
         </button>
@@ -98,15 +104,28 @@ export function PremiumModal({ currentTier, subscriptionStatus, onPurchase, onCa
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handlePurchase = async (tierId) => {
+    console.log('handlePurchase called with tierId:', tierId);
+    if (isProcessing) {
+      console.log('Already processing, ignoring click');
+      return;
+    }
     setIsProcessing(true);
-    const result = await onPurchase(tierId);
-    setIsProcessing(false);
-    return result;
+    try {
+      const result = await onPurchase(tierId);
+      console.log('Purchase result:', result);
+      return result;
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-gray-900 rounded-lg max-w-6xl w-full max-h-[90vh] flex flex-col border-2 border-yellow-400 my-4">
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={(e) => {
+      if (e.target === e.currentTarget) {
+        onClose();
+      }
+    }}>
+      <div className="bg-gray-900 rounded-lg max-w-6xl w-full max-h-[90vh] flex flex-col border-2 border-yellow-400 my-4 relative" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="p-6 border-b border-gray-700 bg-gradient-to-r from-yellow-900 to-purple-900">
           <button
@@ -253,7 +272,7 @@ export function PremiumModal({ currentTier, subscriptionStatus, onPurchase, onCa
 
         {/* Processing overlay */}
         {isProcessing && (
-          <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center rounded-lg">
+          <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center rounded-lg z-50 pointer-events-none">
             <div className="text-center">
               <div className="w-16 h-16 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
               <p className="text-white font-bold">Processing payment...</p>
