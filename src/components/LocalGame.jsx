@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Rocket, Zap, Plus, Minus, ArrowLeft, Settings } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Rocket, Zap, Plus, Minus, ArrowLeft, Settings, Edit2, Trophy } from 'lucide-react';
 import GameBoard from './GameBoard';
 import PlayerPanel from './PlayerPanel';
 import CompactPlayerPanel from './CompactPlayerPanel';
@@ -9,16 +9,25 @@ import GameSettings from './GameSettings';
 import SpaceJail from './SpaceJail';
 import { useGameLogic } from '../hooks/useGameLogic';
 import { useGameSounds } from '../hooks/useGameSounds';
-// Optional imports - comment out if files don't exist in build
-// import { useProgression } from '../hooks/useProgression';
-// import { useCurrency } from '../hooks/useCurrency';
-// import { ProgressBar } from './ProgressionUI';
-// import { CoinDisplay } from './PowerUpUI';
+import { useProgression } from '../hooks/useProgression';
+import { useCurrency } from '../hooks/useCurrency';
+import { useLeaderboard } from '../hooks/useLeaderboard';
+import { useGameHistory } from '../hooks/useGameHistory';
+import { CoinDisplay, LevelDisplay } from './PowerUpUI';
+import LevelUpAnimation from './LevelUpAnimation';
+import UsernameInputModal from './UsernameInputModal';
 
-export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
+export default function LocalGame({ onBack, initialDifficulty = 'normal', gameVariant = 'classic', randomizationSeed = null }) {
   const { playSound } = useGameSounds();
   const [showSettings, setShowSettings] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showGameHistory, setShowGameHistory] = useState(false);
+  const [showUsernameModal, setShowUsernameModal] = useState(false);
+  const [editingPlayerId, setEditingPlayerId] = useState(null);
+  const [editingName, setEditingName] = useState('');
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+  const leaderboard = useLeaderboard();
+  const gameHistory = useGameHistory();
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -26,18 +35,12 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Initialize progression and currency systems (optional - commented out for build)
-  // const progression = useProgression();
-  // const currency = useCurrency();
-  
-  // Stub objects to prevent errors (used by SpaceJail component)
-  const progression = { level: 1, xp: 0, getProgressToNextLevel: () => 0 };
-  const currency = { 
-    coins: 0, 
-    removeCoins: () => {}, 
-    earnCoins: () => {},
-    earnGameReward: () => 0
-  };
+  // Initialize progression and currency systems
+  const progression = useProgression();
+  const currency = useCurrency();
+  const [showLevelUp, setShowLevelUp] = useState(false);
+  const [levelUpLevel, setLevelUpLevel] = useState(1);
+  const previousLevelRef = useRef(progression.level);
 
   const {
     players,
@@ -60,11 +63,94 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
     rollDice,
     resetGame,
     changePlayerIcon,
+    changePlayerName,
     hazards,
     jailStates,
     payBail,
-    rogueState
-  } = useGameLogic(initialDifficulty);
+    rogueState,
+    gameStartTime,
+    turnCount,
+    boardSize
+  } = useGameLogic(initialDifficulty, gameVariant);
+
+  // Debug: Log currency to console (can remove later)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('💰 Currency Debug:', {
+        coins: currency.coins,
+        hasCoins: !!currency.coins,
+        currencyKeys: Object.keys(currency),
+        currencyType: typeof currency.coins
+      });
+    }
+  }, [currency]);
+
+  // Track game events for coins and progression
+  useEffect(() => {
+    // Award daily login bonus on mount
+    currency.checkDailyLogin();
+  }, [currency]);
+
+  // Detect level ups and show animation
+  useEffect(() => {
+    if (progression.level > previousLevelRef.current) {
+      setLevelUpLevel(progression.level);
+      setShowLevelUp(true);
+      previousLevelRef.current = progression.level;
+    }
+  }, [progression.level]);
+
+  // Show username modal on mount (first time)
+  useEffect(() => {
+    // Show username modal when game first loads
+    const hasSeenModal = sessionStorage.getItem('space_adventure_usernames_set');
+    if (!hasSeenModal && players.length > 0) {
+      setShowUsernameModal(true);
+      sessionStorage.setItem('space_adventure_usernames_set', 'true');
+    }
+  }, [players.length]);
+
+  useEffect(() => {
+    if (gameWon && winner) {
+      // Award coins for winning
+      currency.earnGameReward(true, difficulty, false);
+      // Track progression
+      progression.trackEvent('gameWon', { difficulty, isOnline: false });
+      
+      // Track game on leaderboard and history
+      const gameDuration = Date.now() - (gameStartTime || Date.now());
+      
+      // Record winner on leaderboard (only if name is not default)
+      if (winner.name && !winner.name.match(/^Player \d+$/)) {
+        leaderboard.recordWin(winner.name, `local_${Date.now()}`, gameDuration);
+      }
+      
+      // Record other players (they played but didn't win)
+      players.forEach(player => {
+        if (player.id !== winner.id && player.name && !player.name.match(/^Player \d+$/)) {
+          leaderboard.recordGame(player.name);
+        }
+      });
+      
+      // Save to game history
+      gameHistory.saveGameHistory({
+        gameId: `local_${Date.now()}`,
+        players: players.map(p => ({
+          name: p.name,
+          position: p.position,
+          color: p.color
+        })),
+        winner: {
+          name: winner.name,
+          color: winner.color
+        },
+        startedAt: gameStartTime || Date.now(),
+        completedAt: Date.now(),
+        totalMoves: turnCount,
+        gameMode: 'local'
+      });
+    }
+  }, [gameWon, winner, difficulty, currency, progression, players, turnCount, leaderboard, gameHistory, gameStartTime]);
 
   return (
     <div
@@ -124,15 +210,31 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
         }
       `}</style>
 
+      {/* Username Input Modal */}
+      <UsernameInputModal
+        isOpen={showUsernameModal}
+        onClose={() => setShowUsernameModal(false)}
+        players={players}
+        onChangePlayerName={changePlayerName}
+        onComplete={() => {
+          // Names updated
+        }}
+      />
+
       {/* Game Settings Modal */}
       <GameSettings
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
         difficulty={difficulty}
         onChangeDifficulty={changeDifficulty}
+        onUpgrade={() => {
+          setShowSettings(false);
+          // Trigger upgrade modal (handled by App.jsx)
+          window.dispatchEvent(new CustomEvent('showPremiumModal'));
+        }}
       />
 
-      {/* Back button and Settings button */}
+      {/* Back button, Level, Coins, and Settings button */}
       <div className="fixed top-2 left-2 z-50 flex items-center gap-2">
         <button
           onClick={() => {
@@ -143,6 +245,8 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
         >
           <ArrowLeft className="w-5 h-5 text-white" />
         </button>
+        <LevelDisplay level={progression.level} />
+        <CoinDisplay coins={currency?.coins ?? 120} />
         <button
           onClick={() => {
             playSound('click');
@@ -168,19 +272,6 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
         </h1>
       </div>
 
-      {/* HUD Overlay - Progress & Coins (commented out for build - uncomment when hooks are committed) */}
-      {/* <div className="fixed top-16 left-2 right-2 z-20 flex items-start justify-between pointer-events-none">
-        <div className="pointer-events-auto w-64 hidden md:block">
-          <ProgressBar
-            level={progression.level}
-            xp={progression.xp}
-            getProgressToNextLevel={progression.getProgressToNextLevel}
-          />
-        </div>
-        <div className="pointer-events-auto ml-auto">
-          <CoinDisplay coins={currency.coins} />
-        </div>
-      </div> */}
 
       {/* Game Controls - responsive with safe bottom spacing */}
       <div
@@ -193,12 +284,32 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
         <GameControls
           diceValue={diceValue}
           message={message}
-          onReset={resetGame}
-          onAddPlayer={addPlayer}
+          onReset={() => {
+            resetGame();
+            setShowUsernameModal(true); // Show username modal after reset
+          }}
+          onAddPlayer={() => {
+            addPlayer();
+            setShowUsernameModal(true); // Show username modal when adding player
+          }}
           onRemovePlayer={removePlayer}
           numPlayers={numPlayers}
         />
       </div>
+
+      {/* Username button - show when game hasn't started */}
+      {!diceValue && !gameWon && (
+        <button
+          onClick={() => {
+            playSound('click');
+            setShowUsernameModal(true);
+          }}
+          className="fixed top-20 right-4 z-50 glass rounded-lg px-4 py-2 shadow-lg border-2 border-gray-700 hover:border-yellow-400 transition-all transform hover:scale-105 flex items-center gap-2"
+        >
+          <Edit2 className="w-4 h-4 text-yellow-300" />
+          <span className="text-white text-sm font-semibold">Edit Names</span>
+        </button>
+      )}
 
       {/* Player Panels - Fixed in screen corners with safe spacing */}
       <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 25 }}>
@@ -423,6 +534,7 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
             rogueState={rogueState}
             checkpoints={checkpoints}
             hazards={hazards}
+            boardSize={boardSize}
           />
         </div>
         </div>
@@ -445,6 +557,8 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal' }) {
                 if (result.success) {
                   currency.removeCoins(result.cost);
                   playSound('click');
+                  // Note: payBail already handles returning player to previous position
+                  // The player can now roll dice normally on their next turn
                 }
               }}
               onRollForDoubles={rollDice}

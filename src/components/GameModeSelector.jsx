@@ -1,14 +1,41 @@
-import { Rocket, Users, Wifi, Zap, Shield, Skull, Bot } from 'lucide-react';
+import { Rocket, Users, Wifi, Zap, Shield, Skull, Bot, Lock, Crown, Flame, Moon, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
+import AuthButton from './AuthButton';
+import AdSenseAd from './AdSenseAd';
 import { useGameSounds } from '../hooks/useGameSounds';
+import { useFreemiumLimits } from '../hooks/useFreemiumLimits';
+import { usePremium } from '../hooks/usePremium';
+import { GAME_VARIANTS } from '../hooks/useGameVariants';
 
-export default function GameModeSelector({ onSelectMode }) {
+export default function GameModeSelector({ onSelectMode, onUpgrade }) {
   const { playSound } = useGameSounds();
   const [difficulty, setDifficulty] = useState('normal');
+  const [selectedVariant, setSelectedVariant] = useState('classic');
+  const freemium = useFreemiumLimits();
+  const premium = usePremium();
 
   const handleSelectMode = (mode) => {
     playSound('click');
-    onSelectMode(mode, difficulty);
+    
+    // Check if user can play (freemium limits)
+    const isOnline = mode === 'online';
+    const canPlay = freemium.canPlayGame(isOnline);
+    
+    if (!canPlay.allowed) {
+      // Show upgrade modal or message
+      alert(canPlay.reason);
+      onUpgrade?.();
+      return;
+    }
+    
+    // Record game attempt
+    if (mode === 'online') {
+      freemium.recordGamePlayed(true);
+    }
+    
+    // Pass variant, difficulty, and randomization seed
+    const randomizationSeed = Date.now() + Math.random();
+    onSelectMode(mode, difficulty, selectedVariant, randomizationSeed);
   };
 
   return (
@@ -21,6 +48,11 @@ export default function GameModeSelector({ onSelectMode }) {
         backgroundColor: '#000'
       }}
     >
+      {/* Auth Button - Top Right */}
+      <div className="fixed top-4 right-4 z-50">
+        <AuthButton />
+      </div>
+
       <div className="text-center space-y-4 md:space-y-8 px-4 max-w-2xl w-full">
         <div className="space-y-2 md:space-y-4">
           <Rocket className="w-12 h-12 md:w-20 md:h-20 text-yellow-300 mx-auto animate-bounce" style={{
@@ -44,7 +76,7 @@ export default function GameModeSelector({ onSelectMode }) {
             <Zap className="w-4 h-4 md:w-5 md:h-5 text-yellow-300" />
             Choose Difficulty
           </h3>
-          <div className="grid grid-cols-3 gap-2 md:gap-3">
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-3">
             <button
               onClick={() => {
                 playSound('click');
@@ -80,24 +112,191 @@ export default function GameModeSelector({ onSelectMode }) {
             <button
               onClick={() => {
                 playSound('click');
+                if (!premium.isPremium && !freemium.canUseDifficulty('hard')) {
+                  playSound('error');
+                  onUpgrade?.();
+                  return;
+                }
                 setDifficulty('hard');
               }}
-              className={`p-2 md:p-4 rounded-lg transition-all transform hover:scale-105 ${
+              disabled={!premium.isPremium && !freemium.canUseDifficulty('hard')}
+              className={`p-2 md:p-4 rounded-lg transition-all transform hover:scale-105 relative ${
                 difficulty === 'hard'
                   ? 'bg-red-600 border-2 border-red-400 shadow-lg shadow-red-500/50'
-                  : 'bg-gray-800 border-2 border-gray-700 hover:border-red-400'
+                  : premium.isPremium || freemium.canUseDifficulty('hard')
+                  ? 'bg-gray-800 border-2 border-gray-700 hover:border-red-400'
+                  : 'bg-gray-900 border-2 border-gray-800 opacity-60 cursor-not-allowed'
               }`}
             >
-              <Skull className="w-5 h-5 md:w-8 md:h-8 text-red-300 mx-auto mb-1 md:mb-2" />
-              <div className="text-white font-bold text-xs md:text-sm">Hard</div>
-              <div className="text-gray-400 text-[10px] md:text-xs mt-0.5 md:mt-1 hidden sm:block">Extreme!</div>
+              <Skull className={`w-5 h-5 md:w-8 md:h-8 mx-auto mb-1 md:mb-2 ${premium.isPremium || freemium.canUseDifficulty('hard') ? 'text-red-300' : 'text-gray-500'}`} />
+              <div className={`font-bold text-xs md:text-sm flex items-center justify-center gap-1 ${premium.isPremium || freemium.canUseDifficulty('hard') ? 'text-white' : 'text-gray-500'}`}>
+                Hard
+                {!premium.isPremium && !freemium.canUseDifficulty('hard') && (
+                  <Lock className="w-3 h-3 text-yellow-400" />
+                )}
+              </div>
+              <div className={`text-[10px] md:text-xs mt-0.5 md:mt-1 hidden sm:block ${premium.isPremium || freemium.canUseDifficulty('hard') ? 'text-gray-400' : 'text-gray-600'}`}>
+                {premium.isPremium || freemium.canUseDifficulty('hard') ? 'Extreme!' : 'Premium'}
+              </div>
+            </button>
+
+            {/* Extreme - Premium Only */}
+            <button
+              onClick={() => {
+                playSound('click');
+                if (!premium.isPremium) {
+                  playSound('error');
+                  onUpgrade?.();
+                  return;
+                }
+                setDifficulty('extreme');
+              }}
+              disabled={!premium.isPremium}
+              className={`p-2 md:p-4 rounded-lg transition-all transform hover:scale-105 relative ${
+                difficulty === 'extreme'
+                  ? 'bg-orange-600 border-2 border-orange-400 shadow-lg shadow-orange-500/50'
+                  : premium.isPremium
+                  ? 'bg-gray-800 border-2 border-gray-700 hover:border-orange-400'
+                  : 'bg-gray-900 border-2 border-gray-800 opacity-60 cursor-not-allowed'
+              }`}
+            >
+              <Flame className={`w-5 h-5 md:w-8 md:h-8 mx-auto mb-1 md:mb-2 ${premium.isPremium ? 'text-orange-300' : 'text-gray-500'}`} />
+              <div className={`font-bold text-xs md:text-sm flex items-center justify-center gap-1 ${premium.isPremium ? 'text-white' : 'text-gray-500'}`}>
+                Extreme
+                {!premium.isPremium && <Lock className="w-3 h-3 text-yellow-400" />}
+              </div>
+              <div className={`text-[10px] md:text-xs mt-0.5 md:mt-1 hidden sm:block ${premium.isPremium ? 'text-gray-400' : 'text-gray-600'}`}>
+                {premium.isPremium ? '2x Rewards' : 'Premium'}
+              </div>
+            </button>
+
+            {/* Nightmare - Premium Only */}
+            <button
+              onClick={() => {
+                playSound('click');
+                if (!premium.isPremium) {
+                  playSound('error');
+                  onUpgrade?.();
+                  return;
+                }
+                setDifficulty('nightmare');
+              }}
+              disabled={!premium.isPremium}
+              className={`p-2 md:p-4 rounded-lg transition-all transform hover:scale-105 relative ${
+                difficulty === 'nightmare'
+                  ? 'bg-purple-600 border-2 border-purple-400 shadow-lg shadow-purple-500/50'
+                  : premium.isPremium
+                  ? 'bg-gray-800 border-2 border-gray-700 hover:border-purple-400'
+                  : 'bg-gray-900 border-2 border-gray-800 opacity-60 cursor-not-allowed'
+              }`}
+            >
+              <Moon className={`w-5 h-5 md:w-8 md:h-8 mx-auto mb-1 md:mb-2 ${premium.isPremium ? 'text-purple-300' : 'text-gray-500'}`} />
+              <div className={`font-bold text-xs md:text-sm flex items-center justify-center gap-1 ${premium.isPremium ? 'text-white' : 'text-gray-500'}`}>
+                Nightmare
+                {!premium.isPremium && <Lock className="w-3 h-3 text-yellow-400" />}
+              </div>
+              <div className={`text-[10px] md:text-xs mt-0.5 md:mt-1 hidden sm:block ${premium.isPremium ? 'text-gray-400' : 'text-gray-600'}`}>
+                {premium.isPremium ? '2.5x Rewards' : 'Premium'}
+              </div>
+            </button>
+
+            {/* Chaos - Premium Only */}
+            <button
+              onClick={() => {
+                playSound('click');
+                if (!premium.isPremium) {
+                  playSound('error');
+                  onUpgrade?.();
+                  return;
+                }
+                setDifficulty('chaos');
+              }}
+              disabled={!premium.isPremium}
+              className={`p-2 md:p-4 rounded-lg transition-all transform hover:scale-105 relative ${
+                difficulty === 'chaos'
+                  ? 'bg-pink-600 border-2 border-pink-400 shadow-lg shadow-pink-500/50'
+                  : premium.isPremium
+                  ? 'bg-gray-800 border-2 border-gray-700 hover:border-pink-400'
+                  : 'bg-gray-900 border-2 border-gray-800 opacity-60 cursor-not-allowed'
+              }`}
+            >
+              <AlertTriangle className={`w-5 h-5 md:w-8 md:h-8 mx-auto mb-1 md:mb-2 ${premium.isPremium ? 'text-pink-300' : 'text-gray-500'}`} />
+              <div className={`font-bold text-xs md:text-sm flex items-center justify-center gap-1 ${premium.isPremium ? 'text-white' : 'text-gray-500'}`}>
+                Chaos
+                {!premium.isPremium && <Lock className="w-3 h-3 text-yellow-400" />}
+              </div>
+              <div className={`text-[10px] md:text-xs mt-0.5 md:mt-1 hidden sm:block ${premium.isPremium ? 'text-gray-400' : 'text-gray-600'}`}>
+                {premium.isPremium ? '3x Rewards' : 'Premium'}
+              </div>
             </button>
           </div>
           <div className="mt-2 md:mt-4 text-center text-xs md:text-sm text-gray-400">
             {difficulty === 'easy' && '✓ Standard game, no surprises'}
             {difficulty === 'normal' && '⚡ Random aliens spawn, checkpoints may disappear'}
             {difficulty === 'hard' && '💀 Frequent alien spawns, high checkpoint loss!'}
+            {difficulty === 'extreme' && '🔥 Constant threats! Aliens spawn every turn! 2x rewards'}
+            {difficulty === 'nightmare' && '🌙 Nightmare mode! Aliens spawn EVERY turn! 2.5x rewards'}
+            {difficulty === 'chaos' && '⚠️ Pure chaos! Maximum difficulty, all mechanics active! 3x rewards'}
           </div>
+        </div>
+
+        {/* Game Variants Selector */}
+        <div className="glass rounded-lg p-3 md:p-6 shadow-2xl border-2 border-yellow-400 border-opacity-30">
+          <h3 className="text-base md:text-xl font-bold text-white mb-3 md:mb-4 flex items-center justify-center gap-2">
+            <Rocket className="w-4 h-4 md:w-5 md:h-5 text-yellow-300" />
+            Game Mode
+          </h3>
+          <div className="max-h-64 md:max-h-80 overflow-y-auto mb-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-2 md:gap-3 pr-2">
+              {Object.values(GAME_VARIANTS).map((variant) => {
+                const isLocked = variant.requiresPremium && !premium.isPremium;
+                const isSelected = selectedVariant === variant.id;
+                
+                return (
+                  <button
+                    key={variant.id}
+                    onClick={() => {
+                      playSound('click');
+                      if (isLocked) {
+                        playSound('error');
+                        onUpgrade?.();
+                        return;
+                      }
+                      setSelectedVariant(variant.id);
+                    }}
+                    disabled={isLocked}
+                    className={`p-2 md:p-3 rounded-lg transition-all transform hover:scale-105 ${
+                      isSelected
+                        ? 'bg-yellow-600 border-2 border-yellow-400 shadow-lg shadow-yellow-500/50'
+                        : isLocked
+                        ? 'bg-gray-800 border-2 border-gray-700 opacity-60 cursor-not-allowed'
+                        : 'bg-gray-700 border-2 border-gray-600 hover:border-yellow-400'
+                    }`}
+                    title={variant.description}
+                  >
+                    <div className={`font-bold text-xs md:text-sm flex items-center justify-center gap-1 ${
+                      isLocked ? 'text-gray-500' : 'text-white'
+                    }`}>
+                      <span>{variant.icon}</span>
+                      <span className="hidden sm:inline">{variant.name}</span>
+                      {isLocked && <Lock className="w-3 h-3" />}
+                    </div>
+                    {isSelected && (
+                      <div className="text-[10px] text-yellow-200 mt-1 text-center">
+                        Selected
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="text-xs md:text-sm text-gray-400 text-center mb-2">
+            {GAME_VARIANTS[selectedVariant]?.description || 'Choose a gameplay variant'}
+          </div>
+          <p className="text-xs text-gray-500 text-center">
+            Each game is randomized for variety - no two games are the same!
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mt-4 md:mt-8">
@@ -133,6 +332,22 @@ export default function GameModeSelector({ onSelectMode }) {
               Play with friends across different devices
             </p>
           </button>
+        </div>
+
+        {/* AdSense Ad - Bottom of screen (safe area, doesn't obstruct gameplay) */}
+        <div className="mt-8 mb-4 flex justify-center px-4">
+          <div className="w-full max-w-4xl">
+            <AdSenseAd 
+              adFormat="horizontal"
+              className="w-full"
+              style={{ 
+                minHeight: '100px',
+                maxWidth: '100%',
+                // Ensure ad stays at bottom, doesn't overlap content
+                marginTop: 'auto'
+              }}
+            />
+          </div>
         </div>
       </div>
     </div>

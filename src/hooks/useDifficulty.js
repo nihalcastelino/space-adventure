@@ -10,19 +10,53 @@ const DIFFICULTY_CONFIG = {
     alienSpawnInterval: null, // No spawning
     alienSpawnChance: 0,
     checkpointRemovalChance: 0,
-    description: 'Standard game, no surprises'
+    description: 'Standard game, no surprises',
+    coinMultiplier: 1.0,
+    xpMultiplier: 1.0
   },
   normal: {
     alienSpawnInterval: 5, // Every 4-5 turns
     alienSpawnChance: 0.6, // 60% chance when interval hits
     checkpointRemovalChance: 0.1, // 10% per turn
-    description: 'Random aliens spawn, checkpoints may disappear'
+    description: 'Random aliens spawn, checkpoints may disappear',
+    coinMultiplier: 1.2,
+    xpMultiplier: 1.2
   },
   hard: {
     alienSpawnInterval: 3, // Every 2-3 turns
     alienSpawnChance: 0.8, // 80% chance when interval hits
     checkpointRemovalChance: 0.2, // 20% per turn
-    description: 'Frequent alien spawns, high checkpoint loss!'
+    description: 'Frequent alien spawns, high checkpoint loss!',
+    coinMultiplier: 1.5,
+    xpMultiplier: 1.5
+  },
+  extreme: {
+    alienSpawnInterval: 2, // Every 1-2 turns
+    alienSpawnChance: 0.9, // 90% chance when interval hits
+    checkpointRemovalChance: 0.3, // 30% per turn
+    description: 'Constant threats! Aliens spawn every turn!',
+    coinMultiplier: 2.0,
+    xpMultiplier: 2.0,
+    requiresPremium: true
+  },
+  nightmare: {
+    alienSpawnInterval: 1, // Every turn
+    alienSpawnChance: 1.0, // 100% chance - guaranteed spawn
+    checkpointRemovalChance: 0.4, // 40% per turn
+    description: 'Nightmare mode! Aliens spawn EVERY turn!',
+    coinMultiplier: 2.5,
+    xpMultiplier: 2.5,
+    requiresPremium: true
+  },
+  chaos: {
+    alienSpawnInterval: 1, // Every turn
+    alienSpawnChance: 1.0, // 100% chance
+    checkpointRemovalChance: 0.5, // 50% per turn - half checkpoints gone!
+    description: 'Pure chaos! Maximum difficulty, all mechanics active!',
+    coinMultiplier: 3.0,
+    xpMultiplier: 3.0,
+    requiresPremium: true,
+    enableAllHazards: true // Enable all jeopardy mechanics
   }
 };
 

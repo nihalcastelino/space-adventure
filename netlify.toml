@@ -29,3 +29,19 @@
 # VITE_FIREBASE_MESSAGING_SENDER_ID
 # VITE_FIREBASE_APP_ID
 
+# Stripe Configuration
+# STRIPE_SECRET_KEY (server-side only, not VITE_)
+# VITE_STRIPE_PUBLISHABLE_KEY (client-side)
+# STRIPE_WEBHOOK_SECRET (server-side only)
+# VITE_STRIPE_PRICE_MONTHLY (client-side)
+# VITE_STRIPE_PRICE_LIFETIME (client-side)
+
+# Supabase Configuration
+# VITE_SUPABASE_URL
+# VITE_SUPABASE_ANON_KEY
+# SUPABASE_SERVICE_KEY (server-side only, for webhooks)
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+

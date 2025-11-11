@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '../lib/supabase';
 
 // Premium tiers
 export const PREMIUM_TIERS = {
@@ -153,75 +154,119 @@ export function usePremium() {
     return currentTier.features[feature] || false;
   }, [getCurrentTier]);
 
-  // Purchase premium (simulation for testing)
+  // Load premium status from Supabase
+  useEffect(() => {
+    loadPremiumStatus();
+  }, []);
+
+  const loadPremiumStatus = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from('space_adventure_profiles')
+      .select('premium_tier, subscription_status')
+      .eq('id', user.id)
+      .single();
+
+    if (data) {
+      setTier(data.premium_tier || 'free');
+      setSubscriptionStatus(data.subscription_status || {
+        active: false,
+        expiresAt: null,
+        autoRenew: false,
+      });
+    }
+  }, []);
+
+  // Purchase premium - redirects to Stripe Checkout
   const purchasePremium = useCallback(async (tierId) => {
-    // In production, this would:
-    // 1. Open payment processor (Stripe, IAP, etc.)
-    // 2. Process payment
-    // 3. Verify payment on backend
-    // 4. Update user's premium status in database
-    // 5. Return success/failure
-
-    console.log(`Purchasing premium tier: ${tierId}`);
-
-    // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    const tierData = PREMIUM_TIERS[tierId.toUpperCase()];
-    if (!tierData) {
-      return { success: false, error: 'Invalid tier' };
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { success: false, error: 'Please sign in to purchase' };
     }
 
-    setTier(tierId.toLowerCase());
-
-    if (tierData.interval === 'month') {
-      // Set monthly subscription
-      const expiresAt = new Date();
-      expiresAt.setMonth(expiresAt.getMonth() + 1);
-
-      setSubscriptionStatus({
-        active: true,
-        expiresAt: expiresAt.toISOString(),
-        autoRenew: true
-      });
-    } else if (tierData.interval === 'once') {
-      // Lifetime purchase
-      setSubscriptionStatus({
-        active: true,
-        expiresAt: null, // Never expires
-        autoRenew: false
-      });
+    const priceId = PAYMENT_IDS[tierId === 'monthly' ? 'STRIPE_MONTHLY' : 'STRIPE_LIFETIME'];
+    if (!priceId || priceId.startsWith('price_xxxx')) {
+      return { success: false, error: 'Price ID not configured. Please add Stripe Price IDs to .env' };
     }
 
-    return { success: true, tier: tierId };
+    try {
+      // Get auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      // Call Netlify Function to create checkout session
+      const response = await fetch('/.netlify/functions/create-checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ priceId, tier: tierId }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        return { success: false, error: error.error || 'Failed to create checkout session' };
+      }
+
+      const { url } = await response.json();
+      
+      // Redirect to Stripe Checkout
+      window.location.href = url;
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error creating checkout:', error);
+      return { success: false, error: error.message };
+    }
   }, []);
 
-  // Cancel subscription
-  const cancelSubscription = useCallback(() => {
-    // In production, this would cancel the subscription with the payment processor
+  // Cancel subscription - redirects to Stripe Customer Portal
+  const cancelSubscription = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'Not authenticated' };
 
-    setSubscriptionStatus(prev => ({
-      ...prev,
-      autoRenew: false
-    }));
+    const { data } = await supabase
+      .from('space_adventure_profiles')
+      .select('stripe_customer_id')
+      .eq('id', user.id)
+      .single();
 
-    return { success: true };
+    if (!data?.stripe_customer_id) {
+      return { success: false, error: 'No active subscription found' };
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch('/.netlify/functions/create-portal', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (!response.ok) {
+        return { success: false, error: 'Failed to create portal session' };
+      }
+
+      const { url } = await response.json();
+      window.location.href = url;
+      
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
   }, []);
 
-  // Restore purchases (for IAP)
+  // Restore purchases - reload from Supabase
   const restorePurchases = useCallback(async () => {
-    // In production, this would:
-    // 1. Query the payment processor for active subscriptions
-    // 2. Restore any valid purchases
-    // 3. Update local state
-
-    console.log('Restoring purchases...');
-
-    // Simulate restore
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    return { success: true, restored: [] };
-  }, []);
+    await loadPremiumStatus();
+    return { success: true };
+  }, [loadPremiumStatus]);
 
   // Get days remaining in subscription
   const getDaysRemaining = useCallback(() => {
@@ -267,17 +312,17 @@ export function usePremium() {
   };
 }
 
-// Payment provider IDs (replace with your actual IDs)
+// Payment provider IDs - loaded from environment variables
 export const PAYMENT_IDS = {
-  // Stripe product IDs
-  STRIPE_MONTHLY: 'price_xxxxxxxxxxxxx',
-  STRIPE_LIFETIME: 'price_xxxxxxxxxxxxx',
+  // Stripe Price IDs (from .env)
+  STRIPE_MONTHLY: import.meta.env.VITE_STRIPE_PRICE_MONTHLY || 'price_xxxxxxxxxxxxx',
+  STRIPE_LIFETIME: import.meta.env.VITE_STRIPE_PRICE_LIFETIME || 'price_xxxxxxxxxxxxx',
 
-  // iOS App Store product IDs
+  // iOS App Store product IDs (for future mobile app)
   IOS_MONTHLY: 'com.spaceadventure.premium.monthly',
   IOS_LIFETIME: 'com.spaceadventure.premium.lifetime',
 
-  // Android Google Play product IDs
+  // Android Google Play product IDs (for future mobile app)
   ANDROID_MONTHLY: 'premium_monthly',
   ANDROID_LIFETIME: 'premium_lifetime'
 };

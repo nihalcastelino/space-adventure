@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { database } from '../lib/firebase';
+import { supabase } from '../lib/supabase';
 import { ref, set, onValue, update, get } from 'firebase/database';
 import { useGameSounds } from './useGameSounds';
 import { useGameHistory } from './useGameHistory';
@@ -134,6 +135,14 @@ export function useFirebaseGame() {
   const createGame = async (playerName) => {
     if (!isValidPlayerName(playerName)) {
       throw new Error('Invalid player name');
+    }
+
+    // Authentication check - require login for room creation
+    if (supabase) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Please sign in to create a room. Authentication required for online play.');
+      }
     }
 
     const sanitizedName = sanitizePlayerName(playerName);

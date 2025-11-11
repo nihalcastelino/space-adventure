@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Rocket, ArrowLeft, Settings, Bot } from 'lucide-react';
 import GameBoard from './GameBoard';
 import PlayerPanel from './PlayerPanel';
@@ -12,10 +12,10 @@ import { useGameSounds } from '../hooks/useGameSounds';
 import { useAIOpponent, createAIPlayer } from '../hooks/useAIOpponent';
 import { useProgression } from '../hooks/useProgression';
 import { useCurrency } from '../hooks/useCurrency';
-import { ProgressBar } from './ProgressionUI';
-import { CoinDisplay } from './PowerUpUI';
+import { CoinDisplay, LevelDisplay } from './PowerUpUI';
+import LevelUpAnimation from './LevelUpAnimation';
 
-export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficulty = 'medium' }) {
+export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficulty = 'medium', gameVariant = 'classic', randomizationSeed = null }) {
   const { playSound } = useGameSounds();
   const [showSettings, setShowSettings] = useState(false);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -29,8 +29,20 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
   // Initialize progression and currency systems
   const progression = useProgression();
   const currency = useCurrency();
+  const [showLevelUp, setShowLevelUp] = useState(false);
+  const [levelUpLevel, setLevelUpLevel] = useState(1);
+  const previousLevelRef = useRef(progression.level);
 
-  const gameLogic = useGameLogic(initialDifficulty);
+  // Detect level ups and show animation
+  useEffect(() => {
+    if (progression.level > previousLevelRef.current) {
+      setLevelUpLevel(progression.level);
+      setShowLevelUp(true);
+      previousLevelRef.current = progression.level;
+    }
+  }, [progression.level]);
+
+  const gameLogic = useGameLogic(initialDifficulty, gameVariant);
   const {
     players,
     currentPlayerIndex,
@@ -51,7 +63,8 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
     changePlayerIcon,
     hazards,
     jailStates,
-    payBail
+    payBail,
+    boardSize
   } = gameLogic;
 
   // In AI mode, player at index 1 is always the AI
@@ -105,7 +118,7 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
         onChangeDifficulty={changeDifficulty}
       />
 
-      {/* Back button and Settings button */}
+      {/* Back button, Level, Coins, and Settings button */}
       <div className="fixed top-2 left-2 z-50 flex items-center gap-2">
         <button
           onClick={() => {
@@ -116,6 +129,8 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
         >
           <ArrowLeft className="w-5 h-5 text-white" />
         </button>
+        <LevelDisplay level={progression.level} />
+        <CoinDisplay coins={currency?.coins ?? 0} />
         <button
           onClick={() => {
             playSound('click');
@@ -142,22 +157,6 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
         </h1>
       </div>
 
-      {/* HUD Overlay - Progress & Coins */}
-      <div className="fixed top-16 left-2 right-2 z-20 flex items-start justify-between pointer-events-none">
-        {/* Left: Progress Bar */}
-        <div className="pointer-events-auto w-64 hidden md:block">
-          <ProgressBar
-            level={progression.level}
-            xp={progression.xp}
-            getProgressToNextLevel={progression.getProgressToNextLevel}
-          />
-        </div>
-
-        {/* Right: Coins */}
-        <div className="pointer-events-auto ml-auto">
-          <CoinDisplay coins={currency.coins} />
-        </div>
-      </div>
 
       {/* Game Controls */}
       <div
@@ -340,10 +339,18 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
               aliens={aliens}
               checkpoints={checkpoints}
               hazards={hazards}
+              boardSize={boardSize}
             />
           </div>
         </div>
       </div>
+
+      {/* Level Up Animation */}
+      <LevelUpAnimation
+        level={levelUpLevel}
+        isActive={showLevelUp}
+        onComplete={() => setShowLevelUp(false)}
+      />
 
       {/* Space Jail Overlay */}
       {players.map(player => {
@@ -362,6 +369,8 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
                 if (result.success) {
                   currency.removeCoins(result.cost);
                   playSound('click');
+                  // Note: payBail already handles returning player to previous position
+                  // The player can now roll dice normally on their next turn
                 }
               }}
               onRollForDoubles={rollDice}

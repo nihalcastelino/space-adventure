@@ -1,4 +1,4 @@
-import { X, Zap, ShoppingBag, Coins, Info } from 'lucide-react';
+import { X, Zap, ShoppingBag, Coins, Info, Star } from 'lucide-react';
 import { POWERUPS, RARITY_COLORS } from '../hooks/usePowerUps';
 import { useState } from 'react';
 
@@ -288,11 +288,22 @@ export function PowerUpShop({ coins, inventory, onPurchase, onClose }) {
   );
 }
 
-export function CoinDisplay({ coins, className = '' }) {
+export function CoinDisplay({ coins = 0, className = '' }) {
+  const coinsValue = typeof coins === 'number' ? coins : parseInt(coins) || 0;
+  
   return (
-    <div className={`bg-yellow-600 px-3 py-1 rounded-lg flex items-center gap-2 ${className}`}>
-      <Coins className="w-4 h-4 text-white" />
-      <span className="text-white font-bold">{coins}</span>
+    <div className={`bg-gradient-to-r from-yellow-600 to-yellow-500 px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-lg border-2 border-yellow-400 ${className}`}>
+      <Coins className="w-5 h-5 text-white flex-shrink-0" />
+      <span className="text-white font-bold text-lg">{coinsValue.toLocaleString()}</span>
+    </div>
+  );
+}
+
+export function LevelDisplay({ level = 1, className = '' }) {
+  return (
+    <div className={`glass rounded-lg px-3 py-1.5 flex items-center gap-2 shadow-lg border-2 border-purple-400 border-opacity-50 ${className}`}>
+      <Star className="w-5 h-5 text-purple-300 flex-shrink-0" />
+      <span className="text-white font-bold text-lg">{level}</span>
     </div>
   );
 }

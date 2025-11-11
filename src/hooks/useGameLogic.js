@@ -4,14 +4,18 @@ import { useDifficulty } from './useDifficulty';
 import { useJeopardyMechanics } from './useJeopardyMechanics';
 import { usePlayerAssistance } from './usePlayerAssistance';
 import { useRoguePlayer } from './useRoguePlayer';
+import { GAME_VARIANTS } from './useGameVariants';
 
-const BOARD_SIZE = 100;
+const DEFAULT_BOARD_SIZE = 100;
 const SPACEPORTS = {
   4: 18, 9: 31, 15: 42, 21: 56, 28: 64,
   36: 70, 51: 77, 62: 85, 71: 91, 80: 96
 };
 
-export function useGameLogic(initialDifficulty = 'normal') {
+export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classic') {
+  // Get board size from variant
+  const variant = GAME_VARIANTS[gameVariant] || GAME_VARIANTS.classic;
+  const BOARD_SIZE = variant.boardSize || DEFAULT_BOARD_SIZE;
   const { playSound } = useGameSounds();
   const {
     difficulty,
@@ -65,6 +69,7 @@ export function useGameLogic(initialDifficulty = 'normal') {
   const [difficultyEvents, setDifficultyEvents] = useState({ spawnedAlien: null, removedCheckpoint: null });
   const [turnCount, setTurnCount] = useState(0);
   const [lastRogueSpawnTurn, setLastRogueSpawnTurn] = useState(-20); // Start negative so first spawn happens early
+  const [gameStartTime, setGameStartTime] = useState(Date.now());
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -608,6 +613,26 @@ export function useGameLogic(initialDifficulty = 'normal') {
     ));
   };
 
+  const changePlayerName = (playerId, newName) => {
+    if (!newName || newName.trim().length === 0) return;
+    const sanitizedName = newName.trim().substring(0, 20);
+    setPlayers(players.map(p =>
+      p.id === playerId ? { ...p, name: sanitizedName } : p
+    ));
+  };
+
+  // Handle paying bail - updates player position and clears jail
+  const handlePayBail = (playerId) => {
+    const result = jeopardy.payBail(playerId);
+    if (result.success && result.returnPosition !== undefined) {
+      // Update player position to return position
+      setPlayers(players.map(p =>
+        p.id === playerId ? { ...p, position: result.returnPosition } : p
+      ));
+    }
+    return result;
+  };
+
   const resetGame = () => {
     playSound('click');
     setPlayers(players.map(p => ({ ...p, position: 0, lastCheckpoint: 0 })));
@@ -621,6 +646,7 @@ export function useGameLogic(initialDifficulty = 'normal') {
     setDifficultyEvents({ spawnedAlien: null, removedCheckpoint: null });
     setTurnCount(0);
     setLastRogueSpawnTurn(-20);
+    setGameStartTime(Date.now());
     resetDifficulty(); // Reset difficulty state
     jeopardy.resetHazards(); // Reset jeopardy hazards
     assistance.resetAll(); // Reset assistance state
@@ -654,11 +680,18 @@ export function useGameLogic(initialDifficulty = 'normal') {
     // Jeopardy mechanics
     hazards: jeopardy.hazards,
     jailStates: jeopardy.getJailState, // Function to get jail state for any player
-    payBail: jeopardy.payBail,
+    payBail: handlePayBail, // Wrapper that also updates player position
     // Player assistance
     assistanceStatus: assistance.getAssistanceStatus,
     // Rogue player
-    rogueState: rogue.rogueState
+    rogueState: rogue.rogueState,
+    // Player name editing
+    changePlayerName,
+    // Game tracking
+    gameStartTime,
+    turnCount,
+    // Board size from variant
+    boardSize: BOARD_SIZE
   };
 }
 

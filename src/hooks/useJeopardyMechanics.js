@@ -43,7 +43,9 @@ const DIFFICULTY_MULTIPLIERS = {
   easy: 0,      // No hazards
   normal: 0.5,  // 50% frequency
   hard: 1.0,    // 100% frequency
-  chaos: 2.0    // 200% frequency
+  extreme: 1.5, // 150% frequency
+  nightmare: 2.0, // 200% frequency
+  chaos: 3.0    // 300% frequency - maximum chaos!
 };
 
 export function useJeopardyMechanics(difficulty = 'normal', enabled = true) {

@@ -1,7 +1,7 @@
 import { Rocket, Zap, Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
-const BOARD_SIZE = 100;
+const DEFAULT_BOARD_SIZE = 100;
 const SPACEPORTS = {
   4: 18, 9: 31, 15: 42, 21: 56, 28: 64,
   36: 70, 51: 77, 62: 85, 71: 91, 80: 96
@@ -21,12 +21,15 @@ export default function GameBoard({
   aliens = DEFAULT_ALIENS,
   checkpoints = DEFAULT_CHECKPOINTS,
   hazards = null, // Jeopardy mechanics hazards
-  rogueState = null // Rogue player state
+  rogueState = null, // Rogue player state
+  boardSize = DEFAULT_BOARD_SIZE // Variant-specific board size
 }) {
   const ALIENS = aliens;
   const CHECKPOINTS = checkpoints;
   const [sparkles, setSparkles] = useState([]);
 
+  const BOARD_SIZE = boardSize; // Use variant-specific board size
+  
   useEffect(() => {
     const interval = setInterval(() => {
       const newSparkles = [];
@@ -101,8 +104,10 @@ export default function GameBoard({
 
   const renderBoard = () => {
     const cells = [];
-    const rows = 10;
-    const cols = 10;
+    // Calculate grid dimensions based on board size
+    // For 50 squares: 5x10, for 100: 10x10, for 200: 10x20
+    const cols = 10; // Always 10 columns for consistent layout
+    const rows = Math.ceil(BOARD_SIZE / cols);
 
     for (let row = rows - 1; row >= 0; row--) {
       const isEvenRow = row % 2 === 0;
@@ -111,7 +116,7 @@ export default function GameBoard({
         const actualCol = isEvenRow ? col : (cols - 1 - col);
         const cellNumber = row * cols + actualCol + 1;
 
-        if (cellNumber < 1 || cellNumber > 100) continue;
+        if (cellNumber < 1 || cellNumber > BOARD_SIZE) continue;
 
         // Check for players - use animated position if available
         const playersHere = players.filter(p => {

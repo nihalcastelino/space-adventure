@@ -5,6 +5,73 @@ const getXPForLevel = (level) => {
   return Math.floor(100 * Math.pow(1.5, level - 1));
 };
 
+// Maximum level (expanded from 50 to 100)
+const MAX_LEVEL = 100;
+
+// Level-based unlocks
+export const LEVEL_UNLOCKS = {
+  5: {
+    name: 'Custom Usernames',
+    description: 'Unlock custom usernames for local games',
+    icon: '✏️'
+  },
+  10: {
+    name: 'Neon Theme',
+    description: 'Unlock neon board theme',
+    icon: '💡'
+  },
+  15: {
+    name: 'Extra Power-Up Slot',
+    description: 'Carry 2 power-ups at once',
+    icon: '🎒'
+  },
+  20: {
+    name: 'Galaxy Theme',
+    description: 'Unlock galaxy board theme',
+    icon: '🌌'
+  },
+  25: {
+    name: 'Advanced Stats',
+    description: 'View detailed game statistics',
+    icon: '📊'
+  },
+  30: {
+    name: 'Retro Theme',
+    description: 'Unlock retro board theme',
+    icon: '🎮'
+  },
+  35: {
+    name: 'Double XP Weekend',
+    description: '2x XP every weekend',
+    icon: '⚡'
+  },
+  40: {
+    name: 'Custom Dice',
+    description: 'Unlock custom dice skins',
+    icon: '🎲'
+  },
+  50: {
+    name: 'Master Badge',
+    description: 'Exclusive master badge',
+    icon: '🏅'
+  },
+  60: {
+    name: 'Elite Theme',
+    description: 'Unlock elite board theme',
+    icon: '👑'
+  },
+  75: {
+    name: 'Legend Badge',
+    description: 'Exclusive legend badge',
+    icon: '💎'
+  },
+  100: {
+    name: 'Champion Status',
+    description: 'Ultimate champion status and all unlocks',
+    icon: '🌟'
+  }
+};
+
 // Achievement definitions
 export const ACHIEVEMENTS = {
   // Gameplay achievements

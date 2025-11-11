@@ -38,15 +38,21 @@ export default function SpaceJail({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-      <div className="pointer-events-auto">
+      {/* Dark backdrop for better visibility */}
+      <div 
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        style={{ zIndex: 50 }}
+      />
+      <div className="pointer-events-auto relative" style={{ zIndex: 51 }}>
         {/* Jail Cell */}
         <div
           className="relative glass rounded-lg border-4 border-red-500 shadow-2xl overflow-hidden"
           style={{
-            width: '320px',
+            width: 'min(90vw, 400px)',
             minHeight: '200px',
-            background: 'linear-gradient(135deg, rgba(20, 20, 40, 0.95), rgba(40, 0, 0, 0.95))',
-            animation: 'pulse-red 2s infinite'
+            background: 'linear-gradient(135deg, rgba(30, 30, 50, 0.98), rgba(60, 0, 0, 0.98))',
+            animation: 'pulse-red 2s infinite',
+            boxShadow: '0 0 40px rgba(239, 68, 68, 0.8), inset 0 0 20px rgba(0, 0, 0, 0.5)'
           }}
         >
           {/* Prison Bars Effect */}
