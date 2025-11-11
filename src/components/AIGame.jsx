@@ -118,16 +118,16 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
         onChangeDifficulty={changeDifficulty}
       />
 
-      {/* Back button, Level, Coins, and Settings button */}
-      <div className="fixed top-2 left-2 z-50 flex items-center gap-2">
+      {/* Back button, Level, Coins, and Settings button - Responsive spacing and sizing */}
+      <div className="fixed top-1 left-1 sm:top-2 sm:left-2 z-50 flex items-center gap-0.5 sm:gap-1 md:gap-2 max-w-[calc(50%-2rem)] sm:max-w-none">
         <button
           onClick={() => {
             playSound('click');
             onBack();
           }}
-          className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-blue-400 transition-all transform hover:scale-110 active:scale-95"
+          className="glass rounded-lg p-1 sm:p-1.5 md:p-2 shadow-lg border-2 border-gray-700 hover:border-blue-400 transition-all transform hover:scale-110 active:scale-95 flex-shrink-0"
         >
-          <ArrowLeft className="w-5 h-5 text-white" />
+          <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
         </button>
         <LevelDisplay level={progression.level} />
         <CoinDisplay coins={currency?.coins ?? 0} />
@@ -136,24 +136,28 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
             playSound('click');
             setShowSettings(true);
           }}
-          className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-yellow-400 transition-all transform hover:scale-110 active:scale-95"
+          className="glass rounded-lg p-1 sm:p-1.5 md:p-2 shadow-lg border-2 border-gray-700 hover:border-yellow-400 transition-all transform hover:scale-110 active:scale-95 flex-shrink-0"
           title="Game Settings"
         >
-          <Settings className="w-5 h-5 text-yellow-300" />
+          <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-300" />
         </button>
       </div>
 
-      {/* Title */}
-      <div className="fixed top-2 left-1/2 transform -translate-x-1/2 z-10">
-        <h1 className="text-xl md:text-3xl font-bold text-center flex items-center justify-center gap-2 glass px-4 md:px-6 py-2 rounded-lg shadow-2xl border-2 border-purple-400 border-opacity-30">
-          <Rocket className="w-5 h-5 md:w-8 md:h-8 text-yellow-300 animate-float" />
-          <span className="hidden sm:inline text-yellow-300">
+      {/* Title - responsive, positioned to avoid overlap with left bar */}
+      <div className="fixed top-1 sm:top-2 left-1/2 transform -translate-x-1/2 z-10" style={{ 
+        maxWidth: 'calc(100vw - 200px)', // Leave space for left bar on mobile
+        paddingLeft: '100px', // Account for left bar
+        paddingRight: '100px' // Account for right side
+      }}>
+        <h1 className="text-sm sm:text-xl md:text-3xl font-bold text-center flex items-center justify-center gap-1 sm:gap-2 glass px-2 sm:px-4 md:px-6 py-1 sm:py-1.5 md:py-2 rounded-lg shadow-2xl border-2 border-purple-400 border-opacity-30">
+          <Rocket className="w-4 h-4 sm:w-5 sm:h-5 md:w-8 md:h-8 text-yellow-300 animate-float flex-shrink-0" />
+          <span className="hidden sm:inline text-yellow-300 whitespace-nowrap">
             vs {aiPersonality.name}
           </span>
-          <span className="sm:hidden text-yellow-300">
+          <span className="sm:hidden text-yellow-300 whitespace-nowrap">
             vs AI
           </span>
-          <Bot className="w-5 h-5 md:w-8 md:h-8 text-purple-300" />
+          <Bot className="w-4 h-4 sm:w-5 sm:h-5 md:w-8 md:h-8 text-purple-300 flex-shrink-0" />
         </h1>
       </div>
 
@@ -176,8 +180,8 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
 
       {/* Player Panels */}
       <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 25 }}>
-        {/* Top panels */}
-        <div className="absolute top-14 left-0 right-0 px-2 flex justify-between gap-2">
+        {/* Top panels - Adjusted spacing for mobile to avoid overlap */}
+        <div className="absolute top-12 sm:top-14 md:top-16 left-0 right-0 px-2 flex justify-between gap-2">
           {/* AI Player: Top-Left */}
           {players[1] && (
             <div className="pointer-events-auto">
@@ -234,9 +238,9 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
         </div>
       </div>
 
-      {/* Game Board */}
+      {/* Game Board - responsive with safe spacing for controls */}
       <div
-        className="fixed"
+        className="fixed overflow-hidden"
         style={{
           top: '50%',
           left: '50%',
@@ -248,7 +252,12 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
           gap: '8px',
           maxWidth: '800px',
           width: '100vw',
-          maxHeight: '90vh'
+          // Account for dice controls at bottom (approx 140px) + top panels (approx 80px) + padding
+          maxHeight: windowWidth < 640 
+            ? 'calc(100vh - 240px)' // Mobile: controls + panels + padding
+            : windowWidth >= 1536 // 2xl breakpoint (foldables/unfolded tablets)
+            ? 'calc(100vh - 200px)' // Very large screens: account for controls
+            : 'calc(100vh - 180px)' // Desktop: controls + padding
         }}
       >
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', width: '100%' }}>
@@ -325,10 +334,13 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
 
           {/* Game Board */}
           <div
-            className="w-[min(90vw,600px)] h-[min(90vw,600px)] md:w-[min(60vw,600px)] md:h-[min(60vw,600px)] lg:w-[min(70vw,600px)] lg:h-[min(70vw,600px)] xl:w-[min(90vw,600px)] xl:h-[min(90vw,600px)]"
+            className="w-[min(90vw,600px)] h-[min(90vw,600px)] md:w-[min(60vw,600px)] md:h-[min(60vw,600px)] lg:w-[min(70vw,600px)] lg:h-[min(70vw,600px)] xl:w-[min(90vw,600px)] xl:h-[min(90vw,600px)] 2xl:w-[min(70vw,600px)] 2xl:h-[min(70vw,600px)]"
             style={{
               maxWidth: '600px',
-              maxHeight: '600px'
+              maxHeight: '600px',
+              // Ensure board doesn't exceed container height
+              height: 'min(100%, 600px)',
+              width: 'min(100%, 600px)'
             }}
           >
             <GameBoard

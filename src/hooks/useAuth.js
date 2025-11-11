@@ -142,10 +142,18 @@ export function useAuth() {
 
     try {
       setError(null);
+      
+      // Get current origin (localhost:3000, localhost:3001, or production)
+      const currentOrigin = window.location.origin;
+      const currentPath = window.location.pathname;
+      const redirectTo = `${currentOrigin}${currentPath}`;
+      
+      console.log('OAuth redirect URL:', redirectTo);
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}${window.location.pathname}`,
+          redirectTo: redirectTo,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -154,6 +162,7 @@ export function useAuth() {
       });
 
       if (error) {
+        console.error('OAuth error:', error);
         setError(error.message);
         return { error };
       }

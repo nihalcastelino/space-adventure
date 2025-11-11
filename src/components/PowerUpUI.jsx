@@ -292,18 +292,18 @@ export function CoinDisplay({ coins = 0, className = '' }) {
   const coinsValue = typeof coins === 'number' ? coins : parseInt(coins) || 0;
   
   return (
-    <div className={`bg-gradient-to-r from-yellow-600 to-yellow-500 px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-lg border-2 border-yellow-400 ${className}`}>
-      <Coins className="w-5 h-5 text-white flex-shrink-0" />
-      <span className="text-white font-bold text-lg">{coinsValue.toLocaleString()}</span>
+    <div className={`bg-gradient-to-r from-yellow-600 to-yellow-500 px-1.5 sm:px-2 md:px-3 py-1 sm:py-1.5 rounded-lg flex items-center gap-1 sm:gap-2 shadow-lg border-2 border-yellow-400 ${className}`}>
+      <Coins className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-white flex-shrink-0" />
+      <span className="text-white font-bold text-xs sm:text-sm md:text-lg">{coinsValue.toLocaleString()}</span>
     </div>
   );
 }
 
 export function LevelDisplay({ level = 1, className = '' }) {
   return (
-    <div className={`glass rounded-lg px-3 py-1.5 flex items-center gap-2 shadow-lg border-2 border-purple-400 border-opacity-50 ${className}`}>
-      <Star className="w-5 h-5 text-purple-300 flex-shrink-0" />
-      <span className="text-white font-bold text-lg">{level}</span>
+    <div className={`glass rounded-lg px-1.5 sm:px-2 md:px-3 py-1 sm:py-1.5 flex items-center gap-1 sm:gap-2 shadow-lg border-2 border-purple-400 border-opacity-50 ${className}`}>
+      <Star className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-purple-300 flex-shrink-0" />
+      <span className="text-white font-bold text-xs sm:text-sm md:text-lg">{level}</span>
     </div>
   );
 }

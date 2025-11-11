@@ -633,8 +633,8 @@ export default function OnlineGame({ onBack }) {
 
       {/* Player Panels - Fixed in screen corners with safe spacing */}
       <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 25 }}>
-        {/* Top panels */}
-        <div className="absolute top-14 left-0 right-0 px-2 flex justify-between gap-2">
+        {/* Top panels - Adjusted spacing for mobile to avoid overlap */}
+        <div className="absolute top-12 sm:top-14 md:top-16 left-0 right-0 px-2 flex justify-between gap-2">
           {/* Player 2: Top-Left */}
           {gameState.players[1] && (
             <div className="pointer-events-auto">
@@ -740,9 +740,9 @@ export default function OnlineGame({ onBack }) {
         </div>
       </div>
 
-      {/* Game Board Container - responsive with safe spacing */}
+      {/* Game Board Container - responsive with safe spacing for controls */}
       <div
-        className="fixed left-1/2 -translate-x-1/2 -translate-y-1/2"
+        className="fixed left-1/2 -translate-x-1/2 -translate-y-1/2 overflow-hidden"
         style={{
           top: '50%',
           zIndex: 5,
@@ -754,7 +754,9 @@ export default function OnlineGame({ onBack }) {
           width: windowWidth < 640 ? 'min(85vw, 600px)' : 'min(90vw, 600px)',
           maxHeight: windowWidth < 640 
             ? 'calc(100vh - 280px)' // Mobile: account for controls and panels
-            : '90vh'
+            : windowWidth >= 1536 // 2xl breakpoint (foldables/unfolded tablets)
+            ? 'calc(100vh - 200px)' // Very large screens: account for controls
+            : 'calc(100vh - 180px)' // Desktop: controls + padding
         }}
       >
         {/* Board Content */}
@@ -827,12 +829,15 @@ export default function OnlineGame({ onBack }) {
           </div>
         )}
 
-        {/* Game Board - always square */}
+        {/* Game Board - always square, respects container constraints */}
         <div
-          className="w-[min(75vw,600px)] h-[min(75vw,600px)] md:w-[min(60vw,600px)] md:h-[min(60vw,600px)] lg:w-[min(70vw,600px)] lg:h-[min(70vw,600px)] xl:w-[min(90vw,600px)] xl:h-[min(90vw,600px)]"
+          className="w-[min(75vw,600px)] h-[min(75vw,600px)] md:w-[min(60vw,600px)] md:h-[min(60vw,600px)] lg:w-[min(70vw,600px)] lg:h-[min(70vw,600px)] xl:w-[min(90vw,600px)] xl:h-[min(90vw,600px)] 2xl:w-[min(70vw,600px)] 2xl:h-[min(70vw,600px)]"
           style={{
             maxWidth: '600px',
-            maxHeight: '600px'
+            maxHeight: '600px',
+            // Ensure board doesn't exceed container height
+            height: 'min(100%, 600px)',
+            width: 'min(100%, 600px)'
           }}
         >
           <GameBoard
