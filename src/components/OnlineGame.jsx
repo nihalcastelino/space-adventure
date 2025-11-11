@@ -686,8 +686,10 @@ export default function OnlineGame({ onBack }) {
           )}
         </div>
 
-        {/* Bottom panels */}
-        <div className="absolute bottom-40 left-0 right-0 px-2 flex justify-between gap-2">
+        {/* Bottom panels - Increased spacing to avoid dice controls */}
+        <div className="absolute left-0 right-0 px-2 flex justify-between gap-2" style={{
+          bottom: windowWidth < 640 ? '100px' : windowWidth < 768 ? '120px' : '160px'
+        }}>
           {/* Player 3: Bottom-Left */}
           {gameState.players[2] && (
             <div className="pointer-events-auto">

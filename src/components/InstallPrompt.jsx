@@ -14,21 +14,38 @@ const InstallPrompt = () => {
       || document.referrer.includes('android-app://');
 
     setIsStandalone(standalone);
+    console.log('PWA Install Prompt - Standalone mode:', standalone);
 
     // Check if iOS
     const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
     setIsIOS(iOS);
+    console.log('PWA Install Prompt - iOS device:', iOS);
 
     // Check if user has dismissed the prompt before
     const dismissed = localStorage.getItem('pwa-install-dismissed');
     const dismissedTime = dismissed ? parseInt(dismissed) : 0;
     const daysSinceDismissed = (Date.now() - dismissedTime) / (1000 * 60 * 60 * 24);
 
-    // Show prompt if not standalone, not dismissed recently (7 days), and not iOS
+    console.log('PWA Install Prompt - Days since dismissed:', daysSinceDismissed);
+
+    // DEV MODE: Force show prompt in development (localhost)
+    const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+    // Show prompt if not standalone, not dismissed recently (7 days)
     if (!standalone && (!dismissed || daysSinceDismissed > 7)) {
       // For iOS, show custom prompt
       if (iOS) {
-        setShowPrompt(true);
+        console.log('PWA Install Prompt - Showing iOS install instructions');
+        setTimeout(() => setShowPrompt(true), 3000);
+      }
+      // DEV MODE: Show test prompt on non-iOS devices in development
+      else if (isDev) {
+        console.log('PWA Install Prompt - DEV MODE: Showing test prompt (will be native prompt in production)');
+        setTimeout(() => {
+          setShowPrompt(true);
+          // Set a fake deferredPrompt for testing UI
+          setDeferredPrompt({ prompt: () => console.log('Test install clicked') });
+        }, 3000);
       }
     }
 
@@ -62,20 +79,36 @@ const InstallPrompt = () => {
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
 
-    // Show the install prompt
-    deferredPrompt.prompt();
+    // DEV MODE: Check if this is a test prompt
+    const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-    // Wait for the user's response
-    const { outcome } = await deferredPrompt.userChoice;
-    console.log(`User response to install prompt: ${outcome}`);
+    if (isDev && !deferredPrompt.userChoice) {
+      // Test mode - just log and hide
+      console.log('PWA Install Prompt - TEST MODE: Install clicked (would trigger real install in production)');
+      alert('Install prompt test! In production, this would install the PWA. The install button will appear in your browser address bar on HTTPS/production.');
+      setShowPrompt(false);
+      return;
+    }
 
-    // Clear the deferredPrompt
-    setDeferredPrompt(null);
-    setShowPrompt(false);
+    // Real install prompt (production)
+    try {
+      deferredPrompt.prompt();
 
-    if (outcome === 'dismissed') {
-      // User dismissed, store timestamp
-      localStorage.setItem('pwa-install-dismissed', Date.now().toString());
+      // Wait for the user's response
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log(`User response to install prompt: ${outcome}`);
+
+      // Clear the deferredPrompt
+      setDeferredPrompt(null);
+      setShowPrompt(false);
+
+      if (outcome === 'dismissed') {
+        // User dismissed, store timestamp
+        localStorage.setItem('pwa-install-dismissed', Date.now().toString());
+      }
+    } catch (error) {
+      console.error('Install prompt error:', error);
+      setShowPrompt(false);
     }
   };
 

@@ -1,16 +1,25 @@
 import { Rocket, Zap, Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
-// Hook to get responsive font size
+// Hook to get responsive font size and styling
 const useResponsiveSize = () => {
-  const [size, setSize] = useState({ spaceport: 32, rocket: 28 });
+  const [size, setSize] = useState({ 
+    spaceport: 32, 
+    rocket: 28,
+    spaceportOpacity: 0.25,
+    spaceportGlow: '10px',
+    spaceportGlowOpacity: 0.3
+  });
   
   useEffect(() => {
     const updateSize = () => {
       const width = window.innerWidth;
       setSize({
         spaceport: width < 640 ? 18 : width < 768 ? 24 : 32,
-        rocket: width < 640 ? 16 : width < 768 ? 20 : 28
+        rocket: width < 640 ? 16 : width < 768 ? 20 : 28,
+        spaceportOpacity: width < 640 ? 0.15 : 0.25,
+        spaceportGlow: width < 640 ? '5px' : '10px',
+        spaceportGlowOpacity: width < 640 ? 0.15 : 0.3
       });
     };
     
@@ -51,6 +60,22 @@ export default function GameBoard({
   const responsiveSize = useResponsiveSize();
 
   const BOARD_SIZE = boardSize; // Use variant-specific board size
+  
+  // Override getCellColor to use responsive opacity for spaceports
+  const getCellColorResponsive = (cellNumber) => {
+    const hazard = getHazardAtCell(cellNumber);
+    if (hazard) {
+      if (hazard.type === 'blackHole') return 'rgba(88, 28, 135, 0.5)';
+      if (hazard.type === 'blackHoleWarning') return 'rgba(251, 146, 60, 0.4)';
+      if (hazard.type === 'patrol') return 'rgba(185, 28, 28, 0.4)';
+      if (hazard.type === 'meteor') return 'rgba(234, 88, 12, 0.5)';
+    }
+    if (cellNumber === BOARD_SIZE) return 'rgba(251, 191, 36, 0.25)';
+    if (SPACEPORTS[cellNumber]) return `rgba(16, 185, 129, ${responsiveSize.spaceportOpacity})`;
+    if (ALIENS.includes(cellNumber)) return 'rgba(239, 68, 68, 0.25)';
+    if (CHECKPOINTS.includes(cellNumber)) return 'rgba(59, 130, 246, 0.25)';
+    return 'rgba(31, 41, 55, 0.7)';
+  };
   
   useEffect(() => {
     const interval = setInterval(() => {
@@ -118,7 +143,10 @@ export default function GameBoard({
     }
 
     if (cellNumber === BOARD_SIZE) return 'rgba(251, 191, 36, 0.25)'; // Gold for finish
-    if (SPACEPORTS[cellNumber]) return 'rgba(16, 185, 129, 0.25)'; // Green for spaceport
+    if (SPACEPORTS[cellNumber]) {
+      // Use responsive opacity from hook (will be set in component)
+      return 'rgba(16, 185, 129, 0.25)'; // Default, will be overridden
+    }
     if (ALIENS.includes(cellNumber)) return 'rgba(239, 68, 68, 0.25)'; // Red for alien
     if (CHECKPOINTS.includes(cellNumber)) return 'rgba(59, 130, 246, 0.25)'; // Blue for checkpoint
     return 'rgba(31, 41, 55, 0.7)'; // More opaque dark gray for regular cells
@@ -156,7 +184,7 @@ export default function GameBoard({
         const hasSpaceportEffect = encounterType === 'spaceport' && playersHere.some(p => p.id === animatingPlayer);
         const hasAlienEffect = encounterType === 'alien' && playersHere.some(p => p.id === animatingPlayer);
 
-        const bgColor = getCellColor(cellNumber);
+        const bgColor = getCellColorResponsive(cellNumber);
 
         cells.push(
           <div
@@ -180,11 +208,11 @@ export default function GameBoard({
                 : hasAlienEffect
                 ? '0 0 30px rgba(239, 68, 68, 0.9), inset 0 0 20px rgba(239, 68, 68, 0.5)'
                 : isSpaceport || isAlien || isCheckpoint || isFinish
-                ? 'inset 0 0 20px rgba(0, 0, 0, 0.3), 0 0 10px ' + (
-                    isFinish ? 'rgba(251, 191, 36, 0.3)' :
-                    isSpaceport ? 'rgba(16, 185, 129, 0.3)' :
-                    isAlien ? 'rgba(239, 68, 68, 0.3)' :
-                    'rgba(59, 130, 246, 0.3)'
+                ? 'inset 0 0 20px rgba(0, 0, 0, 0.3), 0 0 ' + (
+                    isFinish ? '10px rgba(251, 191, 36, 0.3)' :
+                    isSpaceport ? `${responsiveSize.spaceportGlow} rgba(16, 185, 129, ${responsiveSize.spaceportGlowOpacity})` :
+                    isAlien ? '10px rgba(239, 68, 68, 0.3)' :
+                    '10px rgba(59, 130, 246, 0.3)'
                   )
                 : 'inset 0 0 10px rgba(0, 0, 0, 0.4)',
               transition: 'all 0.2s ease',

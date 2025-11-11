@@ -59,7 +59,7 @@ export default function GameModeSelector({ onSelectMode, onUpgrade }) {
 
   return (
     <div
-      className="fixed inset-0 flex items-start sm:items-center justify-center overflow-y-auto py-4"
+      className="fixed inset-0 flex items-start sm:items-center justify-center overflow-y-auto py-8 sm:py-4"
       onClick={handleClickOutside}
       style={{
         backgroundImage: 'url(/space-bg.jpg)',
@@ -77,8 +77,10 @@ export default function GameModeSelector({ onSelectMode, onUpgrade }) {
 
       {/* Main content - Optimized for mobile with balanced padding to keep centered */}
       {/* Equal left/right padding on mobile to maintain centering */}
-      {/* Reduced spacing on mobile to minimize scrolling */}
-      <div className="text-center space-y-1.5 sm:space-y-3 md:space-y-8 px-6 sm:px-4 max-w-2xl w-full mx-auto pt-20 sm:pt-4 pb-2 sm:pb-4 overflow-x-hidden">
+      {/* Extra top padding to prevent rocket from being cut off by browser address bar */}
+      <div className="text-center space-y-1.5 sm:space-y-3 md:space-y-8 px-6 sm:px-4 max-w-2xl w-full mx-auto pb-2 sm:pb-4 overflow-x-hidden" style={{
+        paddingTop: 'max(8.5rem, env(safe-area-inset-top) + 6rem)'
+      }}>
         <div className="space-y-1 sm:space-y-2 md:space-y-4">
           <Rocket className="w-8 h-8 sm:w-12 sm:h-12 md:w-20 md:h-20 text-yellow-300 mx-auto animate-bounce" style={{
             filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.8))'

@@ -24,6 +24,13 @@ export default function AdSenseAd({
       return;
     }
 
+    // Don't load ads in development (localhost)
+    const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isDev) {
+      console.log('AdSense disabled in development mode');
+      return;
+    }
+
     // Load AdSense script if not already loaded
     if (!window.adsbygoogle && !adLoadedRef.current) {
       const script = document.createElement('script');
@@ -64,6 +71,16 @@ export default function AdSenseAd({
   // Don't render for premium users
   if (isPremium) {
     return null;
+  }
+
+  // Don't render in development
+  const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  if (isDev) {
+    return (
+      <div className={className} style={{ ...style, textAlign: 'center', padding: '20px', opacity: 0.5 }}>
+        <small style={{ color: '#999' }}>[Ad Space - Disabled in Dev Mode]</small>
+      </div>
+    );
   }
 
   return (

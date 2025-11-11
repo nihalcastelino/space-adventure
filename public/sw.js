@@ -1,9 +1,15 @@
 // Service Worker for Space Race PWA
-const CACHE_NAME = 'space-race-v2'; // Updated to force refresh
+const CACHE_NAME = 'space-race-v3'; // Updated to force refresh with new icons
 const urlsToCache = [
   '/',
   '/index.html',
-  '/space-bg.jpg'
+  '/space-bg.jpg',
+  '/manifest.json',
+  // Key icons for PWA
+  '/android/android-launchericon-192-192.png',
+  '/android/android-launchericon-512-512.png',
+  '/ios/180.png',
+  '/ios/152.png'
 ];
 
 // Install service worker and cache resources
