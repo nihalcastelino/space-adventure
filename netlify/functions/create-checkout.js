@@ -38,6 +38,19 @@ exports.handler = async (event) => {
 
   try {
     const { priceId, tier } = JSON.parse(event.body);
+    
+    // Validate priceId format
+    if (!priceId || !priceId.startsWith('price_')) {
+      console.error('Invalid priceId format:', priceId);
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ 
+          error: `Invalid Price ID format. Expected 'price_...' but got '${priceId}'. Please check your environment variables (VITE_STRIPE_PRICE_MONTHLY and VITE_STRIPE_PRICE_LIFETIME) and ensure they contain Price IDs, not Product IDs.` 
+        }),
+      };
+    }
+    
     const authHeader = event.headers.authorization;
 
     if (!authHeader) {
@@ -105,10 +118,17 @@ exports.handler = async (event) => {
     };
   } catch (error) {
     console.error('Error creating checkout session:', error);
+    
+    // Provide helpful error message for common issues
+    let errorMessage = error.message;
+    if (error.message.includes('No such price')) {
+      errorMessage = `Invalid Price ID: ${error.message}. Please check that your environment variables (VITE_STRIPE_PRICE_MONTHLY and VITE_STRIPE_PRICE_LIFETIME) contain valid Price IDs (starting with 'price_'), not Product IDs (starting with 'prod_').`;
+    }
+    
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: error.message }),
+      body: JSON.stringify({ error: errorMessage }),
     };
   }
 };

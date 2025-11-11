@@ -197,11 +197,30 @@ export function usePremium() {
     const priceId = PAYMENT_IDS[tierId === 'monthly' ? 'STRIPE_MONTHLY' : 'STRIPE_LIFETIME'];
     console.log('Price ID:', priceId);
     
+    // Validate Price ID format
     if (!priceId || priceId.startsWith('price_xxxx') || priceId === 'price_xxxxxxxxxxxxx') {
       console.error('Price ID not configured');
       return { 
         success: false, 
         error: 'Stripe Price IDs not configured. Please add VITE_STRIPE_PRICE_MONTHLY and VITE_STRIPE_PRICE_LIFETIME to your environment variables.' 
+      };
+    }
+    
+    // Check if Product ID was used instead of Price ID
+    if (priceId.startsWith('prod_')) {
+      console.error('Product ID used instead of Price ID:', priceId);
+      return {
+        success: false,
+        error: `Invalid configuration: You're using a Product ID (${priceId}) instead of a Price ID. Please go to Stripe Dashboard → Products → Click on your product → Copy the Price ID (starts with 'price_') and update your environment variables.`
+      };
+    }
+    
+    // Ensure it's a valid Price ID format
+    if (!priceId.startsWith('price_')) {
+      console.error('Invalid Price ID format:', priceId);
+      return {
+        success: false,
+        error: `Invalid Price ID format: '${priceId}'. Price IDs must start with 'price_'. Please check your environment variables (VITE_STRIPE_PRICE_MONTHLY and VITE_STRIPE_PRICE_LIFETIME).`
       };
     }
 

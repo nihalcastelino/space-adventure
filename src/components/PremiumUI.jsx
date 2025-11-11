@@ -117,11 +117,17 @@ export function PremiumModal({ currentTier, subscriptionStatus, onPurchase, onCa
       console.log('Already processing, ignoring click');
       return;
     }
+    if (!onPurchase) {
+      console.error('onPurchase function not provided to PremiumModal');
+      return;
+    }
     setIsProcessing(true);
     try {
       const result = await onPurchase(tierId);
       console.log('Purchase result:', result);
       return result;
+    } catch (error) {
+      console.error('Error in handlePurchase:', error);
     } finally {
       setIsProcessing(false);
     }
