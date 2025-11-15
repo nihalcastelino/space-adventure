@@ -37,7 +37,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { priceId, tier } = JSON.parse(event.body);
+    const { priceId, tier, type } = JSON.parse(event.body); // type: 'subscription' or 'coins'
     
     // Validate priceId format
     if (!priceId || !priceId.startsWith('price_')) {
@@ -98,15 +98,22 @@ exports.handler = async (event) => {
 
     // Create checkout session
     const baseUrl = event.headers.origin || event.headers.referer?.replace(/\/$/, '') || 'http://localhost:3000';
+    const isOneTimePayment = tier === 'lifetime' || type === 'coins';
+    
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
-      mode: tier === 'lifetime' ? 'payment' : 'subscription',
+      mode: isOneTimePayment ? 'payment' : 'subscription',
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${baseUrl}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/?checkout=cancelled`,
-      metadata: { user_id: user.id, tier },
-      subscription_data: tier !== 'lifetime' ? {
+      metadata: { 
+        user_id: user.id, 
+        tier: tier || 'coins',
+        type: type || (isOneTimePayment ? 'coins' : 'subscription'),
+        price_id: priceId
+      },
+      subscription_data: !isOneTimePayment ? {
         metadata: { user_id: user.id, tier },
       } : undefined,
     });

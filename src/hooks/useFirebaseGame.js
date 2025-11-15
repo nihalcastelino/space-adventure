@@ -56,7 +56,7 @@ function processMove(game, player, steps) {
 
   player.position = newPosition;
 
-  if (newPosition === BOARD_SIZE) {
+  if (newPosition >= BOARD_SIZE) {
     return {
       success: true,
       message: `🎉 ${player.name} WINS! Reached the edge of the galaxy!`,
@@ -68,6 +68,16 @@ function processMove(game, player, steps) {
     const destination = SPACEPORTS[newPosition];
     player.position = destination;
     player.lastCheckpoint = getLastCheckpoint(destination);
+    
+    // Check win condition after spaceport teleport
+    if (destination >= BOARD_SIZE) {
+      return {
+        success: true,
+        message: `🎉 ${player.name} WINS! Reached the edge of the galaxy!`,
+        won: true
+      };
+    }
+    
     return {
       success: true,
       message: `🚀 ${player.name} warped to position ${destination}!`,

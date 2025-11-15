@@ -1,10 +1,13 @@
-import { Rocket, Users, Wifi, Zap, Shield, Skull, Bot, Lock, Crown, Flame, Moon, AlertTriangle, Info, Search, Sword } from 'lucide-react';
+import { Rocket, Users, Wifi, Zap, Shield, Skull, Bot, Lock, Crown, Flame, Moon, AlertTriangle, Info, Search, Sword, ShoppingBag, Sparkles, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import AuthButton from './AuthButton';
 import AdSenseAd from './AdSenseAd';
+import PremiumModal from './PremiumModal';
+import { supabase } from '../lib/supabase';
 import { useGameSounds } from '../hooks/useGameSounds';
 import { useFreemiumLimits } from '../hooks/useFreemiumLimits';
 import { usePremium } from '../hooks/usePremium';
+import { useCurrency } from '../hooks/useCurrency';
 import { GAME_VARIANTS } from '../hooks/useGameVariants';
 import { getScreenBackground } from '../utils/backgrounds';
 
@@ -14,8 +17,11 @@ export default function GameModeSelector({ onSelectMode, onUpgrade }) {
   const [selectedVariant, setSelectedVariant] = useState('classic');
   const [visibleTooltip, setVisibleTooltip] = useState(null); // Track which tooltip is visible
   const [isMobile, setIsMobile] = useState(false);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [showShopModal, setShowShopModal] = useState(false);
   const freemium = useFreemiumLimits();
   const premium = usePremium();
+  const currency = useCurrency();
 
   // Detect mobile screen size
   useEffect(() => {
@@ -69,11 +75,39 @@ export default function GameModeSelector({ onSelectMode, onUpgrade }) {
         backgroundColor: '#000'
       }}
     >
-      {/* Auth Button - Responsive positioning, ensure it doesn't overlap content */}
-      {/* compact prop not needed - AuthButton auto-detects mobile and uses compact mode */}
-      {/* Smaller positioning on mobile to minimize overlap */}
-      <div className="fixed top-1 right-1 sm:top-4 sm:right-4 z-50">
+      {/* Top Right Buttons - Auth, Premium, Shop */}
+      <div className="fixed top-1 right-1 sm:top-4 sm:right-4 z-50 flex flex-col gap-2 items-end">
         <AuthButton />
+        
+        {/* Premium Button */}
+        {!premium.isPremium && (
+          <button
+            onClick={() => {
+              playSound('click');
+              setShowPremiumModal(true);
+            }}
+            className="bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-black font-bold py-1.5 px-3 sm:py-2 sm:px-4 rounded-lg shadow-lg transition-all transform hover:scale-105 active:scale-95 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm"
+          >
+            <Crown className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Premium</span>
+            <Sparkles className="w-3 h-3 sm:w-4 sm:h-4" />
+          </button>
+        )}
+        
+        {/* Shop Button */}
+        <button
+          onClick={() => {
+            playSound('click');
+            setShowShopModal(true);
+          }}
+          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-1.5 px-3 sm:py-2 sm:px-4 rounded-lg shadow-lg transition-all transform hover:scale-105 active:scale-95 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm"
+        >
+          <ShoppingBag className="w-3 h-3 sm:w-4 sm:h-4" />
+          <span className="hidden sm:inline">Shop</span>
+          <span className="bg-yellow-400 text-black text-[10px] px-1.5 py-0.5 rounded font-bold">
+            {currency.coins}
+          </span>
+        </button>
       </div>
 
       {/* Main content - Optimized for mobile with balanced padding to keep centered */}
@@ -450,6 +484,235 @@ export default function GameModeSelector({ onSelectMode, onUpgrade }) {
                 marginTop: 'auto'
               }}
             />
+          </div>
+        </div>
+      </div>
+
+      {/* Premium Modal */}
+      {showPremiumModal && (
+        <PremiumModal onClose={() => setShowPremiumModal(false)} />
+      )}
+
+      {/* Shop Modal - Placeholder for now */}
+      {showShopModal && (
+        <ShopModal 
+          coins={currency.coins}
+          onClose={() => setShowShopModal(false)}
+          onUpgrade={() => {
+            setShowShopModal(false);
+            setShowPremiumModal(true);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Shop Modal Component
+function ShopModal({ coins, onClose, onUpgrade }) {
+  const { playSound } = useGameSounds();
+  
+  const coinPriceIds = {
+    coins_small: import.meta.env.VITE_STRIPE_PRICE_COINS_SMALL,
+    coins_medium: import.meta.env.VITE_STRIPE_PRICE_COINS_MEDIUM,
+    coins_large: import.meta.env.VITE_STRIPE_PRICE_COINS_LARGE,
+    coins_xlarge: import.meta.env.VITE_STRIPE_PRICE_COINS_XLARGE,
+    coins_mega: import.meta.env.VITE_STRIPE_PRICE_COINS_MEGA,
+  };
+
+  const handleCoinPurchase = async (packageId, coinAmount, price) => {
+    const priceId = coinPriceIds[packageId];
+    
+    if (!priceId) {
+      alert('Coin package not configured. Please contact support.');
+      return;
+    }
+
+    // Check if user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      alert('Please sign in to purchase coins. Click "Sign In" in the top right corner.');
+      return;
+    }
+
+    try {
+      // Get API URL (Netlify function or local dev)
+      const apiUrl = import.meta.env.VITE_API_URL || '/.netlify/functions/create-checkout';
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          priceId,
+          tier: 'coins',
+          type: 'coins',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create checkout session');
+      }
+
+      // Redirect to Stripe Checkout
+      window.location.href = data.url;
+    } catch (error) {
+      console.error('Purchase error:', error);
+      alert(`Failed to start checkout: ${error.message}`);
+    }
+  };
+  
+  const coinPackages = [
+    { id: 'coins_small', coins: 100, price: '$0.99', bonus: 0 },
+    { id: 'coins_medium', coins: 350, price: '$2.99', bonus: 50, popular: true },
+    { id: 'coins_large', coins: 650, price: '$4.99', bonus: 100 },
+    { id: 'coins_xlarge', coins: 1500, price: '$9.99', bonus: 300 },
+    { id: 'coins_mega', coins: 3500, price: '$19.99', bonus: 1000, bestValue: true }
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        onClick={() => {
+          playSound('click');
+          onClose();
+        }}
+      />
+      
+      {/* Modal */}
+      <div className="relative z-10 bg-gray-900 rounded-2xl border-2 border-blue-400 shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto pointer-events-auto">
+        {/* Header */}
+        <div className="sticky top-0 bg-gray-900 border-b border-gray-700 p-6 flex items-center justify-between z-10">
+          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+            <ShoppingBag className="w-6 h-6 text-blue-400" />
+            Shop
+          </h2>
+          <button
+            onClick={() => {
+              playSound('click');
+              onClose();
+            }}
+            className="text-gray-400 hover:text-white transition-colors"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6">
+          {/* Current Balance */}
+          <div className="bg-gradient-to-r from-yellow-900 to-yellow-800 rounded-lg p-4 mb-6 border-2 border-yellow-400">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-300 text-sm">Your Balance</p>
+                <p className="text-3xl font-bold text-yellow-300 flex items-center gap-2">
+                  <span>🪙</span>
+                  {coins.toLocaleString()} Coins
+                </p>
+              </div>
+              <button
+                onClick={onUpgrade}
+                className="bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-black font-bold py-2 px-4 rounded-lg transition-all"
+              >
+                Get Premium
+              </button>
+            </div>
+          </div>
+
+          {/* Coin Packages */}
+          <div>
+            <h3 className="text-xl font-bold text-white mb-4">Buy Coins</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {coinPackages.map((pkg) => (
+                <div
+                  key={pkg.id}
+                  className={`bg-gray-800 rounded-lg p-4 border-2 ${
+                    pkg.popular
+                      ? 'border-yellow-400 ring-2 ring-yellow-400/50'
+                      : pkg.bestValue
+                      ? 'border-purple-400 ring-2 ring-purple-400/50'
+                      : 'border-gray-700'
+                  } relative`}
+                >
+                  {pkg.popular && (
+                    <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-yellow-500 text-black text-xs font-bold px-3 py-1 rounded-full">
+                      POPULAR
+                    </div>
+                  )}
+                  {pkg.bestValue && (
+                    <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-purple-500 text-white text-xs font-bold px-3 py-1 rounded-full">
+                      BEST VALUE
+                    </div>
+                  )}
+                  
+                  <div className="text-center mb-4">
+                    <div className="text-4xl font-bold text-yellow-400 mb-2">
+                      {pkg.coins.toLocaleString()}
+                    </div>
+                    {pkg.bonus > 0 && (
+                      <div className="text-green-400 text-sm font-bold">
+                        +{pkg.bonus} Bonus!
+                      </div>
+                    )}
+                    <div className="text-2xl font-bold text-white mt-2">
+                      {pkg.price}
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={async () => {
+                      playSound('click');
+                      await handleCoinPurchase(pkg.id, pkg.coins, pkg.price);
+                    }}
+                    className={`w-full py-2 rounded-lg font-bold transition-all ${
+                      pkg.popular
+                        ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-black'
+                        : 'bg-blue-600 hover:bg-blue-500 text-white'
+                    }`}
+                  >
+                    Buy Now
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Premium Benefits */}
+          <div className="mt-8 bg-gradient-to-r from-yellow-900/50 to-blue-900/50 rounded-lg p-6 border border-yellow-400/30">
+            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+              <Crown className="w-6 h-6 text-yellow-400" />
+              Premium Benefits
+            </h3>
+            <ul className="space-y-2 text-gray-300">
+              <li className="flex items-center gap-2">
+                <span className="text-green-400">✓</span>
+                50% more coins from all sources
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-green-400">✓</span>
+                No ads
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-green-400">✓</span>
+                Access to all difficulties and game variants
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-green-400">✓</span>
+                Exclusive cosmetics and titles
+              </li>
+            </ul>
+            <button
+              onClick={onUpgrade}
+              className="mt-4 w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-black font-bold py-3 rounded-lg transition-all"
+            >
+              Upgrade to Premium
+            </button>
           </div>
         </div>
       </div>

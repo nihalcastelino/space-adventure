@@ -6,9 +6,12 @@ import ParticleEffects from './ParticleEffects';
 import CharacterCreation from './CharacterCreation';
 import CharacterStatsPanel from './CharacterStatsPanel';
 import CombatOverlay from './CombatOverlay';
+import SpaceJail from './SpaceJail';
 import { useRPGSystem } from '../hooks/useRPGSystem';
 import { useGameSounds } from '../hooks/useGameSounds';
 import { useDifficulty } from '../hooks/useDifficulty';
+import { useJeopardyMechanics } from '../hooks/useJeopardyMechanics';
+import { useCurrency } from '../hooks/useCurrency';
 import { getBackgroundImage } from '../utils/backgrounds';
 import { GAME_VARIANTS } from '../hooks/useGameVariants';
 
@@ -59,6 +62,10 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
     aliens: ALIENS,
     checkpoints: CHECKPOINTS
   } = useDifficulty(initialDifficulty);
+  
+  // Jeopardy mechanics (jail, hazards)
+  const jeopardy = useJeopardyMechanics(difficulty, true);
+  const currency = useCurrency();
   
   // Single player state
   const PLAYER_ID = 1;
@@ -129,6 +136,13 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
   
   // AI opponent turn
   const takeAITurn = useCallback(async () => {
+    // Don't take AI turn if game is already won or lost
+    if (gameWon || gameLost) {
+      setIsAITurn(false);
+      setAiThinking(false);
+      return;
+    }
+    
     if (aiSkipTurn) {
       setAiSkipTurn(false);
       setMessage('🤖 AI opponent skips turn!');
@@ -141,6 +155,13 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
     
     // AI "thinks" for 1-2 seconds
     await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
+    
+    // Check again if game ended during thinking
+    if (gameWon || gameLost) {
+      setIsAITurn(false);
+      setAiThinking(false);
+      return;
+    }
     
     // AI rolls dice (slightly better average - 3-6 range)
     const aiRoll = Math.floor(Math.random() * 4) + 3; // 3-6
@@ -161,6 +182,7 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
       playSound('alien');
       setAiThinking(false);
       setIsAITurn(false);
+      setAnimationType('victory');
       return;
     }
     
@@ -178,18 +200,98 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
       setAiPosition(targetPosition);
       setMessage(`🤖 AI uses spaceport! Teleports to ${targetPosition}!`);
       await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Check win condition again after spaceport teleport
+      if (targetPosition >= BOARD_SIZE) {
+        setGameLost(true);
+        setMessage('💀 AI opponent reached the end! You lose!');
+        playSound('alien');
+        setAiThinking(false);
+        setIsAITurn(false);
+        setAnimationType('victory');
+        return;
+      }
     }
     
     // AI doesn't fight aliens (they're obstacles for player only)
     
+    // Process jeopardy turn for hazards
+    jeopardy.nextTurn();
+    
     setAiThinking(false);
     setIsAITurn(false);
-    setMessage(`${character?.name || 'Your'}'s turn! Roll the dice!`);
-  }, [aiPosition, aiSkipTurn, BOARD_SIZE, CHECKPOINTS, character]);
+    
+    // Only continue if game hasn't ended
+    if (!gameWon && !gameLost) {
+      setMessage(`${character?.name || 'Your'}'s turn! Roll the dice!`);
+    }
+  }, [aiPosition, aiSkipTurn, BOARD_SIZE, CHECKPOINTS, character, gameWon, gameLost, jeopardy]);
   
   // Roll dice and move
   const rollDice = useCallback(() => {
     if (isRolling || gameWon || gameLost || !character || rpg.combatState || isAITurn) return;
+    
+    // Check if player is in jail
+    const jailState = jeopardy.getJailState(PLAYER_ID);
+    if (jailState.inJail) {
+      // Roll dice to try for doubles
+      playSound('click');
+      setIsRolling(true);
+      setMessage(`🎲 ${character.name} rolling for DOUBLES to escape jail...`);
+      playSound('dice');
+      
+      let rolls = 0;
+      const rollInterval = setInterval(() => {
+        setDiceValue(Math.floor(Math.random() * 6) + 1);
+        rolls++;
+        
+        if (rolls > 15) {
+          clearInterval(rollInterval);
+          
+          // Roll two dice to check for doubles
+          const die1 = Math.floor(Math.random() * 6) + 1;
+          const die2 = Math.floor(Math.random() * 6) + 1;
+          const finalRoll = die1 + die2;
+          const rolledDoubles = die1 === die2;
+          
+          setDiceValue(finalRoll);
+          setMessage(`🎲 Rolled ${die1} and ${die2} ${rolledDoubles ? '(DOUBLES!)' : '(not doubles)'}`);
+          
+          setTimeout(() => {
+            // Process jail turn
+            const jailResult = jeopardy.processJailTurn(PLAYER_ID, rolledDoubles);
+            
+            setMessage(jailResult.message);
+            
+            if (jailResult.escaped) {
+              // Return player to previous position
+              setPlayerPosition(jailResult.returnPosition);
+              
+              setTimeout(() => {
+                if (rolledDoubles) {
+                  // Rolled doubles - can move!
+                  if (movePlayerRef.current) {
+                    movePlayerRef.current(finalRoll);
+                  }
+                } else {
+                  // Auto-release but turn ends
+                  setIsRolling(false);
+                  setIsAITurn(true);
+                  setTimeout(() => takeAITurn(), 1500);
+                }
+              }, 2000);
+            } else {
+              setTimeout(() => {
+                setIsRolling(false);
+                setIsAITurn(true);
+                setTimeout(() => takeAITurn(), 2000);
+              }, 2000);
+            }
+          }, 2000);
+        }
+      }, 150);
+      return;
+    }
     
     setIsRolling(true);
     playSound('click');
@@ -204,11 +306,11 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
       }
       setIsRolling(false);
     }, 1000);
-  }, [isRolling, gameWon, gameLost, character, rpg.combatState, isAITurn, playSound]);
+  }, [isRolling, gameWon, gameLost, character, rpg.combatState, isAITurn, playSound, jeopardy, takeAITurn]);
   
   // Move player
   const movePlayer = useCallback(async (steps) => {
-    if (!character) return;
+    if (!character || gameWon || gameLost) return;
     
     const newPosition = Math.min(playerPosition + steps, BOARD_SIZE);
     setPlayerPosition(newPosition);
@@ -226,10 +328,99 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
       setMessage(`🎉 ${character.name} reached the end! Victory!`);
       playSound('victory');
       setAnimationType('victory');
+      setIsAITurn(false);
+      setAiThinking(false);
       return;
     }
     
-    // Check for checkpoint
+    // Check for hazard collisions (jail, black holes, meteors)
+    const hazardResult = jeopardy.checkHazardCollision(PLAYER_ID, newPosition);
+    
+    if (hazardResult.patrol) {
+      // Space Jail!
+      setMessage(`🚨 ${character.name} landed on a PATROL ZONE!`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      setMessage(hazardResult.message);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      playSound('error');
+      setAnimationType(null);
+      setAnimatingPlayer(null);
+      
+      // Player is now in jail, turn ends
+      setIsAITurn(true);
+      setTimeout(() => takeAITurn(), 2000);
+      return;
+    }
+    
+    if (hazardResult.blackHole) {
+      // Black hole!
+      setMessage(`⚠️ ${character.name} landed on a BLACK HOLE!`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      setMessage(hazardResult.message);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      playSound('alien');
+      setAnimationType('eaten');
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      setPlayerPosition(hazardResult.newPosition);
+      setLastCheckpoint(CHECKPOINTS.find(cp => cp <= hazardResult.newPosition) || 0);
+      
+      setMessage(`↩️ ${character.name} warped back to position ${hazardResult.newPosition}`);
+      
+      setAnimationType('landing');
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      setAnimationType(null);
+      setAnimatingPlayer(null);
+      
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      setIsAITurn(true);
+      setTimeout(() => takeAITurn(), 2000);
+      return;
+    }
+    
+    if (hazardResult.meteor) {
+      // Meteor impact!
+      setMessage(`🔥 ${character.name} hit by METEOR!`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      setMessage(hazardResult.message);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      playSound('error');
+      setAnimationType('eaten');
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      setPlayerPosition(hazardResult.newPosition);
+      setLastCheckpoint(CHECKPOINTS.find(cp => cp <= hazardResult.newPosition) || 0);
+      
+      setAnimationType('landing');
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      setAnimationType(null);
+      setAnimatingPlayer(null);
+      
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      setIsAITurn(true);
+      setTimeout(() => takeAITurn(), 2000);
+      return;
+    }
+    
+    // Check for alien encounter FIRST (aliens override checkpoints)
+    if (ALIENS.includes(newPosition)) {
+      // Initiate RPG combat
+      const combatInfo = rpg.initiateCombat(PLAYER_ID, newPosition);
+      setMessage(`⚔️ ${character.name} encounters a Level ${combatInfo.alienLevel} Alien! Combat begins!`);
+      playSound('alien');
+      setAnimationType('eaten');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Combat will be handled by CombatOverlay
+      return;
+    }
+    
+    // Check for checkpoint (only if no alien)
     const checkpoint = CHECKPOINTS.find(cp => cp === newPosition);
     if (checkpoint) {
       setLastCheckpoint(checkpoint);
@@ -245,6 +436,17 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
       setMessage(`🚀 Spaceport! ${character.name} teleports to position ${targetPosition}!`);
       playSound('spaceport');
       await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Check win condition again after spaceport teleport
+      if (targetPosition >= BOARD_SIZE) {
+        setGameWon(true);
+        setMessage(`🎉 ${character.name} reached the end! Victory!`);
+        playSound('victory');
+        setAnimationType('victory');
+        setIsAITurn(false);
+        setAiThinking(false);
+        return;
+      }
     }
     
     // Check for tactical square
@@ -258,25 +460,18 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
       return; // Don't continue movement, wait for tactical action
     }
     
-    // Check for alien encounter
-    if (ALIENS.includes(newPosition)) {
-      // Initiate RPG combat
-      const combatInfo = rpg.initiateCombat(PLAYER_ID, newPosition);
-      setMessage(`⚔️ ${character.name} encounters a Level ${combatInfo.alienLevel} Alien! Combat begins!`);
-      playSound('alien');
-      setAnimationType('eaten');
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      // Combat will be handled by CombatOverlay
-      return;
-    }
-    
     setAnimationType(null);
     setAnimatingPlayer(null);
     
-    // After player turn, AI takes turn
-    setIsAITurn(true);
-    setTimeout(() => takeAITurn(), 1500);
-  }, [character, playerPosition, BOARD_SIZE, CHECKPOINTS, ALIENS, rpg, playSound, takeAITurn]);
+    // Process jeopardy turn for hazards
+    jeopardy.nextTurn();
+    
+    // After player turn, AI takes turn (only if game hasn't ended)
+    if (!gameWon && !gameLost) {
+      setIsAITurn(true);
+      setTimeout(() => takeAITurn(), 1500);
+    }
+  }, [character, playerPosition, BOARD_SIZE, CHECKPOINTS, ALIENS, rpg, playSound, takeAITurn, gameWon, gameLost, jeopardy]);
   
   // Store movePlayer in ref to avoid circular dependency
   useEffect(() => {
@@ -572,7 +767,12 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
             diceRolling={isRolling || aiThinking}
             animatedPositions={{}}
             encounterType={null}
-            hazards={{ blackHoles: [], patrolZones: [], meteorImpacts: [], tacticalSquares: TACTICAL_SQUARES }}
+            hazards={{ 
+              blackHoles: jeopardy.hazards.blackHoles || [], 
+              patrolZones: jeopardy.hazards.patrolZones || [], 
+              meteorImpacts: jeopardy.hazards.meteorImpacts || [], 
+              tacticalSquares: TACTICAL_SQUARES 
+            }}
             rogueState={null}
           />
         </div>
@@ -588,11 +788,11 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
           />
           
           {/* SPIN Button */}
-          {!rpg.combatState && !showTacticalAction && character && !isAITurn && (
+          {!rpg.combatState && !showTacticalAction && character && !isAITurn && !gameWon && !gameLost && (
             <div className="mt-4">
               <button
                 onClick={rollDice}
-                disabled={isRolling || gameWon}
+                disabled={isRolling || gameWon || gameLost}
                 className="w-full bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 text-white font-bold py-3 px-4 rounded-lg text-base md:text-lg transition-all transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed shadow-lg hover:shadow-xl disabled:bg-gray-600 disabled:from-gray-600 disabled:to-gray-700 relative overflow-hidden group"
                 style={{
                   backgroundSize: '200% 100%'
@@ -612,8 +812,31 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
             </div>
           )}
           
+          {/* Game Over Messages */}
+          {gameWon && (
+            <div className="mt-4 bg-green-900 bg-opacity-50 border-2 border-green-500 rounded-lg p-4">
+              <div className="text-white font-bold text-center text-lg">
+                🎉 Victory!
+              </div>
+              <div className="text-green-300 text-sm text-center mt-2">
+                You reached the end!
+              </div>
+            </div>
+          )}
+          
+          {gameLost && (
+            <div className="mt-4 bg-red-900 bg-opacity-50 border-2 border-red-500 rounded-lg p-4">
+              <div className="text-white font-bold text-center text-lg">
+                💀 Game Over
+              </div>
+              <div className="text-red-300 text-sm text-center mt-2">
+                AI opponent reached the end!
+              </div>
+            </div>
+          )}
+          
           {/* AI Turn Indicator */}
-          {isAITurn && (
+          {isAITurn && !gameWon && !gameLost && (
             <div className="mt-4 bg-red-900 bg-opacity-50 border-2 border-red-500 rounded-lg p-4">
               <div className="text-white font-bold text-center">
                 🤖 AI Opponent's Turn
@@ -698,6 +921,34 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
           onFlee={handleCombatFlee}
         />
       )}
+
+      {/* Space Jail Overlay */}
+      {character && (() => {
+        const jailState = jeopardy.getJailState(PLAYER_ID);
+        if (jailState.inJail && !isAITurn) {
+          return (
+            <SpaceJail
+              playerId={PLAYER_ID}
+              playerName={character.name}
+              turnsRemaining={jailState.turnsRemaining}
+              bailCost={50}
+              playerCoins={currency.coins || 0}
+              onPayBail={() => {
+                const result = jeopardy.payBail(PLAYER_ID);
+                if (result.success) {
+                  currency.removeCoins(result.cost);
+                  playSound('click');
+                  setPlayerPosition(result.returnPosition);
+                  setLastCheckpoint(CHECKPOINTS.find(cp => cp <= result.returnPosition) || 0);
+                }
+              }}
+              onRollForDoubles={rollDice}
+              isCurrentPlayer={true}
+            />
+          );
+        }
+        return null;
+      })()}
 
       <ParticleEffects />
     </div>

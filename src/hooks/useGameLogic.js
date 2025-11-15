@@ -430,8 +430,8 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
       setAnimatingPlayer(null);
       playSound('victory');
       return;
-    } else if (!isReverseRace && newPosition === BOARD_SIZE) {
-      // Normal variants: win at final position
+    } else if (!isReverseRace && newPosition >= BOARD_SIZE) {
+      // Normal variants: win at final position or beyond
       setMessage(`🎉 ${currentPlayer.name} WINS! Reached the edge of the galaxy!`);
       setGameWon(true);
       setWinner(currentPlayer);
@@ -484,6 +484,25 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
       setMessage(`✅ ${currentPlayer.name} warped to position ${destination}!`);
       setAnimationType(null);
       setAnimatingPlayer(null);
+
+      // Check win condition again after spaceport teleport
+      if (!isReverseRace && destination >= BOARD_SIZE) {
+        setMessage(`🎉 ${currentPlayer.name} WINS! Reached the edge of the galaxy!`);
+        setGameWon(true);
+        setWinner(currentPlayer);
+        setIsRolling(false);
+        setAnimatingPlayer(null);
+        playSound('victory');
+        return;
+      } else if (isReverseRace && destination <= 0) {
+        setMessage(`🎉 ${currentPlayer.name} WINS! Reached the starting point!`);
+        setGameWon(true);
+        setWinner(currentPlayer);
+        setIsRolling(false);
+        setAnimatingPlayer(null);
+        playSound('victory');
+        return;
+      }
 
       await new Promise(resolve => setTimeout(resolve, 2000));
       nextPlayer();

@@ -86,17 +86,48 @@ exports.handler = async (event) => {
 async function handleCheckoutComplete(session) {
   const userId = session.metadata?.user_id;
   const tier = session.metadata?.tier;
+  const type = session.metadata?.type;
+  const priceId = session.metadata?.price_id;
   const customerId = session.customer;
 
-  if (!userId || !tier) return;
+  if (!userId) return;
 
   // Store customer ID if present
   const updateData = {
     stripe_customer_id: customerId || undefined,
   };
 
+  // Handle coin purchases (one-time payment)
+  if (type === 'coins' && priceId) {
+    // Get product metadata to determine coin amount
+    const price = await stripe.prices.retrieve(priceId);
+    const product = await stripe.products.retrieve(price.product);
+    const coins = parseInt(product.metadata.coins || '0');
+    const bonus = parseInt(product.metadata.bonus || '0');
+    const totalCoins = coins + bonus;
+
+    if (totalCoins > 0) {
+      // Get current coins from profile
+      const { data: profile } = await supabase
+        .from('space_adventure_profiles')
+        .select('coins')
+        .eq('id', userId)
+        .single();
+
+      const currentCoins = profile?.coins || 0;
+      const newCoins = currentCoins + totalCoins;
+
+      // Update coins in database
+      await supabase
+        .from('space_adventure_profiles')
+        .update({ coins: newCoins })
+        .eq('id', userId);
+
+      console.log(`Added ${totalCoins} coins to user ${userId} (${coins} + ${bonus} bonus)`);
+    }
+  }
   // For one-time payments (lifetime), activate immediately
-  if (tier === 'lifetime') {
+  else if (tier === 'lifetime') {
     updateData.premium_tier = tier;
     updateData.subscription_status = {
       active: true,
@@ -104,13 +135,19 @@ async function handleCheckoutComplete(session) {
       auto_renew: false,
     };
     updateData.stripe_subscription_id = null;
+
+    await supabase
+      .from('space_adventure_profiles')
+      .update(updateData)
+      .eq('id', userId);
   }
   // For subscriptions, wait for invoice.paid event (but store customer ID now)
-
-  await supabase
-    .from('space_adventure_profiles')
-    .update(updateData)
-    .eq('id', userId);
+  else if (type === 'subscription') {
+    await supabase
+      .from('space_adventure_profiles')
+      .update(updateData)
+      .eq('id', userId);
+  }
 }
 
 async function handleSubscriptionCreated(subscription) {
