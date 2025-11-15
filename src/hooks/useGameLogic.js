@@ -12,10 +12,16 @@ const SPACEPORTS = {
   36: 70, 51: 77, 62: 85, 71: 91, 80: 96
 };
 
-export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classic') {
+export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classic', rpgMode = false, rpgSystem = null) {
   // Get board size from variant
   const variant = GAME_VARIANTS[gameVariant] || GAME_VARIANTS.classic;
   const BOARD_SIZE = variant.boardSize || DEFAULT_BOARD_SIZE;
+  const isReverseRace = variant.specialRules?.reverseMovement || false;
+  
+  // Calculate initial position based on variant (must be before useState)
+  const initialPosition = isReverseRace ? BOARD_SIZE : 0;
+  const initialCheckpoint = isReverseRace ? BOARD_SIZE : 0;
+  
   const { playSound } = useGameSounds();
   const {
     difficulty,
@@ -45,11 +51,11 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
   ];
 
   const playerCorners = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
-
+  
   const [numPlayers, setNumPlayers] = useState(2);
   const [players, setPlayers] = useState([
-    { id: 1, position: 0, lastCheckpoint: 0, color: playerColors[0], name: 'Player 1', corner: playerCorners[0], icon: '🚀' },
-    { id: 2, position: 0, lastCheckpoint: 0, color: playerColors[1], name: 'Player 2', corner: playerCorners[1], icon: '🚀' }
+    { id: 1, position: initialPosition, lastCheckpoint: initialCheckpoint, color: playerColors[0], name: 'Player 1', corner: playerCorners[0], icon: '🚀' },
+    { id: 2, position: initialPosition, lastCheckpoint: initialCheckpoint, color: playerColors[1], name: 'Player 2', corner: playerCorners[1], icon: '🚀' }
   ]);
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
 
@@ -117,6 +123,17 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
         setCurrentPlayerIndex(0);
       }
     }
+  };
+
+  // Skip turn function (for King of the Hill variant)
+  const skipTurn = () => {
+    if (isRolling || gameWon) return;
+    const currentPlayer = players[currentPlayerIndex];
+    playSound('click');
+    setMessage(`⏸️ ${currentPlayer.name} holds position (stays at ${currentPlayer.position})`);
+    setTimeout(() => {
+      nextPlayer();
+    }, 1500);
   };
 
   const rollDice = () => {
@@ -208,21 +225,43 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
   const movePlayer = async (steps) => {
     const currentPlayer = players[currentPlayerIndex];
     const isFirstMove = currentPlayer.position === 0;
-    let newPosition = currentPlayer.position + steps;
+    
+    // Check for Reverse Race variant - move backwards
+    const isReverseRace = variant.specialRules?.reverseMovement;
+    let newPosition;
+    
+    if (isReverseRace) {
+      // Reverse Race: subtract steps, goal is position 0
+      newPosition = currentPlayer.position - steps;
+      // Can't go below 0
+      if (newPosition < 0) {
+        setMessage(`${currentPlayer.name} rolled ${steps} but needs exactly ${currentPlayer.position} to win! Turn passes.`);
+        setTimeout(() => {
+          nextPlayer();
+        }, 2000);
+        return;
+      }
+    } else {
+      // Normal movement: add steps
+      newPosition = currentPlayer.position + steps;
+      
+      // If player is at position 0 (starting), they enter the board at position 1
+      if (isFirstMove) {
+        newPosition = steps; // Move directly to the rolled position
+        setMessage(`🚀 ${currentPlayer.name} blasts off into space!`);
+      }
 
-    // If player is at position 0 (starting), they enter the board at position 1
-    if (isFirstMove) {
-      newPosition = steps; // Move directly to the rolled position
-      setMessage(`🚀 ${currentPlayer.name} blasts off into space!`);
+      if (newPosition > BOARD_SIZE) {
+        setMessage(`${currentPlayer.name} rolled ${steps} but needs exactly ${BOARD_SIZE - currentPlayer.position} to win! Turn passes.`);
+        setTimeout(() => {
+          nextPlayer();
+        }, 2000);
+        return;
+      }
     }
-
-    if (newPosition > BOARD_SIZE) {
-      setMessage(`${currentPlayer.name} rolled ${steps} but needs exactly ${BOARD_SIZE - currentPlayer.position} to win! Turn passes.`);
-      setTimeout(() => {
-        nextPlayer();
-      }, 2000);
-      return;
-    }
+    
+    // Ensure position never goes below 0 (safety check)
+    newPosition = Math.max(0, newPosition);
 
     setAnimatingPlayer(currentPlayer.id);
 
@@ -381,7 +420,18 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
       return;
     }
 
-    if (newPosition === BOARD_SIZE) {
+    // Check win condition (varies by variant)
+    if (isReverseRace && newPosition <= 0) {
+      // Reverse Race: win at position 0 or below
+      setMessage(`🎉 ${currentPlayer.name} WINS! Reached the starting point!`);
+      setGameWon(true);
+      setWinner(currentPlayer);
+      setIsRolling(false);
+      setAnimatingPlayer(null);
+      playSound('victory');
+      return;
+    } else if (!isReverseRace && newPosition === BOARD_SIZE) {
+      // Normal variants: win at final position
       setMessage(`🎉 ${currentPlayer.name} WINS! Reached the edge of the galaxy!`);
       setGameWon(true);
       setWinner(currentPlayer);
@@ -392,11 +442,24 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
     }
     
     if (SPACEPORTS[newPosition]) {
-      const destination = SPACEPORTS[newPosition];
-      setMessage(`🛸 ${currentPlayer.name} found a SPACEPORT at position ${newPosition}!`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      let destination = SPACEPORTS[newPosition];
+      
+      // For Reverse Race, spaceports work in reverse (move you further from goal 0)
+      // In reverse race, higher positions are BAD (further from goal)
+      // So spaceports that normally help (move forward) actually hurt in reverse
+      if (isReverseRace) {
+        // Spaceports move you to a higher position (further from 0 = bad)
+        // But we still use the same destination - it's just bad in reverse race
+        setMessage(`🛸 ${currentPlayer.name} found a SPACEPORT at position ${newPosition}!`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        setMessage(`⚠️ Warping to position ${destination} (further from goal in Reverse Race!)...`);
+      } else {
+        // Normal: spaceports are good
+        setMessage(`🛸 ${currentPlayer.name} found a SPACEPORT at position ${newPosition}!`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        setMessage(`⚡ Warping to position ${destination}...`);
+      }
 
-      setMessage(`⚡ Warping to position ${destination}...`);
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       playSound('spaceport');
@@ -404,7 +467,15 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       updatedPlayers[currentPlayerIndex].position = destination;
-      updatedPlayers[currentPlayerIndex].lastCheckpoint = getLastCheckpoint(destination);
+      if (!isReverseRace) {
+        updatedPlayers[currentPlayerIndex].lastCheckpoint = getLastCheckpoint(destination);
+      } else {
+        // In reverse race, update checkpoint to highest reached position
+        updatedPlayers[currentPlayerIndex].lastCheckpoint = Math.max(
+          updatedPlayers[currentPlayerIndex].lastCheckpoint || 0,
+          destination
+        );
+      }
       setPlayers(updatedPlayers);
 
       setAnimationType('landing');
@@ -420,12 +491,43 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
     }
     
     if (ALIENS.includes(newPosition)) {
+      // RPG MODE: Initiate combat instead of automatic knockback
+      if (rpgMode && rpgSystem) {
+        const character = rpgSystem.getCharacter(currentPlayer.id);
+        if (character) {
+          // Initiate RPG combat - return early, combat will be handled by RPGGame
+          const combatInfo = rpgSystem.initiateCombat(currentPlayer.id, newPosition);
+          setMessage(`⚔️ ${currentPlayer.name} encounters a Level ${combatInfo.alienLevel} Alien! Combat begins!`);
+          playSound('alien');
+          setAnimationType('eaten');
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          // Store combat state - RPGGame will handle resolution
+          // The game will pause here until combat is resolved
+          return { combatInitiated: true, alienPosition: newPosition };
+        }
+      }
+
+      // STANDARD MODE: Original alien encounter logic
       setMessage(`👾 ${currentPlayer.name} encountered an ALIEN at position ${newPosition}!`);
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Check assistance - can knockback be prevented?
       const checkpoint = updatedPlayers[currentPlayerIndex].lastCheckpoint;
-      const knockbackDistance = newPosition - checkpoint;
+      
+      // For Reverse Race, aliens send you forward (closer to start/goal)
+      let knockbackDistance;
+      let targetPosition;
+      if (isReverseRace) {
+        // In reverse race, aliens help by moving you forward (toward 0)
+        knockbackDistance = Math.min(5, newPosition); // Move forward up to 5 spaces
+        targetPosition = Math.max(0, newPosition - knockbackDistance);
+      } else {
+        // Normal: aliens send you back to checkpoint
+        knockbackDistance = newPosition - checkpoint;
+        targetPosition = checkpoint;
+      }
+      
       const knockbackResult = assistance.processKnockback(currentPlayer.id, newPosition, knockbackDistance);
 
       if (!knockbackResult.allowed) {
@@ -456,13 +558,20 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
       setAnimationType('eaten');
       await new Promise(resolve => setTimeout(resolve, 1500));
 
-      updatedPlayers[currentPlayerIndex].position = checkpoint;
+      updatedPlayers[currentPlayerIndex].position = targetPosition;
+      if (!isReverseRace) {
+        updatedPlayers[currentPlayerIndex].lastCheckpoint = checkpoint;
+      }
       setPlayers(updatedPlayers);
 
       setAnimationType('landing');
       await new Promise(resolve => setTimeout(resolve, 1500));
 
-      setMessage(`↩️ ${currentPlayer.name} sent back to checkpoint ${checkpoint}!`);
+      if (isReverseRace) {
+        setMessage(`↩️ ${currentPlayer.name} pushed forward to position ${targetPosition}!`);
+      } else {
+        setMessage(`↩️ ${currentPlayer.name} sent back to checkpoint ${checkpoint}!`);
+      }
       setAnimationType(null);
       setAnimatingPlayer(null);
 
@@ -635,10 +744,21 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
 
   const resetGame = () => {
     playSound('click');
-    setPlayers(players.map(p => ({ ...p, position: 0, lastCheckpoint: 0 })));
+    
+    // Check if Reverse Race variant - start at position 100
+    const isReverseRace = variant.specialRules?.reverseMovement;
+    const startPosition = isReverseRace ? BOARD_SIZE : 0;
+    
+    setPlayers(players.map(p => ({ 
+      ...p, 
+      position: startPosition, 
+      lastCheckpoint: isReverseRace ? BOARD_SIZE : 0 
+    })));
     setCurrentPlayerIndex(0);
     setDiceValue(null);
-    setMessage("Player 1's turn! Press SPIN to start!");
+    setMessage(isReverseRace 
+      ? "Player 1's turn! Race backwards to position 0!" 
+      : "Player 1's turn! Press SPIN to start!");
     setGameWon(false);
     setWinner(null);
     setAnimatingPlayer(null);
@@ -675,6 +795,7 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
     addPlayer,
     removePlayer,
     rollDice,
+    skipTurn, // For King of the Hill variant - allows staying in place
     resetGame,
     changePlayerIcon,
     // Jeopardy mechanics
@@ -691,7 +812,10 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
     gameStartTime,
     turnCount,
     // Board size from variant
-    boardSize: BOARD_SIZE
+    boardSize: BOARD_SIZE,
+    // Expose internal functions for RPG mode
+    setPlayers,
+    nextPlayer
   };
 }
 

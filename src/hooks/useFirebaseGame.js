@@ -133,6 +133,10 @@ export function useFirebaseGame() {
   }, [gameState]);
 
   const createGame = async (playerName) => {
+    if (!database) {
+      throw new Error('Firebase is not configured. Please set up Firebase credentials in your .env file to use online multiplayer.');
+    }
+
     if (!isValidPlayerName(playerName)) {
       throw new Error('Invalid player name');
     }
@@ -247,6 +251,10 @@ export function useFirebaseGame() {
   };
 
   const joinGame = async (gameIdToJoin, playerName) => {
+    if (!database) {
+      throw new Error('Firebase is not configured. Please set up Firebase credentials in your .env file to use online multiplayer.');
+    }
+
     if (!isValidPlayerName(playerName)) {
       throw new Error('Invalid player name');
     }
@@ -396,6 +404,11 @@ export function useFirebaseGame() {
   };
 
   const handleRollDice = async () => {
+    if (!database) {
+      console.error('Firebase not configured');
+      return;
+    }
+    
     if (!gameState || gameState.isRolling || gameState.gameWon || gameState.isPaused) return;
     
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];

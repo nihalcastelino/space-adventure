@@ -12,9 +12,18 @@ class SoundGenerator {
     if (typeof window !== 'undefined' && window.AudioContext) {
       try {
         this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Handle audio context errors
+        this.audioContext.addEventListener('statechange', () => {
+          if (this.audioContext.state === 'interrupted' || this.audioContext.state === 'closed') {
+            console.warn('AudioContext interrupted or closed, disabling sounds');
+            this.enabled = false;
+          }
+        });
       } catch (e) {
         console.warn('Web Audio API not supported:', e);
         this.enabled = false;
+        this.audioContext = null;
       }
     }
   }
@@ -23,6 +32,22 @@ class SoundGenerator {
     if (!this.enabled || !this.audioContext) return;
 
     try {
+      // Check if context is in a valid state
+      if (this.audioContext.state === 'closed' || this.audioContext.state === 'interrupted') {
+        console.warn('AudioContext not available, disabling sounds');
+        this.enabled = false;
+        return;
+      }
+
+      // Resume if suspended (but don't wait - sounds will play once resumed)
+      if (this.audioContext.state === 'suspended') {
+        this.audioContext.resume().catch(err => {
+          console.warn('Failed to resume AudioContext:', err);
+          this.enabled = false;
+        });
+        // Continue anyway - the sound will play once context resumes
+      }
+
       const oscillator = this.audioContext.createOscillator();
       const gainNode = this.audioContext.createGain();
 
@@ -38,8 +63,17 @@ class SoundGenerator {
 
       oscillator.start(this.audioContext.currentTime);
       oscillator.stop(this.audioContext.currentTime + duration);
+
+      // Handle oscillator errors
+      oscillator.onerror = (e) => {
+        console.warn('Oscillator error:', e);
+      };
     } catch (e) {
       console.warn('Error playing sound:', e);
+      // If context is broken, disable sounds
+      if (e.name === 'InvalidStateError' || e.name === 'NotSupportedError') {
+        this.enabled = false;
+      }
     }
   }
 
@@ -172,7 +206,10 @@ export function useGameSounds() {
     // Resume audio context on user interaction (browser autoplay policy)
     const resumeAudio = () => {
       if (soundGenRef.current?.audioContext?.state === 'suspended') {
-        soundGenRef.current.audioContext.resume();
+        soundGenRef.current.audioContext.resume().catch(err => {
+          console.warn('Failed to resume AudioContext on user interaction:', err);
+          // Don't disable sounds on resume failure - user might need to interact again
+        });
       }
     };
 
@@ -188,9 +225,21 @@ export function useGameSounds() {
   const playSound = (soundType) => {
     if (!soundGenRef.current) return;
 
-    // Resume context if suspended
+    // Resume context if suspended (with error handling)
     if (soundGenRef.current.audioContext?.state === 'suspended') {
-      soundGenRef.current.audioContext.resume();
+      soundGenRef.current.audioContext.resume().catch(err => {
+        console.warn('Failed to resume AudioContext:', err);
+        // Disable sounds if resume fails
+        soundGenRef.current.setEnabled(false);
+        return;
+      });
+    }
+
+    // Check if context is in a bad state
+    if (soundGenRef.current.audioContext?.state === 'closed' || 
+        soundGenRef.current.audioContext?.state === 'interrupted') {
+      console.warn('AudioContext unavailable, skipping sound');
+      return;
     }
 
     switch (soundType) {

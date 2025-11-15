@@ -12,15 +12,39 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-// Validate required config
-if (!firebaseConfig.databaseURL) {
-  console.error('Missing VITE_FIREBASE_DATABASE_URL in environment variables');
+// Check if Firebase is configured
+const isFirebaseConfigured = firebaseConfig.databaseURL && firebaseConfig.projectId;
+
+if (!isFirebaseConfigured) {
+  console.warn('⚠️ Firebase credentials not found in environment variables.');
+  console.warn('Please add VITE_FIREBASE_DATABASE_URL and VITE_FIREBASE_PROJECT_ID to your .env file');
+  console.warn('Online multiplayer features will be disabled.');
 }
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase only if configured
+let app = null;
+let database = null;
 
-// Initialize Realtime Database
-export const database = getDatabase(app);
+if (isFirebaseConfigured) {
+  try {
+    app = initializeApp(firebaseConfig);
+    database = getDatabase(app);
+    
+    if (import.meta.env.DEV) {
+      console.log('✅ Firebase configured successfully');
+      console.log('📡 Firebase Database URL:', firebaseConfig.databaseURL?.substring(0, 30) + '...');
+    }
+  } catch (error) {
+    console.error('❌ Firebase initialization failed:', error);
+    app = null;
+    database = null;
+  }
+} else {
+  if (import.meta.env.DEV) {
+    console.log('❌ Firebase not configured - online multiplayer disabled');
+  }
+}
+
+export { database };
 export default app;
 

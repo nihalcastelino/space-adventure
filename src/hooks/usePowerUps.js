@@ -100,6 +100,28 @@ export const POWERUPS = {
     effect: 'force_six',
     value: 1,
     duration: 'single_use'
+  },
+  SKIP_TURN: {
+    id: 'skip_turn',
+    name: 'Hold Position',
+    description: 'Skip your turn and stay in place (for King of the Hill)',
+    icon: '⏸️',
+    rarity: 'rare',
+    cost: 150,
+    effect: 'skip_turn',
+    value: 1,
+    duration: 'single_use'
+  },
+  BACKTRACK: {
+    id: 'backtrack',
+    name: 'Reverse Thrust',
+    description: 'Move backwards by dice roll (for Reverse Race)',
+    icon: '⬅️',
+    rarity: 'uncommon',
+    cost: 100,
+    effect: 'reverse_move',
+    value: 1,
+    duration: 'single_use'
   }
 };
 

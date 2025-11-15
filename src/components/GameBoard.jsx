@@ -69,6 +69,7 @@ export default function GameBoard({
       if (hazard.type === 'blackHoleWarning') return 'rgba(251, 146, 60, 0.4)';
       if (hazard.type === 'patrol') return 'rgba(185, 28, 28, 0.4)';
       if (hazard.type === 'meteor') return 'rgba(234, 88, 12, 0.5)';
+      if (hazard.type === 'tactical') return 'rgba(168, 85, 247, 0.4)'; // Purple for tactical squares
     }
     if (cellNumber === BOARD_SIZE) return 'rgba(251, 191, 36, 0.25)';
     if (SPACEPORTS[cellNumber]) return `rgba(16, 185, 129, ${responsiveSize.spaceportOpacity})`;
@@ -101,17 +102,19 @@ export default function GameBoard({
     if (!hazards) return null;
 
     // Check black holes
-    const blackHole = hazards.blackHoles.find(bh => bh.position === cellNumber);
-    if (blackHole) {
-      return {
-        type: blackHole.isCollapsed ? 'blackHole' : 'blackHoleWarning',
-        icon: blackHole.isCollapsed ? '🕳️' : '⚠️',
-        turnsUntilCollapse: blackHole.turnsUntilCollapse
-      };
+    if (hazards.blackHoles && Array.isArray(hazards.blackHoles)) {
+      const blackHole = hazards.blackHoles.find(bh => bh.position === cellNumber);
+      if (blackHole) {
+        return {
+          type: blackHole.isCollapsed ? 'blackHole' : 'blackHoleWarning',
+          icon: blackHole.isCollapsed ? '🕳️' : '⚠️',
+          turnsUntilCollapse: blackHole.turnsUntilCollapse
+        };
+      }
     }
 
     // Check patrol zones
-    if (hazards.patrolZones.includes(cellNumber)) {
+    if (hazards.patrolZones && Array.isArray(hazards.patrolZones) && hazards.patrolZones.includes(cellNumber)) {
       return {
         type: 'patrol',
         icon: '🚨'
@@ -119,12 +122,22 @@ export default function GameBoard({
     }
 
     // Check meteor impacts
-    const meteor = hazards.meteorImpacts.find(m => m.position === cellNumber);
-    if (meteor) {
+    if (hazards.meteorImpacts && Array.isArray(hazards.meteorImpacts)) {
+      const meteor = hazards.meteorImpacts.find(m => m.position === cellNumber);
+      if (meteor) {
+        return {
+          type: 'meteor',
+          icon: '🔥',
+          turnsRemaining: meteor.turnsRemaining
+        };
+      }
+    }
+
+    // Check tactical squares
+    if (hazards.tacticalSquares && Array.isArray(hazards.tacticalSquares) && hazards.tacticalSquares.includes(cellNumber)) {
       return {
-        type: 'meteor',
-        icon: '🔥',
-        turnsRemaining: meteor.turnsRemaining
+        type: 'tactical',
+        icon: '⚔️'
       };
     }
 
@@ -140,6 +153,7 @@ export default function GameBoard({
       if (hazard.type === 'blackHoleWarning') return 'rgba(251, 146, 60, 0.4)'; // Orange warning
       if (hazard.type === 'patrol') return 'rgba(185, 28, 28, 0.4)'; // Dark red for patrol
       if (hazard.type === 'meteor') return 'rgba(234, 88, 12, 0.5)'; // Orange-red for meteor
+      if (hazard.type === 'tactical') return 'rgba(168, 85, 247, 0.4)'; // Purple for tactical squares
     }
 
     if (cellNumber === BOARD_SIZE) return 'rgba(251, 191, 36, 0.25)'; // Gold for finish
@@ -179,6 +193,7 @@ export default function GameBoard({
         const isFinish = cellNumber === BOARD_SIZE;
         const hazard = getHazardAtCell(cellNumber);
         const isRogue = rogueState && rogueState.active && rogueState.position === cellNumber;
+        const isTactical = hazard && hazard.type === 'tactical';
 
         // Check if this cell has encounter effect
         const hasSpaceportEffect = encounterType === 'spaceport' && playersHere.some(p => p.id === animatingPlayer);
@@ -191,33 +206,35 @@ export default function GameBoard({
             key={`cell-${cellNumber}`}
             style={{
               backgroundColor: bgColor,
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              borderRadius: '4px',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              borderRadius: '6px',
               position: 'relative',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: '9px',
-              color: 'rgba(255, 255, 255, 0.5)',
+              color: 'rgba(255, 255, 255, 0.6)',
               fontWeight: 'bold',
               aspectRatio: '1',
               minHeight: '0',
               minWidth: '0',
               boxShadow: hasSpaceportEffect
-                ? '0 0 30px rgba(16, 185, 129, 0.9), inset 0 0 20px rgba(16, 185, 129, 0.5)'
+                ? '0 0 30px rgba(16, 185, 129, 0.9), inset 0 0 20px rgba(16, 185, 129, 0.5), 0 0 40px rgba(16, 185, 129, 0.4)'
                 : hasAlienEffect
-                ? '0 0 30px rgba(239, 68, 68, 0.9), inset 0 0 20px rgba(239, 68, 68, 0.5)'
+                ? '0 0 30px rgba(239, 68, 68, 0.9), inset 0 0 20px rgba(239, 68, 68, 0.5), 0 0 40px rgba(239, 68, 68, 0.4)'
                 : isSpaceport || isAlien || isCheckpoint || isFinish
                 ? 'inset 0 0 20px rgba(0, 0, 0, 0.3), 0 0 ' + (
-                    isFinish ? '10px rgba(251, 191, 36, 0.3)' :
-                    isSpaceport ? `${responsiveSize.spaceportGlow} rgba(16, 185, 129, ${responsiveSize.spaceportGlowOpacity})` :
-                    isAlien ? '10px rgba(239, 68, 68, 0.3)' :
-                    '10px rgba(59, 130, 246, 0.3)'
+                    isFinish ? '12px rgba(251, 191, 36, 0.4), 0 0 24px rgba(251, 191, 36, 0.2)' :
+                    isSpaceport ? `${responsiveSize.spaceportGlow} rgba(16, 185, 129, ${responsiveSize.spaceportGlowOpacity}), 0 0 ${parseInt(responsiveSize.spaceportGlow) * 2}px rgba(16, 185, 129, ${responsiveSize.spaceportGlowOpacity * 0.5})` :
+                    isAlien ? '12px rgba(239, 68, 68, 0.4), 0 0 24px rgba(239, 68, 68, 0.2)' :
+                    '12px rgba(59, 130, 246, 0.4), 0 0 24px rgba(59, 130, 246, 0.2)'
                   )
-                : 'inset 0 0 10px rgba(0, 0, 0, 0.4)',
-              transition: 'all 0.2s ease',
+                : 'inset 0 0 10px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               overflow: 'hidden',
-              animation: hasSpaceportEffect ? 'warp-pulse 0.8s ease-in-out' : hasAlienEffect ? 'alien-shake 0.5s ease-in-out' : 'none'
+              animation: hasSpaceportEffect ? 'warp-pulse 0.8s ease-in-out' : hasAlienEffect ? 'alien-shake 0.5s ease-in-out' : 'none',
+              backdropFilter: 'blur(0.5px)',
+              WebkitBackdropFilter: 'blur(0.5px)'
             }}
           >
             {/* Cell number in corner */}
@@ -235,82 +252,253 @@ export default function GameBoard({
               {cellNumber}
             </span>
 
-            {/* Spaceport */}
+            {/* Spaceport - Enhanced with modern glow */}
             {isSpaceport && (
-              <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                fontSize: `${responsiveSize.spaceport}px`,
-                zIndex: 5,
-                filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 10px rgba(16, 185, 129, 0.8)) contrast(1.3) saturate(1.4)',
-                animation: 'float 3s ease-in-out infinite'
-              }}>
-                🛸
+              <div 
+                className="spaceport-container"
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  fontSize: `${responsiveSize.spaceport}px`,
+                  zIndex: 5,
+                  filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 12px rgba(16, 185, 129, 0.9)) drop-shadow(0 0 20px rgba(16, 185, 129, 0.6)) contrast(1.3) saturate(1.4)',
+                  animation: 'spaceport-float 3s ease-in-out infinite'
+                }}
+              >
+                {/* Glow effect */}
+                <div 
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '140%',
+                    height: '140%',
+                    background: 'radial-gradient(circle, rgba(16, 185, 129, 0.3) 0%, transparent 70%)',
+                    borderRadius: '50%',
+                    animation: 'spaceport-glow-pulse 3s ease-in-out infinite',
+                    pointerEvents: 'none',
+                    zIndex: 0
+                  }}
+                />
+                <div style={{ position: 'relative', zIndex: 1 }}>
+                  🛸
+                </div>
               </div>
             )}
 
-            {/* Alien */}
+            {/* Alien - Enhanced with retro space shooter styling */}
             {isAlien && !isRogue && (
-              <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                fontSize: '32px',
-                zIndex: 5,
-                filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 10px rgba(239, 68, 68, 0.8)) contrast(1.3) saturate(1.4)',
-                animation: alienBlink[cellNumber] ? 'none' : 'pulse 2s ease-in-out infinite'
-              }}>
-                👾
+              <div 
+                className="alien-container"
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  fontSize: `${Math.max(20, Math.min(32, responsiveSize.rocket + 4))}px`,
+                  zIndex: 5,
+                  filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 12px rgba(239, 68, 68, 0.9)) drop-shadow(0 0 20px rgba(239, 68, 68, 0.6)) contrast(1.4) saturate(1.5)',
+                  animation: alienBlink[cellNumber] ? 'alien-attack 0.3s ease-in-out' : 'alien-idle 2s ease-in-out infinite',
+                  imageRendering: 'pixelated',
+                  WebkitImageRendering: 'pixelated'
+                }}
+              >
+                <div 
+                  className="alien-scanline-overlay"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(239, 68, 68, 0.1) 2px, rgba(239, 68, 68, 0.1) 4px)',
+                    pointerEvents: 'none',
+                    mixBlendMode: 'overlay'
+                  }}
+                />
+                <div style={{ position: 'relative', zIndex: 1 }}>
+                  👾
+                </div>
+                {/* Retro glow effect */}
+                <div 
+                  className="alien-glow"
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '120%',
+                    height: '120%',
+                    background: 'radial-gradient(circle, rgba(239, 68, 68, 0.4) 0%, transparent 70%)',
+                    borderRadius: '50%',
+                    animation: 'alien-glow-pulse 2s ease-in-out infinite',
+                    pointerEvents: 'none',
+                    zIndex: 0
+                  }}
+                />
               </div>
             )}
 
-            {/* Rogue Alien */}
+            {/* Rogue Alien - Enhanced with retro effects */}
             {isRogue && (
-              <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                fontSize: '36px',
-                zIndex: 6,
-                filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 15px rgba(168, 85, 247, 0.9)) drop-shadow(0 0 25px rgba(34, 197, 94, 0.6)) contrast(1.4) saturate(1.5)',
-                animation: 'pulse 1.5s ease-in-out infinite',
-                textShadow: '0 0 20px rgba(168, 85, 247, 0.8), 0 0 30px rgba(34, 197, 94, 0.6)'
-              }}>
-                👽
+              <div 
+                className="rogue-alien-container"
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  fontSize: `${Math.max(24, Math.min(36, responsiveSize.rocket + 8))}px`,
+                  zIndex: 6,
+                  filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 18px rgba(168, 85, 247, 1)) drop-shadow(0 0 30px rgba(34, 197, 94, 0.8)) drop-shadow(0 0 40px rgba(168, 85, 247, 0.6)) contrast(1.5) saturate(1.6)',
+                  animation: 'rogue-alien-pulse 1.5s ease-in-out infinite',
+                  imageRendering: 'pixelated',
+                  WebkitImageRendering: 'pixelated'
+                }}
+              >
+                <div 
+                  className="rogue-alien-scanline-overlay"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(168, 85, 247, 0.15) 2px, rgba(168, 85, 247, 0.15) 4px)',
+                    pointerEvents: 'none',
+                    mixBlendMode: 'overlay'
+                  }}
+                />
+                <div style={{ position: 'relative', zIndex: 1 }}>
+                  👽
+                </div>
+                {/* Dual-color glow effect */}
+                <div 
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '130%',
+                    height: '130%',
+                    background: 'radial-gradient(circle, rgba(168, 85, 247, 0.5) 0%, rgba(34, 197, 94, 0.3) 50%, transparent 70%)',
+                    borderRadius: '50%',
+                    animation: 'rogue-alien-glow 1.5s ease-in-out infinite',
+                    pointerEvents: 'none',
+                    zIndex: 0
+                  }}
+                />
               </div>
             )}
 
-            {/* Checkpoint */}
-            {isCheckpoint && !isSpaceport && !isAlien && !isRogue && (
-              <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                fontSize: '32px',
-                zIndex: 5,
-                filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 10px rgba(59, 130, 246, 0.8)) contrast(1.3) saturate(1.4)'
-              }}>
-                🛡️
+            {/* Tactical Square */}
+            {isTactical && !isSpaceport && !isAlien && !isRogue && !isCheckpoint && (
+              <div 
+                className="tactical-container"
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  fontSize: `${Math.max(20, Math.min(28, responsiveSize.rocket + 4))}px`,
+                  zIndex: 5,
+                  filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 12px rgba(168, 85, 247, 0.9)) drop-shadow(0 0 20px rgba(168, 85, 247, 0.6)) contrast(1.3) saturate(1.4)',
+                  animation: 'tactical-pulse 2s ease-in-out infinite'
+                }}
+              >
+                <div style={{ position: 'relative', zIndex: 1 }}>
+                  ⚔️
+                </div>
+                <div 
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '120%',
+                    height: '120%',
+                    background: 'radial-gradient(circle, rgba(168, 85, 247, 0.3) 0%, transparent 70%)',
+                    borderRadius: '50%',
+                    animation: 'tactical-glow 2s ease-in-out infinite',
+                    pointerEvents: 'none',
+                    zIndex: 0
+                  }}
+                />
               </div>
             )}
 
-            {/* Finish line */}
+            {/* Checkpoint - Enhanced */}
+            {isCheckpoint && !isSpaceport && !isAlien && !isRogue && !isTactical && (
+              <div 
+                className="checkpoint-container"
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  fontSize: `${Math.max(24, Math.min(32, responsiveSize.rocket + 4))}px`,
+                  zIndex: 5,
+                  filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 12px rgba(59, 130, 246, 0.9)) drop-shadow(0 0 20px rgba(59, 130, 246, 0.6)) contrast(1.3) saturate(1.4)',
+                  animation: 'checkpoint-pulse 2.5s ease-in-out infinite'
+                }}
+              >
+                <div 
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '120%',
+                    height: '120%',
+                    background: 'radial-gradient(circle, rgba(59, 130, 246, 0.3) 0%, transparent 70%)',
+                    borderRadius: '50%',
+                    animation: 'checkpoint-glow-pulse 2.5s ease-in-out infinite',
+                    pointerEvents: 'none',
+                    zIndex: 0
+                  }}
+                />
+                <div style={{ position: 'relative', zIndex: 1 }}>
+                  🛡️
+                </div>
+              </div>
+            )}
+
+            {/* Finish line - Enhanced */}
             {isFinish && (
-              <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                fontSize: '36px',
-                zIndex: 5,
-                filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 12px rgba(251, 191, 36, 1)) contrast(1.3) saturate(1.4)'
-              }}>
-                🏁
+              <div 
+                className="finish-container"
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  fontSize: `${Math.max(28, Math.min(36, responsiveSize.rocket + 8))}px`,
+                  zIndex: 5,
+                  filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 15px rgba(251, 191, 36, 1)) drop-shadow(0 0 25px rgba(251, 191, 36, 0.8)) contrast(1.4) saturate(1.5)',
+                  animation: 'finish-glow 2s ease-in-out infinite'
+                }}
+              >
+                <div 
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '130%',
+                    height: '130%',
+                    background: 'radial-gradient(circle, rgba(251, 191, 36, 0.4) 0%, rgba(251, 191, 36, 0.2) 50%, transparent 70%)',
+                    borderRadius: '50%',
+                    animation: 'finish-glow-pulse 2s ease-in-out infinite',
+                    pointerEvents: 'none',
+                    zIndex: 0
+                  }}
+                />
+                <div style={{ position: 'relative', zIndex: 1 }}>
+                  🏁
+                </div>
               </div>
             )}
 
@@ -451,9 +639,156 @@ export default function GameBoard({
           10%, 30%, 50%, 70%, 90% { transform: translateX(-5px) rotate(-2deg); }
           20%, 40%, 60%, 80% { transform: translateX(5px) rotate(2deg); }
         }
+        /* Retro Space Shooter Alien Animations */
+        @keyframes alien-idle {
+          0%, 100% { 
+            transform: translate(-50%, -50%) scale(1) rotate(0deg);
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 12px rgba(239, 68, 68, 0.9)) drop-shadow(0 0 20px rgba(239, 68, 68, 0.6)) contrast(1.4) saturate(1.5);
+          }
+          25% { 
+            transform: translate(-50%, -50%) scale(1.05) rotate(-2deg);
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 15px rgba(239, 68, 68, 1)) drop-shadow(0 0 25px rgba(239, 68, 68, 0.8)) contrast(1.5) saturate(1.6);
+          }
+          50% { 
+            transform: translate(-50%, -50%) scale(1.1) rotate(0deg);
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 18px rgba(239, 68, 68, 1.1)) drop-shadow(0 0 30px rgba(239, 68, 68, 0.9)) contrast(1.6) saturate(1.7);
+          }
+          75% { 
+            transform: translate(-50%, -50%) scale(1.05) rotate(2deg);
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 15px rgba(239, 68, 68, 1)) drop-shadow(0 0 25px rgba(239, 68, 68, 0.8)) contrast(1.5) saturate(1.6);
+          }
+        }
+        @keyframes alien-attack {
+          0% { 
+            transform: translate(-50%, -50%) scale(1) rotate(0deg);
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 20px rgba(239, 68, 68, 1)) contrast(1.4) saturate(1.5);
+          }
+          25% { 
+            transform: translate(-50%, -50%) scale(1.3) rotate(-10deg);
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 30px rgba(239, 68, 68, 1.2)) drop-shadow(0 0 40px rgba(239, 68, 68, 1)) contrast(1.8) saturate(2);
+          }
+          50% { 
+            transform: translate(-50%, -50%) scale(1.5) rotate(10deg);
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 35px rgba(239, 68, 68, 1.3)) drop-shadow(0 0 50px rgba(239, 68, 68, 1.1)) contrast(2) saturate(2.2);
+          }
+          75% { 
+            transform: translate(-50%, -50%) scale(1.3) rotate(-10deg);
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 30px rgba(239, 68, 68, 1.2)) drop-shadow(0 0 40px rgba(239, 68, 68, 1)) contrast(1.8) saturate(2);
+          }
+          100% { 
+            transform: translate(-50%, -50%) scale(1) rotate(0deg);
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 12px rgba(239, 68, 68, 0.9)) drop-shadow(0 0 20px rgba(239, 68, 68, 0.6)) contrast(1.4) saturate(1.5);
+          }
+        }
+        @keyframes alien-glow-pulse {
+          0%, 100% { 
+            opacity: 0.4;
+            transform: translate(-50%, -50%) scale(1);
+          }
+          50% { 
+            opacity: 0.7;
+            transform: translate(-50%, -50%) scale(1.2);
+          }
+        }
+        @keyframes rogue-alien-pulse {
+          0%, 100% { 
+            transform: translate(-50%, -50%) scale(1) rotate(0deg);
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 18px rgba(168, 85, 247, 1)) drop-shadow(0 0 30px rgba(34, 197, 94, 0.8)) drop-shadow(0 0 40px rgba(168, 85, 247, 0.6)) contrast(1.5) saturate(1.6);
+          }
+          25% { 
+            transform: translate(-50%, -50%) scale(1.08) rotate(-3deg);
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 22px rgba(168, 85, 247, 1.1)) drop-shadow(0 0 35px rgba(34, 197, 94, 0.9)) drop-shadow(0 0 45px rgba(168, 85, 247, 0.7)) contrast(1.6) saturate(1.7);
+          }
+          50% { 
+            transform: translate(-50%, -50%) scale(1.15) rotate(0deg);
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 25px rgba(168, 85, 247, 1.2)) drop-shadow(0 0 40px rgba(34, 197, 94, 1)) drop-shadow(0 0 50px rgba(168, 85, 247, 0.8)) contrast(1.7) saturate(1.8);
+          }
+          75% { 
+            transform: translate(-50%, -50%) scale(1.08) rotate(3deg);
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 22px rgba(168, 85, 247, 1.1)) drop-shadow(0 0 35px rgba(34, 197, 94, 0.9)) drop-shadow(0 0 45px rgba(168, 85, 247, 0.7)) contrast(1.6) saturate(1.7);
+          }
+        }
+        @keyframes rogue-alien-glow {
+          0%, 100% { 
+            opacity: 0.5;
+            transform: translate(-50%, -50%) scale(1) rotate(0deg);
+          }
+          50% { 
+            opacity: 0.8;
+            transform: translate(-50%, -50%) scale(1.3) rotate(180deg);
+          }
+        }
+        @keyframes checkpoint-pulse {
+          0%, 100% { 
+            transform: translate(-50%, -50%) scale(1);
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 12px rgba(59, 130, 246, 0.9)) drop-shadow(0 0 20px rgba(59, 130, 246, 0.6)) contrast(1.3) saturate(1.4);
+          }
+          50% { 
+            transform: translate(-50%, -50%) scale(1.08);
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 15px rgba(59, 130, 246, 1)) drop-shadow(0 0 25px rgba(59, 130, 246, 0.8)) contrast(1.4) saturate(1.5);
+          }
+        }
+        @keyframes checkpoint-glow-pulse {
+          0%, 100% { 
+            opacity: 0.3;
+            transform: translate(-50%, -50%) scale(1);
+          }
+          50% { 
+            opacity: 0.6;
+            transform: translate(-50%, -50%) scale(1.2);
+          }
+        }
+        @keyframes finish-glow {
+          0%, 100% { 
+            transform: translate(-50%, -50%) scale(1) rotate(0deg);
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 15px rgba(251, 191, 36, 1)) drop-shadow(0 0 25px rgba(251, 191, 36, 0.8)) contrast(1.4) saturate(1.5);
+          }
+          25% { 
+            transform: translate(-50%, -50%) scale(1.1) rotate(-5deg);
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 18px rgba(251, 191, 36, 1.1)) drop-shadow(0 0 30px rgba(251, 191, 36, 0.9)) contrast(1.5) saturate(1.6);
+          }
+          50% { 
+            transform: translate(-50%, -50%) scale(1.15) rotate(0deg);
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 20px rgba(251, 191, 36, 1.2)) drop-shadow(0 0 35px rgba(251, 191, 36, 1)) contrast(1.6) saturate(1.7);
+          }
+          75% { 
+            transform: translate(-50%, -50%) scale(1.1) rotate(5deg);
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 18px rgba(251, 191, 36, 1.1)) drop-shadow(0 0 30px rgba(251, 191, 36, 0.9)) contrast(1.5) saturate(1.6);
+          }
+        }
+        @keyframes finish-glow-pulse {
+          0%, 100% { 
+            opacity: 0.4;
+            transform: translate(-50%, -50%) scale(1);
+          }
+          50% { 
+            opacity: 0.7;
+            transform: translate(-50%, -50%) scale(1.3);
+          }
+        }
         @keyframes float {
           0%, 100% { transform: translateY(0px); }
           50% { transform: translateY(-5px); }
+        }
+        @keyframes spaceport-float {
+          0%, 100% { 
+            transform: translate(-50%, -50%) translateY(0px) rotate(0deg);
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 12px rgba(16, 185, 129, 0.9)) drop-shadow(0 0 20px rgba(16, 185, 129, 0.6)) contrast(1.3) saturate(1.4);
+          }
+          50% { 
+            transform: translate(-50%, -50%) translateY(-8px) rotate(5deg);
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 15px rgba(16, 185, 129, 1)) drop-shadow(0 0 25px rgba(16, 185, 129, 0.8)) contrast(1.4) saturate(1.5);
+          }
+        }
+        @keyframes spaceport-glow-pulse {
+          0%, 100% { 
+            opacity: 0.3;
+            transform: translate(-50%, -50%) scale(1);
+          }
+          50% { 
+            opacity: 0.6;
+            transform: translate(-50%, -50%) scale(1.3);
+          }
         }
         /* Jeopardy Hazard Animations */
         @keyframes black-hole-swirl {
@@ -474,23 +809,25 @@ export default function GameBoard({
           50% { opacity: 0.8; filter: brightness(1.5); }
         }
       `}</style>
-      {/* Main Game Board - Square Grid */}
+      {/* Main Game Board - Dynamic Grid - Enhanced with modern styling */}
       <div
         style={{
           width: '100%',
           height: '100%',
-          backgroundColor: 'rgba(15, 23, 42, 0.85)',
-          border: '4px solid #fbbf24',
-          borderRadius: '12px',
-          padding: '2px',
+          backgroundColor: 'rgba(15, 23, 42, 0.9)',
+          border: '3px solid rgba(251, 191, 36, 0.6)',
+          borderRadius: '16px',
+          padding: '3px',
           display: 'grid',
-          gridTemplateColumns: 'repeat(10, minmax(0, 1fr))',
-          gridTemplateRows: 'repeat(10, minmax(0, 1fr))',
-          gap: '1px',
+          gridTemplateColumns: `repeat(10, minmax(0, 1fr))`,
+          gridTemplateRows: `repeat(${Math.ceil(BOARD_SIZE / 10)}, minmax(0, 1fr))`,
+          gap: '2px',
           boxSizing: 'border-box',
-          boxShadow: '0 0 30px rgba(251, 191, 36, 0.4), inset 0 0 30px rgba(0, 0, 0, 0.6)',
+          boxShadow: '0 0 40px rgba(251, 191, 36, 0.5), inset 0 0 40px rgba(0, 0, 0, 0.7), 0 0 60px rgba(251, 191, 36, 0.2)',
           position: 'relative',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          backdropFilter: 'blur(2px)',
+          WebkitBackdropFilter: 'blur(2px)'
         }}
       >
           {boardCells}

@@ -14,6 +14,7 @@ import { useProgression } from '../hooks/useProgression';
 import { useCurrency } from '../hooks/useCurrency';
 import { CoinDisplay, LevelDisplay } from './PowerUpUI';
 import LevelUpAnimation from './LevelUpAnimation';
+import { getBackgroundImage } from '../utils/backgrounds';
 
 export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficulty = 'medium', gameVariant = 'classic', randomizationSeed = null }) {
   const { playSound } = useGameSounds();
@@ -97,7 +98,7 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
     <div
       className="fixed inset-0 overflow-hidden"
       style={{
-        backgroundImage: 'url(/space-bg.jpg)',
+        backgroundImage: `url(/${getBackgroundImage('ai', difficulty)})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',

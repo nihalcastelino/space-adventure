@@ -2,13 +2,15 @@ import { useState, useEffect } from 'react';
 import LocalGame from './components/LocalGame';
 import OnlineGame from './components/OnlineGame';
 import AIGame from './components/AIGame';
+import MatchmakingGame from './components/MatchmakingGame';
+import RPGGame from './components/RPGGame';
 import GameModeSelector from './components/GameModeSelector';
 import PremiumModal from './components/PremiumModal';
 import InstallPrompt from './components/InstallPrompt';
 import { supabase } from './lib/supabase';
 
 function App() {
-  const [gameMode, setGameMode] = useState(null); // 'local', 'online', or 'ai'
+  const [gameMode, setGameMode] = useState(null); // 'local', 'online', 'ai', 'matchmaking', or 'rpg'
   const [difficulty, setDifficulty] = useState('normal');
   const [gameVariant, setGameVariant] = useState('classic');
   const [randomizationSeed, setRandomizationSeed] = useState(null);
@@ -119,6 +121,18 @@ function App() {
           initialDifficulty={difficulty}
           gameVariant={gameVariant}
           randomizationSeed={randomizationSeed}
+        />
+      ) : gameMode === 'matchmaking' ? (
+        <MatchmakingGame
+          onBack={handleBack}
+          difficulty={difficulty}
+          variant={gameVariant}
+        />
+      ) : gameMode === 'rpg' ? (
+        <RPGGame
+          onBack={handleBack}
+          initialDifficulty={difficulty}
+          gameVariant={gameVariant}
         />
       ) : (
         <OnlineGame

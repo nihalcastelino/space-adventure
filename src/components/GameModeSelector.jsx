@@ -1,4 +1,4 @@
-import { Rocket, Users, Wifi, Zap, Shield, Skull, Bot, Lock, Crown, Flame, Moon, AlertTriangle, Info } from 'lucide-react';
+import { Rocket, Users, Wifi, Zap, Shield, Skull, Bot, Lock, Crown, Flame, Moon, AlertTriangle, Info, Search, Sword } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import AuthButton from './AuthButton';
 import AdSenseAd from './AdSenseAd';
@@ -6,6 +6,7 @@ import { useGameSounds } from '../hooks/useGameSounds';
 import { useFreemiumLimits } from '../hooks/useFreemiumLimits';
 import { usePremium } from '../hooks/usePremium';
 import { GAME_VARIANTS } from '../hooks/useGameVariants';
+import { getScreenBackground } from '../utils/backgrounds';
 
 export default function GameModeSelector({ onSelectMode, onUpgrade }) {
   const { playSound } = useGameSounds();
@@ -62,7 +63,7 @@ export default function GameModeSelector({ onSelectMode, onUpgrade }) {
       className="fixed inset-0 flex items-start sm:items-center justify-center overflow-y-auto py-8 sm:py-4"
       onClick={handleClickOutside}
       style={{
-        backgroundImage: 'url(/space-bg.jpg)',
+        backgroundImage: `url(/${getScreenBackground('menu')})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundColor: '#000'
@@ -373,37 +374,65 @@ export default function GameModeSelector({ onSelectMode, onUpgrade }) {
         </div>
 
         {/* Game Mode Buttons - Compact on mobile, full size on desktop */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 md:gap-6 mt-2 sm:mt-4 md:mt-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-6 mt-2 sm:mt-4 md:mt-8">
           <button
             onClick={() => handleSelectMode('ai')}
-            className="bg-gray-900 bg-opacity-95 rounded-lg p-2 sm:p-3 md:p-8 shadow-2xl border-2 border-gray-700 hover:border-purple-400 transition-all transform hover:scale-105 active:scale-95 group"
+            className="bg-gray-900 bg-opacity-95 rounded-lg p-3 sm:p-4 md:p-6 shadow-2xl border-2 border-gray-700 hover:border-purple-400 transition-all transform hover:scale-105 active:scale-95 group min-w-0"
           >
-            <Bot className="w-6 h-6 sm:w-8 sm:h-8 md:w-16 md:h-16 text-purple-300 mx-auto mb-1 sm:mb-2 md:mb-4 group-hover:scale-110 transition-transform" />
-            <h2 className="text-sm sm:text-base md:text-2xl font-bold text-white mb-0.5 sm:mb-1 md:mb-2">vs AI</h2>
-            <p className="text-xs sm:text-sm md:text-base text-gray-400 leading-tight">
+            <Bot className="w-6 h-6 sm:w-8 sm:h-8 md:w-12 md:h-12 lg:w-16 lg:h-16 text-purple-300 mx-auto mb-1 sm:mb-2 md:mb-3 group-hover:scale-110 transition-transform flex-shrink-0" />
+            <h2 className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-white mb-1 break-words">vs AI</h2>
+            <p className="text-[10px] sm:text-xs md:text-sm text-gray-400 leading-tight break-words">
               Challenge an AI opponent
             </p>
           </button>
 
           <button
             onClick={() => handleSelectMode('local')}
-            className="bg-gray-900 bg-opacity-95 rounded-lg p-2 sm:p-3 md:p-8 shadow-2xl border-2 border-gray-700 hover:border-blue-400 transition-all transform hover:scale-105 active:scale-95 group"
+            className="bg-gray-900 bg-opacity-95 rounded-lg p-3 sm:p-4 md:p-6 shadow-2xl border-2 border-gray-700 hover:border-blue-400 transition-all transform hover:scale-105 active:scale-95 group min-w-0"
           >
-            <Users className="w-6 h-6 sm:w-8 sm:h-8 md:w-16 md:h-16 text-blue-300 mx-auto mb-1 sm:mb-2 md:mb-4 group-hover:scale-110 transition-transform" />
-            <h2 className="text-sm sm:text-base md:text-2xl font-bold text-white mb-0.5 sm:mb-1 md:mb-2">Local Multiplayer</h2>
-            <p className="text-xs sm:text-sm md:text-base text-gray-400 leading-tight">
+            <Users className="w-6 h-6 sm:w-8 sm:h-8 md:w-12 md:h-12 lg:w-16 lg:h-16 text-blue-300 mx-auto mb-1 sm:mb-2 md:mb-3 group-hover:scale-110 transition-transform flex-shrink-0" />
+            <h2 className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-white mb-1 break-words">Local Multiplayer</h2>
+            <p className="text-[10px] sm:text-xs md:text-sm text-gray-400 leading-tight break-words">
               Play with friends on the same device
             </p>
           </button>
 
           <button
             onClick={() => handleSelectMode('online')}
-            className="bg-gray-900 bg-opacity-95 rounded-lg p-2 sm:p-3 md:p-8 shadow-2xl border-2 border-gray-700 hover:border-green-400 transition-all transform hover:scale-105 active:scale-95 group"
+            className="bg-gray-900 bg-opacity-95 rounded-lg p-3 sm:p-4 md:p-6 shadow-2xl border-2 border-gray-700 hover:border-green-400 transition-all transform hover:scale-105 active:scale-95 group min-w-0"
           >
-            <Wifi className="w-6 h-6 sm:w-8 sm:h-8 md:w-16 md:h-16 text-green-300 mx-auto mb-1 sm:mb-2 md:mb-4 group-hover:scale-110 transition-transform" />
-            <h2 className="text-sm sm:text-base md:text-2xl font-bold text-white mb-0.5 sm:mb-1 md:mb-2">Online Multiplayer</h2>
-            <p className="text-xs sm:text-sm md:text-base text-gray-400 leading-tight">
+            <Wifi className="w-6 h-6 sm:w-8 sm:h-8 md:w-12 md:h-12 lg:w-16 lg:h-16 text-green-300 mx-auto mb-1 sm:mb-2 md:mb-3 group-hover:scale-110 transition-transform flex-shrink-0" />
+            <h2 className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-white mb-1 break-words">Online Multiplayer</h2>
+            <p className="text-[10px] sm:text-xs md:text-sm text-gray-400 leading-tight break-words">
               Play with friends across different devices
+            </p>
+          </button>
+
+          <button
+            onClick={() => handleSelectMode('matchmaking')}
+            className="bg-gray-900 bg-opacity-95 rounded-lg p-3 sm:p-4 md:p-6 shadow-2xl border-2 border-yellow-500 hover:border-yellow-400 transition-all transform hover:scale-105 active:scale-95 group relative min-w-0"
+          >
+            <div className="absolute top-1 right-1 bg-yellow-500 text-black text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded font-bold z-10">
+              NEW
+            </div>
+            <Search className="w-6 h-6 sm:w-8 sm:h-8 md:w-12 md:h-12 lg:w-16 lg:h-16 text-yellow-300 mx-auto mb-1 sm:mb-2 md:mb-3 group-hover:scale-110 transition-transform flex-shrink-0" />
+            <h2 className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-white mb-1 break-words">Matchmaking</h2>
+            <p className="text-[10px] sm:text-xs md:text-sm text-gray-400 leading-tight break-words">
+              Find players automatically
+            </p>
+          </button>
+
+          <button
+            onClick={() => handleSelectMode('rpg')}
+            className="bg-gray-900 bg-opacity-95 rounded-lg p-3 sm:p-4 md:p-6 shadow-2xl border-2 border-orange-500 hover:border-orange-400 transition-all transform hover:scale-105 active:scale-95 group relative min-w-0"
+          >
+            <div className="absolute top-1 right-1 bg-orange-500 text-black text-[8px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded font-bold z-10">
+              RPG
+            </div>
+            <Sword className="w-6 h-6 sm:w-8 sm:h-8 md:w-12 md:h-12 lg:w-16 lg:h-16 text-orange-300 mx-auto mb-1 sm:mb-2 md:mb-3 group-hover:scale-110 transition-transform flex-shrink-0" />
+            <h2 className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-white mb-1 break-words">Tabletop RPG</h2>
+            <p className="text-[10px] sm:text-xs md:text-sm text-gray-400 leading-tight break-words">
+              Character classes, combat & leveling
             </p>
           </button>
         </div>

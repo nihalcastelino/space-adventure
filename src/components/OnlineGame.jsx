@@ -11,6 +11,7 @@ import Leaderboard from './Leaderboard';
 import GameHistory from './GameHistory';
 import { useGameSounds } from '../hooks/useGameSounds';
 import { useNotifications } from '../hooks/useNotifications';
+import { getBackgroundImage, getScreenBackground } from '../utils/backgrounds';
 
 const STORAGE_KEY = 'space-adventure-game';
 
@@ -194,7 +195,7 @@ export default function OnlineGame({ onBack }) {
       <div
         className="fixed inset-0 flex items-center justify-center"
         style={{
-          backgroundImage: 'url(/space-bg.jpg)',
+          backgroundImage: `url(/${getScreenBackground('reconnecting')})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundColor: '#000'
@@ -214,7 +215,7 @@ export default function OnlineGame({ onBack }) {
       <div
         className="fixed inset-0 flex items-center justify-center"
         style={{
-          backgroundImage: 'url(/space-bg.jpg)',
+          backgroundImage: `url(/${getScreenBackground('waiting')})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundColor: '#000'
@@ -239,7 +240,7 @@ export default function OnlineGame({ onBack }) {
       <div
         className="fixed inset-0 flex items-center justify-center p-4"
         style={{
-          backgroundImage: 'url(/space-bg.jpg)',
+          backgroundImage: `url(/${getScreenBackground('waiting')})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundColor: '#000'
@@ -304,7 +305,7 @@ export default function OnlineGame({ onBack }) {
       <div
         className="fixed inset-0 flex items-center justify-center p-4"
         style={{
-          backgroundImage: 'url(/space-bg.jpg)',
+          backgroundImage: `url(/${getScreenBackground('waiting')})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundColor: '#000'
@@ -381,7 +382,7 @@ export default function OnlineGame({ onBack }) {
     <div
       className="fixed inset-0 overflow-hidden"
       style={{
-        backgroundImage: 'url(/space-bg.jpg)',
+        backgroundImage: `url(/${getBackgroundImage('online', gameState?.difficulty || 'normal')})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',

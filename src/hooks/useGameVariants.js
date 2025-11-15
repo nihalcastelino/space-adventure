@@ -70,15 +70,15 @@ export const GAME_VARIANTS = {
   checkpointChallenge: {
     id: 'checkpointChallenge',
     name: 'Checkpoint Challenge',
-    description: 'Visit 5 checkpoints (not all 10) to unlock the finish line',
+    description: 'Visit 5 checkpoints to unlock the finish line',
     icon: '🎯',
     winCondition: (players, checkpoints) => {
-      // Player must reach 100 AND have visited at least 5 checkpoints (not all 10)
-      // More achievable, less frustrating
+      // Player must reach 100 AND have visited at least 5 checkpoints
+      // More achievable, less frustrating - only need 5 out of 10
       return players.find(p => {
         if (p.position < 100) return false;
         const visitedCheckpoints = p.visitedCheckpoints || [];
-        return visitedCheckpoints.length >= 5; // Only need 5 out of 10
+        return visitedCheckpoints.length >= 5; // Only need 5 out of 10 (more forgiving)
       });
     },
     boardSize: 100,
@@ -144,7 +144,7 @@ export const GAME_VARIANTS = {
     coinMultiplier: 1.5,
     xpMultiplier: 1.5,
     startingBonus: {
-      powerUps: ['shield', 'skipTurn'], // Defensive power-ups
+      powerUps: ['shield', 'skip_turn'], // Defensive power-ups (skip_turn allows staying on hill)
       coins: 40
     },
     specialRules: {

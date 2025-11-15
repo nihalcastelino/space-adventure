@@ -16,6 +16,7 @@ import { useGameHistory } from '../hooks/useGameHistory';
 import { CoinDisplay, LevelDisplay } from './PowerUpUI';
 import LevelUpAnimation from './LevelUpAnimation';
 import UsernameInputModal from './UsernameInputModal';
+import { getBackgroundImage } from '../utils/backgrounds';
 
 export default function LocalGame({ onBack, initialDifficulty = 'normal', gameVariant = 'classic', randomizationSeed = null }) {
   const { playSound } = useGameSounds();
@@ -156,7 +157,7 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal', gameVa
     <div
       className="fixed inset-0 overflow-hidden"
       style={{
-        backgroundImage: 'url(/space-bg.jpg)',
+        backgroundImage: `url(/${getBackgroundImage('local', difficulty)})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
