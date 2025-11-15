@@ -7,6 +7,7 @@ import RPGGame from './components/RPGGame';
 import GameModeSelector from './components/GameModeSelector';
 import PremiumModal from './components/PremiumModal';
 import InstallPrompt from './components/InstallPrompt';
+import CheckoutSuccess from './components/CheckoutSuccess';
 import { supabase } from './lib/supabase';
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
   const [gameVariant, setGameVariant] = useState('classic');
   const [randomizationSeed, setRandomizationSeed] = useState(null);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [checkoutSessionId, setCheckoutSessionId] = useState(null);
 
   // Handle OAuth callback and Stripe checkout redirects
   useEffect(() => {
@@ -39,12 +41,16 @@ function App() {
           // User is authenticated, clean up URL
           cleanUpURL();
           
-          // If checkout success, reload premium status
+          // Handle Stripe checkout redirects
           const urlParams = new URLSearchParams(window.location.search);
-          if (urlParams.get('checkout') === 'success') {
-            // Premium status will be updated via webhook
-            // But we can show a success message
-            console.log('Checkout successful! Premium will be activated shortly.');
+          const checkoutStatus = urlParams.get('checkout');
+          
+          if (checkoutStatus === 'success') {
+            const sessionId = urlParams.get('session_id');
+            console.log('✅ Checkout successful! Session ID:', sessionId);
+            setCheckoutSessionId(sessionId);
+          } else if (checkoutStatus === 'cancelled') {
+            console.log('❌ Checkout cancelled by user');
           }
         } else {
           // Even if no session, clean up hash fragments if present
@@ -100,6 +106,21 @@ function App() {
         {showPremiumModal && (
           <PremiumModal onClose={() => setShowPremiumModal(false)} />
         )}
+
+        {checkoutSessionId && (
+          <CheckoutSuccess 
+            sessionId={checkoutSessionId}
+            onClose={() => {
+              setCheckoutSessionId(null);
+              // Clean up URL
+              const urlParams = new URLSearchParams(window.location.search);
+              urlParams.delete('checkout');
+              urlParams.delete('session_id');
+              window.history.replaceState({}, document.title, window.location.pathname);
+            }}
+          />
+        )}
+
         <InstallPrompt />
       </>
     );

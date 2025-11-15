@@ -234,6 +234,17 @@ export function usePremium() {
 
       console.log('Creating checkout session...');
       
+      // Detect user's region for regional pricing
+      let countryCode = null;
+      try {
+        const { detectUserRegion } = await import('../lib/paymentConfig');
+        const region = await detectUserRegion();
+        countryCode = region.countryCode;
+        console.log(`🌍 Detected region: ${region.country} (${region.countryCode})`);
+      } catch (error) {
+        console.warn('Region detection failed, using default:', error);
+      }
+
       // Call Netlify Function to create checkout session
       const response = await fetch('/.netlify/functions/create-checkout', {
         method: 'POST',
@@ -241,7 +252,7 @@ export function usePremium() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ priceId, tier: tierId }),
+        body: JSON.stringify({ priceId, tier: tierId, countryCode }),
       });
 
       console.log('Checkout response status:', response.status);

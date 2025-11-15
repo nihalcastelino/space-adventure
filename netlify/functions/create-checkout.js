@@ -11,6 +11,74 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_ANON_KEY
 );
 
+// Regional payment configuration
+const REGION_CONFIG = {
+  IN: {
+    currency: 'INR',
+    stripePaymentMethods: ['card', 'upi', 'netbanking_', 'paytm'],
+  },
+  US: {
+    currency: 'USD',
+    stripePaymentMethods: ['card'],
+  },
+  GB: {
+    currency: 'GBP',
+    stripePaymentMethods: ['card'],
+  },
+  AU: {
+    currency: 'AUD',
+    stripePaymentMethods: ['card'],
+  },
+  EU: {
+    currency: 'EUR',
+    stripePaymentMethods: ['card'],
+  },
+  DEFAULT: {
+    currency: 'USD',
+    stripePaymentMethods: ['card'],
+  },
+};
+
+async function detectUserRegion(event) {
+  try {
+    // Try to get country from request headers (Cloudflare provides this)
+    const countryCode = event.headers['cf-ipcountry'] || 
+                       event.headers['x-country-code'] ||
+                       null;
+
+    if (countryCode && REGION_CONFIG[countryCode]) {
+      console.log(`🌍 Detected region from headers: ${countryCode}`);
+      return REGION_CONFIG[countryCode];
+    }
+
+    // Try IP geolocation
+    const ip = event.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
+               event.headers['x-real-ip'] ||
+               null;
+
+    if (ip) {
+      try {
+        const ipResponse = await fetch(`https://ipapi.co/${ip}/json/`);
+        if (ipResponse.ok) {
+          const ipData = await ipResponse.json();
+          const detectedCode = ipData.country_code;
+          if (detectedCode && REGION_CONFIG[detectedCode]) {
+            console.log(`🌍 Detected region from IP: ${detectedCode} (${ipData.country_name})`);
+            return REGION_CONFIG[detectedCode];
+          }
+        }
+      } catch (error) {
+        console.warn('IP geolocation failed:', error);
+      }
+    }
+  } catch (error) {
+    console.warn('Region detection failed:', error);
+  }
+
+  console.log('🌍 Using default region (USD)');
+  return REGION_CONFIG.DEFAULT;
+}
+
 exports.handler = async (event) => {
   // CORS headers
   const headers = {
@@ -37,7 +105,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { priceId, tier, type } = JSON.parse(event.body); // type: 'subscription' or 'coins'
+    const { priceId, tier, type, countryCode } = JSON.parse(event.body); // type: 'subscription' or 'coins', countryCode: optional override
     
     // Validate priceId format
     if (!priceId || !priceId.startsWith('price_')) {
@@ -96,6 +164,13 @@ exports.handler = async (event) => {
         .eq('id', user.id);
     }
 
+    // Detect user's region for payment methods
+    const region = countryCode 
+      ? (REGION_CONFIG[countryCode] || REGION_CONFIG.DEFAULT)
+      : await detectUserRegion(event);
+    
+    console.log(`🌍 Using region: ${region.currency}, Payment methods: ${region.stripePaymentMethods.join(', ')}`);
+
     // Create checkout session
     const baseUrl = event.headers.origin || event.headers.referer?.replace(/\/$/, '') || 'http://localhost:3000';
     const isOneTimePayment = tier === 'lifetime' || type === 'coins';
@@ -103,7 +178,7 @@ exports.handler = async (event) => {
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: isOneTimePayment ? 'payment' : 'subscription',
-      payment_method_types: ['card'],
+      payment_method_types: region.stripePaymentMethods,
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${baseUrl}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/?checkout=cancelled`,
@@ -111,11 +186,15 @@ exports.handler = async (event) => {
         user_id: user.id, 
         tier: tier || 'coins',
         type: type || (isOneTimePayment ? 'coins' : 'subscription'),
-        price_id: priceId
+        price_id: priceId,
+        country_code: countryCode || 'unknown'
       },
       subscription_data: !isOneTimePayment ? {
         metadata: { user_id: user.id, tier },
       } : undefined,
+      automatic_tax: {
+        enabled: true, // Auto-calculate VAT/GST based on customer location
+      },
     });
 
     return {

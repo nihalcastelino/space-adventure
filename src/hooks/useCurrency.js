@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '../lib/supabase';
+import { useAuth } from './useAuth';
 
 // Currency earning rates
 export const CURRENCY_RATES = {
@@ -41,29 +43,67 @@ export function useCurrency() {
   const [lastWinDate, setLastWinDate] = useState(null);
   const [loginStreak, setLoginStreak] = useState(0);
   const [lastLoginDate, setLastLoginDate] = useState(null);
+  const { user, isAuthenticated } = useAuth();
 
-  // Load from localStorage
+  // Load from Supabase if authenticated, otherwise localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('currency');
-    if (saved) {
-      try {
-        const data = JSON.parse(saved);
-        setCoins(data.coins || 100);
-        setIsPremium(data.isPremium || false);
-        setLastWinDate(data.lastWinDate || null);
-        setLoginStreak(data.loginStreak || 0);
-        setLastLoginDate(data.lastLoginDate || null);
-      } catch (e) {
-        console.error('Failed to load currency:', e);
+    const loadCurrency = async () => {
+      if (isAuthenticated && user && supabase) {
+        try {
+          // Load from Supabase
+          const { data, error } = await supabase
+            .from('space_adventure_profiles')
+            .select('coins, premium_tier')
+            .eq('id', user.id)
+            .single();
+
+          if (!error && data) {
+            setCoins(data.coins || 100);
+            setIsPremium(data.premium_tier !== 'free');
+          } else {
+            // Fallback to localStorage
+            const saved = localStorage.getItem('currency');
+            if (saved) {
+              const data = JSON.parse(saved);
+              setCoins(data.coins || 100);
+              setIsPremium(data.isPremium || false);
+            }
+          }
+        } catch (e) {
+          console.error('Failed to load currency from Supabase:', e);
+          // Fallback to localStorage
+          const saved = localStorage.getItem('currency');
+          if (saved) {
+            const data = JSON.parse(saved);
+            setCoins(data.coins || 100);
+            setIsPremium(data.isPremium || false);
+          }
+        }
+      } else {
+        // Not authenticated, use localStorage
+        const saved = localStorage.getItem('currency');
+        if (saved) {
+          try {
+            const data = JSON.parse(saved);
+            setCoins(data.coins || 100);
+            setIsPremium(data.isPremium || false);
+            setLastWinDate(data.lastWinDate || null);
+            setLoginStreak(data.loginStreak || 0);
+            setLastLoginDate(data.lastLoginDate || null);
+          } catch (e) {
+            console.error('Failed to load currency:', e);
+          }
+        }
       }
-    }
 
-    // Check and award daily login
-    checkDailyLogin();
-  }, []);
+    };
 
-  // Save to localStorage
+    loadCurrency();
+  }, [isAuthenticated, user]);
+
+  // Save to Supabase (if authenticated) and localStorage
   useEffect(() => {
+    // Always save to localStorage
     const data = {
       coins,
       isPremium,
@@ -72,43 +112,21 @@ export function useCurrency() {
       lastLoginDate
     };
     localStorage.setItem('currency', JSON.stringify(data));
-  }, [coins, isPremium, lastWinDate, loginStreak, lastLoginDate]);
 
-  // Check and award daily login bonus
-  const checkDailyLogin = useCallback(() => {
-    const today = new Date().toDateString();
-
-    if (lastLoginDate !== today) {
-      // Award daily login
-      let bonus = CURRENCY_RATES.DAILY_LOGIN;
-
-      // Check if maintaining streak
-      if (lastLoginDate) {
-        const lastDate = new Date(lastLoginDate);
-        const todayDate = new Date(today);
-        const dayDiff = Math.floor((todayDate - lastDate) / (1000 * 60 * 60 * 24));
-
-        if (dayDiff === 1) {
-          // Streak continues
-          const newStreak = loginStreak + 1;
-          setLoginStreak(newStreak);
-          bonus += CURRENCY_RATES.STREAK_BONUS * newStreak;
-        } else if (dayDiff > 1) {
-          // Streak broken
-          setLoginStreak(1);
-        }
-      } else {
-        setLoginStreak(1);
-      }
-
-      setLastLoginDate(today);
-      addCoins(bonus, 'Daily Login');
-
-      return { awarded: true, amount: bonus, streak: loginStreak + 1 };
+    // Also save to Supabase if authenticated
+    if (isAuthenticated && user && supabase) {
+      supabase
+        .from('space_adventure_profiles')
+        .update({ coins })
+        .eq('id', user.id)
+        .then(({ error }) => {
+          if (error) {
+            console.error('Failed to sync coins to Supabase:', error);
+          }
+        });
     }
+  }, [coins, isPremium, lastWinDate, loginStreak, lastLoginDate, isAuthenticated, user]);
 
-    return { awarded: false };
-  }, [lastLoginDate, loginStreak]);
 
   // Add coins
   const addCoins = useCallback((amount, reason = '') => {

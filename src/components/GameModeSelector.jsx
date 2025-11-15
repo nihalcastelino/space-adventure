@@ -536,6 +536,17 @@ function ShopModal({ coins, onClose, onUpgrade }) {
     }
 
     try {
+      // Detect user's region for regional pricing
+      let countryCode = null;
+      try {
+        const { detectUserRegion } = await import('../lib/paymentConfig');
+        const region = await detectUserRegion();
+        countryCode = region.countryCode;
+        console.log(`🌍 Detected region: ${region.country} (${region.countryCode})`);
+      } catch (error) {
+        console.warn('Region detection failed, using default:', error);
+      }
+
       // Get API URL (Netlify function or local dev)
       const apiUrl = import.meta.env.VITE_API_URL || '/.netlify/functions/create-checkout';
       
@@ -549,6 +560,7 @@ function ShopModal({ coins, onClose, onUpgrade }) {
           priceId,
           tier: 'coins',
           type: 'coins',
+          countryCode,
         }),
       });
 
