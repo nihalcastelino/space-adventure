@@ -40,13 +40,32 @@ export default function AdSenseAd({
       script.crossOrigin = 'anonymous';
       script.onload = () => {
         script.setAttribute('data-loaded', 'true');
-        console.log('AdSense script loaded');
+        // Only log in development
+        if (import.meta.env.DEV) {
+          console.log('AdSense script loaded');
+        }
       };
       script.onerror = () => {
-        console.error('Failed to load AdSense script');
+        // Silently handle ad blocker - this is expected behavior
+        // Don't log errors as they're normal when ad blockers are active
+        if (import.meta.env.DEV) {
+          console.log('AdSense script blocked (ad blocker or tracking prevention) - this is normal');
+        }
+        // Mark as attempted so we don't keep trying
+        adLoadedRef.current = true;
       };
-      document.head.appendChild(script);
-      adLoadedRef.current = true;
+      
+      // Check if script will be blocked before adding
+      try {
+        document.head.appendChild(script);
+        adLoadedRef.current = true;
+      } catch (error) {
+        // Silently handle if script can't be added
+        if (import.meta.env.DEV) {
+          console.log('Could not add AdSense script - likely blocked by browser');
+        }
+        adLoadedRef.current = true;
+      }
     } else if (existingScript) {
       // Script already exists, mark as loaded
       adLoadedRef.current = true;
@@ -67,9 +86,17 @@ export default function AdSenseAd({
           
           // Mark as initialized
           adRef.current.dataset.adsbygoogleStatus = 'initialized';
-          console.log('AdSense ad initialized');
+          
+          // Only log in development
+          if (import.meta.env.DEV) {
+            console.log('AdSense ad initialized');
+          }
         } catch (e) {
-          console.error('AdSense initialization error:', e);
+          // Silently handle errors - ad blockers will cause this
+          // Only log in development
+          if (import.meta.env.DEV) {
+            console.log('AdSense initialization blocked (ad blocker) - this is normal');
+          }
         }
       }
     };
@@ -128,6 +155,15 @@ export default function AdSenseAd({
         <small style={{ color: '#999' }}>[Ad Space - Disabled in Dev Mode]</small>
       </div>
     );
+  }
+
+  // Check if ads are blocked (ad blocker detection)
+  // If adsbygoogle is not available after script load attempt, ads are likely blocked
+  const adsBlocked = !window.adsbygoogle && adLoadedRef.current;
+  
+  if (adsBlocked) {
+    // Don't render ad container if ads are blocked - keeps UI clean
+    return null;
   }
 
   return (
