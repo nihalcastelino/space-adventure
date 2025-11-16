@@ -7,6 +7,7 @@ import CharacterCreation from './CharacterCreation';
 import CharacterStatsPanel from './CharacterStatsPanel';
 import CombatOverlay from './CombatOverlay';
 import SpaceJail from './SpaceJail';
+import GameOverModal from './GameOverModal';
 import { useRPGSystem } from '../hooks/useRPGSystem';
 import { useGameSounds } from '../hooks/useGameSounds';
 import { useDifficulty } from '../hooks/useDifficulty';
@@ -76,6 +77,7 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
   const [message, setMessage] = useState("Create your character to begin!");
   const [gameWon, setGameWon] = useState(false);
   const [gameLost, setGameLost] = useState(false);
+  const [showGameOverModal, setShowGameOverModal] = useState(false);
   const [animatingPlayer, setAnimatingPlayer] = useState(null);
   const [animationType, setAnimationType] = useState(null);
   const [alienBlink, setAlienBlink] = useState({});
@@ -183,6 +185,10 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
       setAiThinking(false);
       setIsAITurn(false);
       setAnimationType('victory');
+      // Show game over modal after a short delay
+      setTimeout(() => {
+        setShowGameOverModal(true);
+      }, 1500);
       return;
     }
     
@@ -208,6 +214,10 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
         playSound('alien');
         setAiThinking(false);
         setIsAITurn(false);
+        // Show game over modal after a short delay
+        setTimeout(() => {
+          setShowGameOverModal(true);
+        }, 1500);
         setAnimationType('victory');
         return;
       }
@@ -231,65 +241,13 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
   const rollDice = useCallback(() => {
     if (isRolling || gameWon || gameLost || !character || rpg.combatState || isAITurn) return;
     
-    // Check if player is in jail
+    // Check if player is in jail - block normal dice rolling
     const jailState = jeopardy.getJailState(PLAYER_ID);
     if (jailState.inJail) {
-      // Roll dice to try for doubles
-      playSound('click');
-      setIsRolling(true);
-      setMessage(`🎲 ${character.name} rolling for DOUBLES to escape jail...`);
-      playSound('dice');
-      
-      let rolls = 0;
-      const rollInterval = setInterval(() => {
-        setDiceValue(Math.floor(Math.random() * 6) + 1);
-        rolls++;
-        
-        if (rolls > 15) {
-          clearInterval(rollInterval);
-          
-          // Roll two dice to check for doubles
-          const die1 = Math.floor(Math.random() * 6) + 1;
-          const die2 = Math.floor(Math.random() * 6) + 1;
-          const finalRoll = die1 + die2;
-          const rolledDoubles = die1 === die2;
-          
-          setDiceValue(finalRoll);
-          setMessage(`🎲 Rolled ${die1} and ${die2} ${rolledDoubles ? '(DOUBLES!)' : '(not doubles)'}`);
-          
-          setTimeout(() => {
-            // Process jail turn
-            const jailResult = jeopardy.processJailTurn(PLAYER_ID, rolledDoubles);
-            
-            setMessage(jailResult.message);
-            
-            if (jailResult.escaped) {
-              // Return player to previous position
-              setPlayerPosition(jailResult.returnPosition);
-              
-              setTimeout(() => {
-                if (rolledDoubles) {
-                  // Rolled doubles - can move!
-                  if (movePlayerRef.current) {
-                    movePlayerRef.current(finalRoll);
-                  }
-                } else {
-                  // Auto-release but turn ends
-                  setIsRolling(false);
-                  setIsAITurn(true);
-                  setTimeout(() => takeAITurn(), 1500);
-                }
-              }, 2000);
-            } else {
-              setTimeout(() => {
-                setIsRolling(false);
-                setIsAITurn(true);
-                setTimeout(() => takeAITurn(), 2000);
-              }, 2000);
-            }
-          }, 2000);
-        }
-      }, 150);
+      // Player is in jail - they cannot roll dice normally
+      // They must use the SpaceJail overlay to roll for doubles or pay bail
+      setMessage(`🚔 ${character.name} is in jail! Use the jail overlay to escape.`);
+      playSound('error');
       return;
     }
     
@@ -330,6 +288,10 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
       setAnimationType('victory');
       setIsAITurn(false);
       setAiThinking(false);
+      // Show game over modal after a short delay
+      setTimeout(() => {
+        setShowGameOverModal(true);
+      }, 1500);
       return;
     }
     
@@ -410,12 +372,26 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
     
     // Check for alien encounter FIRST (aliens override checkpoints)
     if (ALIENS.includes(newPosition)) {
-      // Initiate RPG combat
-      const combatInfo = rpg.initiateCombat(PLAYER_ID, newPosition);
-      setMessage(`⚔️ ${character.name} encounters a Level ${combatInfo.alienLevel} Alien! Combat begins!`);
+      // Player encounters alien - IMMEDIATELY move back to last checkpoint
+      setMessage(`⚠️ ${character.name} encounters an ALIEN! Retreating to checkpoint ${lastCheckpoint}!`);
       playSound('alien');
       setAnimationType('eaten');
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Move player back to last checkpoint immediately
+      setPlayerPosition(lastCheckpoint);
+      setMessage(`↩️ ${character.name} retreated to checkpoint ${lastCheckpoint}!`);
+      setAnimationType('landing');
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      setAnimationType(null);
+      setAnimatingPlayer(null);
+      
+      // Now initiate combat at the checkpoint position (or just show message)
+      // Combat happens but player is safe at checkpoint
+      const combatInfo = rpg.initiateCombat(PLAYER_ID, lastCheckpoint);
+      setMessage(`⚔️ ${character.name} encounters a Level ${combatInfo.alienLevel} Alien at checkpoint! Combat begins!`);
+      playSound('alien');
+      await new Promise(resolve => setTimeout(resolve, 1000));
       // Combat will be handled by CombatOverlay
       return;
     }
@@ -445,6 +421,10 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
         setAnimationType('victory');
         setIsAITurn(false);
         setAiThinking(false);
+        // Show game over modal after a short delay
+        setTimeout(() => {
+          setShowGameOverModal(true);
+        }, 1500);
         return;
       }
     }
@@ -642,6 +622,7 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
     setMessage(character ? `${character.name}'s turn! Roll the dice to explore!` : "Create your character to begin!");
     setGameWon(false);
     setGameLost(false);
+    setShowGameOverModal(false);
     setAnimationType(null);
     setAnimatingPlayer(null);
     setCombatMessage('');
@@ -651,6 +632,17 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
     setIsAITurn(false);
     playSound('click');
   }, [character, playSound]);
+  
+  // Handle play again
+  const handlePlayAgain = useCallback(() => {
+    resetGame();
+  }, [resetGame]);
+  
+  // Handle return to menu
+  const handleReturnToMenu = useCallback(() => {
+    playSound('click');
+    onBack();
+  }, [onBack, playSound]);
   
   // Show character creation
   if (showCharacterCreation || !characterCreated) {
@@ -722,11 +714,11 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
         </div>
       </div>
 
-      {/* Main Game Area */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        {/* Left Panel - Character Stats */}
-        <div className="w-full md:w-80 bg-gray-900 bg-opacity-90 border-r border-gray-700 p-2 md:p-4 overflow-y-auto">
-          <h2 className="text-white font-bold text-sm md:text-lg mb-2 md:mb-4 break-words">Your Character</h2>
+      {/* Main Game Area - Responsive layout for mobile and folding phones */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+        {/* Left Panel - Character Stats - Hidden on small screens, collapsible */}
+        <div className="hidden lg:block lg:w-80 bg-gray-900 bg-opacity-90 border-r border-gray-700 p-4 overflow-y-auto">
+          <h2 className="text-white font-bold text-lg mb-4 break-words">Your Character</h2>
           {character ? (
             <CharacterStatsPanel
               character={character}
@@ -740,10 +732,10 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
           
           {/* AI Opponent Info */}
           <div className="mt-4 bg-gray-800 rounded-lg p-4 border-2 border-red-500">
-            <h3 className="text-white font-bold text-sm md:text-base mb-2 flex items-center gap-2">
+            <h3 className="text-white font-bold text-base mb-2 flex items-center gap-2">
               <span>🤖</span> AI Opponent
             </h3>
-            <div className="text-xs text-gray-300 space-y-1">
+            <div className="text-sm text-gray-300 space-y-1">
               <div>Position: <span className="text-red-300 font-bold">{aiPosition}</span></div>
               <div>Checkpoint: <span className="text-red-300">{aiLastCheckpoint}</span></div>
               {aiSkipTurn && (
@@ -753,32 +745,36 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
           </div>
         </div>
 
-        {/* Center - Game Board */}
-        <div className="flex-1 flex flex-col items-center justify-center p-4 overflow-hidden">
-          <GameBoard
-            boardSize={BOARD_SIZE}
-            players={players}
-            currentPlayerIndex={isAITurn ? 1 : 0}
-            aliens={ALIENS}
-            checkpoints={CHECKPOINTS}
-            animatingPlayer={animatingPlayer}
-            animationType={animationType}
-            alienBlink={alienBlink}
-            diceRolling={isRolling || aiThinking}
-            animatedPositions={{}}
-            encounterType={null}
-            hazards={{ 
-              blackHoles: jeopardy.hazards.blackHoles || [], 
-              patrolZones: jeopardy.hazards.patrolZones || [], 
-              meteorImpacts: jeopardy.hazards.meteorImpacts || [], 
-              tacticalSquares: TACTICAL_SQUARES 
-            }}
-            rogueState={null}
-          />
+        {/* Center - Game Board - Scrollable on mobile */}
+        <div className="flex-1 flex flex-col items-center justify-center p-2 sm:p-4 overflow-auto min-h-0">
+          <div className="w-full max-w-full h-full flex items-center justify-center">
+            <div className="w-full max-w-full h-full max-h-full flex items-center justify-center">
+              <GameBoard
+                boardSize={BOARD_SIZE}
+                players={players}
+                currentPlayerIndex={isAITurn ? 1 : 0}
+                aliens={ALIENS}
+                checkpoints={CHECKPOINTS}
+                animatingPlayer={animatingPlayer}
+                animationType={animationType}
+                alienBlink={alienBlink}
+                diceRolling={isRolling || aiThinking}
+                animatedPositions={{}}
+                encounterType={null}
+                hazards={{ 
+                  blackHoles: jeopardy.hazards.blackHoles || [], 
+                  patrolZones: jeopardy.hazards.patrolZones || [], 
+                  meteorImpacts: jeopardy.hazards.meteorImpacts || [], 
+                  tacticalSquares: TACTICAL_SQUARES 
+                }}
+                rogueState={null}
+              />
+            </div>
+          </div>
         </div>
 
-        {/* Right Panel - Game Controls */}
-        <div className="w-full md:w-80 bg-gray-900 bg-opacity-90 border-l border-gray-700 p-4 overflow-y-auto flex flex-col">
+        {/* Right Panel - Game Controls - Bottom on mobile, side on desktop */}
+        <div className="w-full lg:w-80 bg-gray-900 bg-opacity-90 lg:border-l border-t lg:border-t-0 border-gray-700 p-3 sm:p-4 overflow-y-auto flex flex-col max-h-[40vh] lg:max-h-none">
           <GameControls
             diceValue={diceValue}
             message={combatMessage || message}
@@ -787,33 +783,43 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
             isOnline={false}
           />
           
-          {/* SPIN Button */}
-          {!rpg.combatState && !showTacticalAction && character && !isAITurn && !gameWon && !gameLost && (
-            <div className="mt-4">
-              <button
-                onClick={rollDice}
-                disabled={isRolling || gameWon || gameLost}
-                className="w-full bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 text-white font-bold py-3 px-4 rounded-lg text-base md:text-lg transition-all transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed shadow-lg hover:shadow-xl disabled:bg-gray-600 disabled:from-gray-600 disabled:to-gray-700 relative overflow-hidden group"
-                style={{
-                  backgroundSize: '200% 100%'
-                }}
-              >
-                <span className="relative z-10 flex items-center justify-center gap-2">
-                  <span className={isRolling ? 'animate-spin' : ''}>🎲</span>
-                  {isRolling ? 'Rolling...' : 'ROLL DICE'}
-                </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-0 group-hover:opacity-20 animate-shimmer"></div>
-              </button>
-              {character && (
-                <div className="mt-2 text-xs text-gray-400 text-center">
-                  {character.name}'s turn
-                </div>
-              )}
-            </div>
-          )}
+          {/* SPIN Button - Disabled if in jail */}
+          {!rpg.combatState && !showTacticalAction && character && !isAITurn && !gameWon && !gameLost && (() => {
+            const jailState = jeopardy.getJailState(PLAYER_ID);
+            const isInJail = jailState.inJail;
+            
+            return (
+              <div className="mt-4">
+                <button
+                  onClick={rollDice}
+                  disabled={isRolling || gameWon || gameLost || isInJail}
+                  className="w-full bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 text-white font-bold py-3 px-4 rounded-lg text-base md:text-lg transition-all transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed shadow-lg hover:shadow-xl disabled:bg-gray-600 disabled:from-gray-600 disabled:to-gray-700 relative overflow-hidden group"
+                  style={{
+                    backgroundSize: '200% 100%'
+                  }}
+                >
+                  <span className="relative z-10 flex items-center justify-center gap-2">
+                    <span className={isRolling ? 'animate-spin' : ''}>🎲</span>
+                    {isRolling ? 'Rolling...' : isInJail ? '🚔 IN JAIL - Use overlay to escape' : 'ROLL DICE'}
+                  </span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-0 group-hover:opacity-20 animate-shimmer"></div>
+                </button>
+                {character && !isInJail && (
+                  <div className="mt-2 text-xs text-gray-400 text-center">
+                    {character.name}'s turn
+                  </div>
+                )}
+                {isInJail && (
+                  <div className="mt-2 text-xs text-red-400 text-center">
+                    🚔 In jail - {jailState.turnsRemaining} turn{jailState.turnsRemaining > 1 ? 's' : ''} remaining
+                  </div>
+                )}
+              </div>
+            );
+          })()}
           
-          {/* Game Over Messages */}
-          {gameWon && (
+          {/* Game Over Messages - Hidden when modal is shown */}
+          {gameWon && !showGameOverModal && (
             <div className="mt-4 bg-green-900 bg-opacity-50 border-2 border-green-500 rounded-lg p-4">
               <div className="text-white font-bold text-center text-lg">
                 🎉 Victory!
@@ -824,7 +830,7 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
             </div>
           )}
           
-          {gameLost && (
+          {gameLost && !showGameOverModal && (
             <div className="mt-4 bg-red-900 bg-opacity-50 border-2 border-red-500 rounded-lg p-4">
               <div className="text-white font-bold text-center text-lg">
                 💀 Game Over
@@ -925,7 +931,7 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
       {/* Space Jail Overlay */}
       {character && (() => {
         const jailState = jeopardy.getJailState(PLAYER_ID);
-        if (jailState.inJail && !isAITurn) {
+        if (jailState.inJail && !isAITurn && !gameWon && !gameLost) {
           return (
             <SpaceJail
               playerId={PLAYER_ID}
@@ -940,15 +946,76 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
                   playSound('click');
                   setPlayerPosition(result.returnPosition);
                   setLastCheckpoint(CHECKPOINTS.find(cp => cp <= result.returnPosition) || 0);
+                  setMessage(result.message);
+                  // After paying bail, AI takes turn
+                  setTimeout(() => {
+                    setIsAITurn(true);
+                    setTimeout(() => takeAITurn(), 1000);
+                  }, 1500);
+                } else {
+                  setMessage('Failed to pay bail: ' + (result.error || 'Unknown error'));
+                  playSound('error');
                 }
               }}
-              onRollForDoubles={rollDice}
+              onRollForDoubles={() => {
+                // Roll for doubles to escape jail
+                if (isRolling) return;
+                
+                setIsRolling(true);
+                setDiceValue(null);
+                setMessage(`🎲 ${character.name} rolling for DOUBLES to escape jail...`);
+                playSound('roll');
+                
+                setTimeout(() => {
+                  const roll1 = Math.floor(Math.random() * 6) + 1;
+                  const roll2 = Math.floor(Math.random() * 6) + 1;
+                  const total = roll1 + roll2;
+                  const rolledDoubles = roll1 === roll2;
+                  
+                  setDiceValue(total);
+                  setMessage(`🎲 Rolled ${roll1} and ${roll2}${rolledDoubles ? ' - DOUBLES!' : ''}`);
+                  playSound('dice');
+                  
+                  // Process jail turn
+                  const jailResult = jeopardy.processJailTurn(PLAYER_ID, rolledDoubles);
+                  
+                  setMessage(jailResult.message);
+                  
+                  if (jailResult.escaped) {
+                    // Player escaped jail
+                    setPlayerPosition(jailResult.returnPosition);
+                    setLastCheckpoint(CHECKPOINTS.find(cp => cp <= jailResult.returnPosition) || 0);
+                    setIsRolling(false);
+                    // After escaping jail, AI takes turn
+                    setTimeout(() => {
+                      setIsAITurn(true);
+                      setTimeout(() => takeAITurn(), 2000);
+                    }, 1500);
+                  } else {
+                    // Still in jail - turn ends, AI takes turn
+                    setIsRolling(false);
+                    setTimeout(() => {
+                      setIsAITurn(true);
+                      setTimeout(() => takeAITurn(), 2000);
+                    }, 1500);
+                  }
+                }, 1000);
+              }}
               isCurrentPlayer={true}
             />
           );
         }
         return null;
       })()}
+
+      {/* Game Over Modal */}
+      <GameOverModal
+        isOpen={showGameOverModal}
+        isVictory={gameWon}
+        winnerName={gameWon ? character?.name : 'AI Opponent'}
+        onPlayAgain={handlePlayAgain}
+        onReturnToMenu={handleReturnToMenu}
+      />
 
       <ParticleEffects />
     </div>

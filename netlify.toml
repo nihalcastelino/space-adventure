@@ -19,6 +19,19 @@
     X-Content-Type-Options = "nosniff"
     X-XSS-Protection = "1; mode=block"
     Referrer-Policy = "strict-origin-when-cross-origin"
+    # Allow Google crawlers (important for AdSense)
+    Permissions-Policy = "interest-cohort=()"
+
+# Allow Google crawlers to access robots.txt and ads.txt
+[[headers]]
+  for = "/robots.txt"
+  [headers.values]
+    X-Robots-Tag = "noindex"
+
+[[headers]]
+  for = "/ads.txt"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
 
 # Environment variables (set these in Netlify UI)
 # VITE_FIREBASE_API_KEY

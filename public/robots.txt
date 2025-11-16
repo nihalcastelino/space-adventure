@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+# Allow Google AdSense crawlers
+User-agent: Mediapartners-Google
+Allow: /
+
+# Allow Googlebot (for indexing)
+User-agent: Googlebot
+Allow: /
+
+# Sitemap (update with your actual domain)
+# Sitemap: https://spacerace.games/sitemap.xml
+

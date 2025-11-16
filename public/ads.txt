@@ -1,0 +1,6 @@
+# ads.txt file for spacerace.games
+# This file helps AdSense verify your site ownership
+# Place this file at: https://spacerace.games/ads.txt
+
+google.com, pub-9836174027317671, DIRECT, f08c47fec0942fa0
+

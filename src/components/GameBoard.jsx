@@ -809,11 +809,13 @@ export default function GameBoard({
           50% { opacity: 0.8; filter: brightness(1.5); }
         }
       `}</style>
-      {/* Main Game Board - Dynamic Grid - Enhanced with modern styling */}
+      {/* Main Game Board - Dynamic Grid - Enhanced with modern styling - Responsive for mobile */}
       <div
         style={{
           width: '100%',
+          maxWidth: '100%',
           height: '100%',
+          maxHeight: '100%',
           backgroundColor: 'rgba(15, 23, 42, 0.9)',
           border: '3px solid rgba(251, 191, 36, 0.6)',
           borderRadius: '16px',
@@ -827,8 +829,10 @@ export default function GameBoard({
           position: 'relative',
           overflow: 'hidden',
           backdropFilter: 'blur(2px)',
-          WebkitBackdropFilter: 'blur(2px)'
+          WebkitBackdropFilter: 'blur(2px)',
+          transformOrigin: 'center center'
         }}
+        className="board-container"
       >
           {boardCells}
 
