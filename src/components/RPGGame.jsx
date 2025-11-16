@@ -12,9 +12,9 @@ import { useRPGSystem } from '../hooks/useRPGSystem';
 import { useGameSounds } from '../hooks/useGameSounds';
 import { useDifficulty } from '../hooks/useDifficulty';
 import { useJeopardyMechanics } from '../hooks/useJeopardyMechanics';
+import { useGameVariants, GAME_VARIANTS } from '../hooks/useGameVariants';
 import { useCurrency } from '../hooks/useCurrency';
 import { getBackgroundImage } from '../utils/backgrounds';
-import { GAME_VARIANTS } from '../hooks/useGameVariants';
 
 const DEFAULT_BOARD_SIZE = 100;
 const SPACEPORTS = {
@@ -50,24 +50,27 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
   const { playSound } = useGameSounds();
   const [showCharacterCreation, setShowCharacterCreation] = useState(true);
   const [characterCreated, setCharacterCreated] = useState(false);
-  
+
   const rpg = useRPGSystem();
-  
+
+  // Initialize game variants system
+  const gameVariants = useGameVariants(gameVariant);
+
   // Get board configuration
   const variant = GAME_VARIANTS[gameVariant] || GAME_VARIANTS.classic;
   const BOARD_SIZE = variant.boardSize || DEFAULT_BOARD_SIZE;
-  
+
   // Difficulty system
   const {
     difficulty,
     aliens: ALIENS,
     checkpoints: CHECKPOINTS
   } = useDifficulty(initialDifficulty);
-  
+
   // Jeopardy mechanics (jail, hazards)
   const jeopardy = useJeopardyMechanics(difficulty, true);
   const currency = useCurrency();
-  
+
   // Single player state
   const PLAYER_ID = 1;
   const [playerPosition, setPlayerPosition] = useState(0);
@@ -81,7 +84,7 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
   const [animatingPlayer, setAnimatingPlayer] = useState(null);
   const [animationType, setAnimationType] = useState(null);
   const [alienBlink, setAlienBlink] = useState({});
-  
+
   // AI Opponent state
   const AI_ID = 2;
   const [aiPosition, setAiPosition] = useState(0);
@@ -177,19 +180,59 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
     const newAiPosition = Math.min(aiPosition + aiRoll, BOARD_SIZE);
     setAiPosition(newAiPosition);
     
-    // Check AI win condition
-    if (newAiPosition >= BOARD_SIZE) {
-      setGameLost(true);
-      setMessage('💀 AI opponent reached the end! You lose!');
-      playSound('alien');
-      setAiThinking(false);
-      setIsAITurn(false);
-      setAnimationType('victory');
-      // Show game over modal after a short delay
-      setTimeout(() => {
-        setShowGameOverModal(true);
-      }, 1500);
-      return;
+    // Check AI win condition using variant-specific win condition
+    const aiPlayersForCheck = [
+      {
+        id: PLAYER_ID,
+        name: character?.name || 'Player',
+        position: playerPosition,
+        lastCheckpoint: lastCheckpoint,
+        visitedCheckpoints: gameVariants.variantState.checkpointsVisited[PLAYER_ID] || [],
+        aliensHit: gameVariants.variantState.aliensHit[PLAYER_ID] || 0,
+        spaceportsUsed: gameVariants.variantState.spaceportsUsed[PLAYER_ID] || 0,
+        eliminated: gameVariants.variantState.eliminations.includes(PLAYER_ID),
+        turnsOnHill: gameVariants.variantState.hillPositions[PLAYER_ID] || 0
+      },
+      {
+        id: AI_ID,
+        name: 'AI Opponent',
+        position: newAiPosition, // Use new position
+        lastCheckpoint: aiLastCheckpoint,
+        visitedCheckpoints: gameVariants.variantState.checkpointsVisited[AI_ID] || [],
+        aliensHit: gameVariants.variantState.aliensHit[AI_ID] || 0,
+        spaceportsUsed: gameVariants.variantState.spaceportsUsed[AI_ID] || 0,
+        eliminated: gameVariants.variantState.eliminations.includes(AI_ID),
+        turnsOnHill: gameVariants.variantState.hillPositions[AI_ID] || 0
+      }
+    ];
+
+    const aiWinner = gameVariants.checkWinCondition(aiPlayersForCheck);
+    if (aiWinner) {
+      if (aiWinner.id === AI_ID) {
+        setGameLost(true);
+        setMessage('💀 AI opponent wins!');
+        playSound('alien');
+        setAiThinking(false);
+        setIsAITurn(false);
+        setAnimationType('victory');
+        // Show game over modal after a short delay
+        setTimeout(() => {
+          setShowGameOverModal(true);
+        }, 1500);
+        return;
+      } else {
+        setGameWon(true);
+        setMessage('🎉 You win!');
+        playSound('victory');
+        setAiThinking(false);
+        setIsAITurn(false);
+        setAnimationType('victory');
+        // Show game over modal after a short delay
+        setTimeout(() => {
+          setShowGameOverModal(true);
+        }, 1500);
+        return;
+      }
     }
     
     // Check AI checkpoint
@@ -198,6 +241,9 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
       setAiLastCheckpoint(aiCheckpoint);
       setMessage(`🤖 AI reached checkpoint ${aiCheckpoint}!`);
       await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Track AI checkpoint visit in game variants system for variants like Checkpoint Challenge
+      gameVariants.trackCheckpointVisit(AI_ID, aiCheckpoint);
     }
     
     // Check AI spaceport
@@ -207,19 +253,62 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
       setMessage(`🤖 AI uses spaceport! Teleports to ${targetPosition}!`);
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Check win condition again after spaceport teleport
-      if (targetPosition >= BOARD_SIZE) {
-        setGameLost(true);
-        setMessage('💀 AI opponent reached the end! You lose!');
-        playSound('alien');
-        setAiThinking(false);
-        setIsAITurn(false);
-        // Show game over modal after a short delay
-        setTimeout(() => {
-          setShowGameOverModal(true);
-        }, 1500);
-        setAnimationType('victory');
-        return;
+      // Track spaceport use for variants like Spaceport Master
+      gameVariants.trackSpaceportUse(AI_ID);
+
+      // Check win condition again after spaceport teleport using variant-specific win condition
+      const aiPlayersForCheckAfterTeleport = [
+        {
+          id: PLAYER_ID,
+          name: character?.name || 'Player',
+          position: playerPosition,
+          lastCheckpoint: lastCheckpoint,
+          visitedCheckpoints: gameVariants.variantState.checkpointsVisited[PLAYER_ID] || [],
+          aliensHit: gameVariants.variantState.aliensHit[PLAYER_ID] || 0,
+          spaceportsUsed: gameVariants.variantState.spaceportsUsed[PLAYER_ID] || 0,
+          eliminated: gameVariants.variantState.eliminations.includes(PLAYER_ID),
+          turnsOnHill: gameVariants.variantState.hillPositions[PLAYER_ID] || 0
+        },
+        {
+          id: AI_ID,
+          name: 'AI Opponent',
+          position: targetPosition, // Use new position after teleport
+          lastCheckpoint: aiLastCheckpoint,
+          visitedCheckpoints: gameVariants.variantState.checkpointsVisited[AI_ID] || [],
+          aliensHit: gameVariants.variantState.aliensHit[AI_ID] || 0,
+          spaceportsUsed: gameVariants.variantState.spaceportsUsed[AI_ID] || 0,
+          eliminated: gameVariants.variantState.eliminations.includes(AI_ID),
+          turnsOnHill: gameVariants.variantState.hillPositions[AI_ID] || 0
+        }
+      ];
+
+      const aiWinnerAfterTeleport = gameVariants.checkWinCondition(aiPlayersForCheckAfterTeleport);
+      if (aiWinnerAfterTeleport) {
+        if (aiWinnerAfterTeleport.id === AI_ID) {
+          setGameLost(true);
+          setMessage('💀 AI opponent wins!');
+          playSound('alien');
+          setAiThinking(false);
+          setIsAITurn(false);
+          setAnimationType('victory');
+          // Show game over modal after a short delay
+          setTimeout(() => {
+            setShowGameOverModal(true);
+          }, 1500);
+          return;
+        } else {
+          setGameWon(true);
+          setMessage('🎉 You win!');
+          playSound('victory');
+          setAiThinking(false);
+          setIsAITurn(false);
+          setAnimationType('victory');
+          // Show game over modal after a short delay
+          setTimeout(() => {
+            setShowGameOverModal(true);
+          }, 1500);
+          return;
+        }
       }
     }
     
@@ -227,10 +316,13 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
     
     // Process jeopardy turn for hazards
     jeopardy.nextTurn();
-    
+
+    // Increment variant-specific turn counter for turn-based win conditions
+    gameVariants.incrementTurn();
+
     setAiThinking(false);
     setIsAITurn(false);
-    
+
     // Only continue if game hasn't ended
     if (!gameWon && !gameLost) {
       setMessage(`${character?.name || 'Your'}'s turn! Roll the dice!`);
@@ -280,19 +372,59 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
     
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // Check for win condition
-    if (newPosition >= BOARD_SIZE) {
-      setGameWon(true);
-      setMessage(`🎉 ${character.name} reached the end! Victory!`);
-      playSound('victory');
-      setAnimationType('victory');
-      setIsAITurn(false);
-      setAiThinking(false);
-      // Show game over modal after a short delay
-      setTimeout(() => {
-        setShowGameOverModal(true);
-      }, 1500);
-      return;
+    // Check win condition using the variant-specific win condition
+    const playersForCheck = [
+      {
+        id: PLAYER_ID,
+        name: character?.name || 'Player',
+        position: newPosition,
+        lastCheckpoint: lastCheckpoint,
+        visitedCheckpoints: gameVariants.variantState.checkpointsVisited[PLAYER_ID] || [],
+        aliensHit: gameVariants.variantState.aliensHit[PLAYER_ID] || 0,
+        spaceportsUsed: gameVariants.variantState.spaceportsUsed[PLAYER_ID] || 0,
+        eliminated: gameVariants.variantState.eliminations.includes(PLAYER_ID),
+        turnsOnHill: gameVariants.variantState.hillPositions[PLAYER_ID] || 0
+      },
+      {
+        id: AI_ID,
+        name: 'AI Opponent',
+        position: aiPosition,
+        lastCheckpoint: aiLastCheckpoint,
+        visitedCheckpoints: [],
+        aliensHit: 0,
+        spaceportsUsed: 0,
+        eliminated: gameVariants.variantState.eliminations.includes(AI_ID),
+        turnsOnHill: 0
+      }
+    ];
+
+    const winner = gameVariants.checkWinCondition(playersForCheck);
+    if (winner) {
+      if (winner.id === PLAYER_ID) {
+        setGameWon(true);
+        setMessage(`🎉 ${winner.name} wins!`);
+        playSound('victory');
+        setAnimationType('victory');
+        setIsAITurn(false);
+        setAiThinking(false);
+        // Show game over modal after a short delay
+        setTimeout(() => {
+          setShowGameOverModal(true);
+        }, 1500);
+        return;
+      } else {
+        setGameLost(true);
+        setMessage(`💀 ${winner.name} wins!`);
+        playSound('alien');
+        setAnimationType('victory');
+        setIsAITurn(false);
+        setAiThinking(false);
+        // Show game over modal after a short delay
+        setTimeout(() => {
+          setShowGameOverModal(true);
+        }, 1500);
+        return;
+      }
     }
     
     // Check for hazard collisions (jail, black holes, meteors)
@@ -337,33 +469,143 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
       await new Promise(resolve => setTimeout(resolve, 1500));
       setAnimationType(null);
       setAnimatingPlayer(null);
-      
+
+      // Check win condition after black hole effect (in case of special rules)
+      const playersForCheckAfterBlackHole = [
+        {
+          id: PLAYER_ID,
+          name: character?.name || 'Player',
+          position: hazardResult.newPosition, // Use new position after black hole
+          lastCheckpoint: lastCheckpoint,
+          visitedCheckpoints: gameVariants.variantState.checkpointsVisited[PLAYER_ID] || [],
+          aliensHit: gameVariants.variantState.aliensHit[PLAYER_ID] || 0,
+          spaceportsUsed: gameVariants.variantState.spaceportsUsed[PLAYER_ID] || 0,
+          eliminated: gameVariants.variantState.eliminations.includes(PLAYER_ID),
+          turnsOnHill: gameVariants.variantState.hillPositions[PLAYER_ID] || 0
+        },
+        {
+          id: AI_ID,
+          name: 'AI Opponent',
+          position: aiPosition,
+          lastCheckpoint: aiLastCheckpoint,
+          visitedCheckpoints: gameVariants.variantState.checkpointsVisited[AI_ID] || [],
+          aliensHit: gameVariants.variantState.aliensHit[AI_ID] || 0,
+          spaceportsUsed: gameVariants.variantState.spaceportsUsed[AI_ID] || 0,
+          eliminated: gameVariants.variantState.eliminations.includes(AI_ID),
+          turnsOnHill: gameVariants.variantState.hillPositions[AI_ID] || 0
+        }
+      ];
+
+      const winnerAfterBlackHole = gameVariants.checkWinCondition(playersForCheckAfterBlackHole);
+      if (winnerAfterBlackHole) {
+        if (winnerAfterBlackHole.id === PLAYER_ID) {
+          setGameWon(true);
+          setMessage(`🎉 ${winnerAfterBlackHole.name} wins!`);
+          playSound('victory');
+          setAnimationType('victory');
+          setIsAITurn(false);
+          setAiThinking(false);
+          // Show game over modal after a short delay
+          setTimeout(() => {
+            setShowGameOverModal(true);
+          }, 1500);
+          return;
+        } else {
+          setGameLost(true);
+          setMessage(`💀 ${winnerAfterBlackHole.name} wins!`);
+          playSound('alien');
+          setAnimationType('victory');
+          setIsAITurn(false);
+          setAiThinking(false);
+          // Show game over modal after a short delay
+          setTimeout(() => {
+            setShowGameOverModal(true);
+          }, 1500);
+          return;
+        }
+      }
+
       await new Promise(resolve => setTimeout(resolve, 2000));
       setIsAITurn(true);
       setTimeout(() => takeAITurn(), 2000);
       return;
     }
-    
+
     if (hazardResult.meteor) {
       // Meteor impact!
       setMessage(`🔥 ${character.name} hit by METEOR!`);
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
+
       setMessage(hazardResult.message);
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
+
       playSound('error');
       setAnimationType('eaten');
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
       setPlayerPosition(hazardResult.newPosition);
       setLastCheckpoint(CHECKPOINTS.find(cp => cp <= hazardResult.newPosition) || 0);
-      
+
       setAnimationType('landing');
       await new Promise(resolve => setTimeout(resolve, 1500));
       setAnimationType(null);
       setAnimatingPlayer(null);
-      
+
+      // Check win condition after meteor impact (in case of special rules)
+      const playersForCheckAfterMeteor = [
+        {
+          id: PLAYER_ID,
+          name: character?.name || 'Player',
+          position: hazardResult.newPosition, // Use new position after meteor
+          lastCheckpoint: lastCheckpoint,
+          visitedCheckpoints: gameVariants.variantState.checkpointsVisited[PLAYER_ID] || [],
+          aliensHit: gameVariants.variantState.aliensHit[PLAYER_ID] || 0,
+          spaceportsUsed: gameVariants.variantState.spaceportsUsed[PLAYER_ID] || 0,
+          eliminated: gameVariants.variantState.eliminations.includes(PLAYER_ID),
+          turnsOnHill: gameVariants.variantState.hillPositions[PLAYER_ID] || 0
+        },
+        {
+          id: AI_ID,
+          name: 'AI Opponent',
+          position: aiPosition,
+          lastCheckpoint: aiLastCheckpoint,
+          visitedCheckpoints: gameVariants.variantState.checkpointsVisited[AI_ID] || [],
+          aliensHit: gameVariants.variantState.aliensHit[AI_ID] || 0,
+          spaceportsUsed: gameVariants.variantState.spaceportsUsed[AI_ID] || 0,
+          eliminated: gameVariants.variantState.eliminations.includes(AI_ID),
+          turnsOnHill: gameVariants.variantState.hillPositions[AI_ID] || 0
+        }
+      ];
+
+      const winnerAfterMeteor = gameVariants.checkWinCondition(playersForCheckAfterMeteor);
+      if (winnerAfterMeteor) {
+        if (winnerAfterMeteor.id === PLAYER_ID) {
+          setGameWon(true);
+          setMessage(`🎉 ${winnerAfterMeteor.name} wins!`);
+          playSound('victory');
+          setAnimationType('victory');
+          setIsAITurn(false);
+          setAiThinking(false);
+          // Show game over modal after a short delay
+          setTimeout(() => {
+            setShowGameOverModal(true);
+          }, 1500);
+          return;
+        } else {
+          setGameLost(true);
+          setMessage(`💀 ${winnerAfterMeteor.name} wins!`);
+          playSound('alien');
+          setAnimationType('victory');
+          setIsAITurn(false);
+          setAiThinking(false);
+          // Show game over modal after a short delay
+          setTimeout(() => {
+            setShowGameOverModal(true);
+          }, 1500);
+          return;
+        }
+      }
+
       await new Promise(resolve => setTimeout(resolve, 2000));
       setIsAITurn(true);
       setTimeout(() => takeAITurn(), 2000);
@@ -372,12 +614,15 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
     
     // Check for alien encounter FIRST (aliens override checkpoints)
     if (ALIENS.includes(newPosition)) {
+      // Track alien hit for variants like Alien Hunter
+      gameVariants.trackAlienHit(PLAYER_ID);
+
       // Player encounters alien - IMMEDIATELY move back to last checkpoint
       setMessage(`⚠️ ${character.name} encounters an ALIEN! Retreating to checkpoint ${lastCheckpoint}!`);
       playSound('alien');
       setAnimationType('eaten');
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
       // Move player back to last checkpoint immediately
       setPlayerPosition(lastCheckpoint);
       setMessage(`↩️ ${character.name} retreated to checkpoint ${lastCheckpoint}!`);
@@ -385,7 +630,7 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
       await new Promise(resolve => setTimeout(resolve, 1500));
       setAnimationType(null);
       setAnimatingPlayer(null);
-      
+
       // Now initiate combat at the checkpoint position (or just show message)
       // Combat happens but player is safe at checkpoint
       const combatInfo = rpg.initiateCombat(PLAYER_ID, lastCheckpoint);
@@ -403,6 +648,9 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
       setMessage(`✅ Checkpoint reached at position ${checkpoint}!`);
       playSound('checkpoint');
       await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Track checkpoint visit in game variants system for variants like Checkpoint Challenge
+      gameVariants.trackCheckpointVisit(PLAYER_ID, checkpoint);
     }
     
     // Check for spaceport
@@ -413,19 +661,62 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
       playSound('spaceport');
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Check win condition again after spaceport teleport
-      if (targetPosition >= BOARD_SIZE) {
-        setGameWon(true);
-        setMessage(`🎉 ${character.name} reached the end! Victory!`);
-        playSound('victory');
-        setAnimationType('victory');
-        setIsAITurn(false);
-        setAiThinking(false);
-        // Show game over modal after a short delay
-        setTimeout(() => {
-          setShowGameOverModal(true);
-        }, 1500);
-        return;
+      // Track spaceport use for variants like Spaceport Master
+      gameVariants.trackSpaceportUse(PLAYER_ID);
+
+      // Check win condition again after spaceport teleport using variant-specific win condition
+      const playersForCheckAfterTeleport = [
+        {
+          id: PLAYER_ID,
+          name: character?.name || 'Player',
+          position: targetPosition, // Use new position after teleport
+          lastCheckpoint: lastCheckpoint,
+          visitedCheckpoints: gameVariants.variantState.checkpointsVisited[PLAYER_ID] || [],
+          aliensHit: gameVariants.variantState.aliensHit[PLAYER_ID] || 0,
+          spaceportsUsed: gameVariants.variantState.spaceportsUsed[PLAYER_ID] || 0,
+          eliminated: gameVariants.variantState.eliminations.includes(PLAYER_ID),
+          turnsOnHill: gameVariants.variantState.hillPositions[PLAYER_ID] || 0
+        },
+        {
+          id: AI_ID,
+          name: 'AI Opponent',
+          position: aiPosition,
+          lastCheckpoint: aiLastCheckpoint,
+          visitedCheckpoints: [],
+          aliensHit: 0,
+          spaceportsUsed: 0,
+          eliminated: gameVariants.variantState.eliminations.includes(AI_ID),
+          turnsOnHill: 0
+        }
+      ];
+
+      const winnerAfterTeleport = gameVariants.checkWinCondition(playersForCheckAfterTeleport);
+      if (winnerAfterTeleport) {
+        if (winnerAfterTeleport.id === PLAYER_ID) {
+          setGameWon(true);
+          setMessage(`🎉 ${winnerAfterTeleport.name} wins!`);
+          playSound('victory');
+          setAnimationType('victory');
+          setIsAITurn(false);
+          setAiThinking(false);
+          // Show game over modal after a short delay
+          setTimeout(() => {
+            setShowGameOverModal(true);
+          }, 1500);
+          return;
+        } else {
+          setGameLost(true);
+          setMessage(`💀 ${winnerAfterTeleport.name} wins!`);
+          playSound('alien');
+          setAnimationType('victory');
+          setIsAITurn(false);
+          setAiThinking(false);
+          // Show game over modal after a short delay
+          setTimeout(() => {
+            setShowGameOverModal(true);
+          }, 1500);
+          return;
+        }
       }
     }
     
@@ -442,10 +733,16 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
     
     setAnimationType(null);
     setAnimatingPlayer(null);
-    
+
+    // Track hill position for King of the Hill variant
+    gameVariants.trackHillPosition(PLAYER_ID, newPosition);
+
     // Process jeopardy turn for hazards
     jeopardy.nextTurn();
-    
+
+    // Increment variant-specific turn counter for turn-based win conditions
+    gameVariants.incrementTurn();
+
     // After player turn, AI takes turn (only if game hasn't ended)
     if (!gameWon && !gameLost) {
       setIsAITurn(true);

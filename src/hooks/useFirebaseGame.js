@@ -6,6 +6,7 @@ import { useGameSounds } from './useGameSounds';
 import { useGameHistory } from './useGameHistory';
 import { useLeaderboard } from './useLeaderboard';
 import { useRocketAnimation } from './useRocketAnimation';
+import { useGameVariants, GAME_VARIANTS } from './useGameVariants';
 import { sanitizePlayerName, isValidPlayerName } from '../utils/sanitize';
 
 // Simple UUID generator
@@ -38,28 +39,53 @@ function rollDice() {
   return Math.floor(Math.random() * 6) + 1;
 }
 
-function processMove(game, player, steps) {
+function processMove(game, player, steps, gameVariant = 'classic') {
   let newPosition = player.position + steps;
-  
+
+  // Get the current variant
+  const variant = GAME_VARIANTS[gameVariant] || GAME_VARIANTS.classic;
+  const BOARD_SIZE = variant.boardSize || 100;
+  const isReverseRace = variant.specialRules?.reverseMovement || false;
+
   // If player is at position 0 (starting), they enter the board at the rolled position
   if (player.position === 0) {
     newPosition = steps; // Move directly to the rolled position
   }
 
-  if (newPosition > BOARD_SIZE) {
-    return {
-      success: false,
-      message: `${player.name} rolled ${steps} but needs exactly ${BOARD_SIZE - player.position} to win! Turn passes.`,
-      skipTurn: true
-    };
+  // For Reverse Race, movement is backwards
+  if (isReverseRace) {
+    newPosition = player.position - steps;
+    // Can't go below 0
+    if (newPosition < 0) {
+      return {
+        success: false,
+        message: `${player.name} rolled ${steps} but needs exactly ${player.position} to win! Turn passes.`,
+        skipTurn: true
+      };
+    }
+  } else {
+    if (newPosition > BOARD_SIZE) {
+      return {
+        success: false,
+        message: `${player.name} rolled ${steps} but needs exactly ${BOARD_SIZE - player.position} to win! Turn passes.`,
+        skipTurn: true
+      };
+    }
   }
 
   player.position = newPosition;
 
-  if (newPosition >= BOARD_SIZE) {
+  // Create a temporary player array to check win condition
+  const tempPlayers = [...game.players];
+  tempPlayers[game.currentPlayerIndex] = { ...player };
+
+  // Use the game variants system to check win condition
+  // We'll create a simplified version here since we can't use the full React hook
+  const winner = checkWinCondition(variant, tempPlayers, game.turnCount || 0);
+  if (winner) {
     return {
       success: true,
-      message: `🎉 ${player.name} WINS! Reached the edge of the galaxy!`,
+      message: `🎉 ${winner.name} WINS!`,
       won: true
     };
   }
@@ -67,17 +93,22 @@ function processMove(game, player, steps) {
   if (SPACEPORTS[newPosition]) {
     const destination = SPACEPORTS[newPosition];
     player.position = destination;
-    player.lastCheckpoint = getLastCheckpoint(destination);
-    
-    // Check win condition after spaceport teleport
-    if (destination >= BOARD_SIZE) {
+    player.lastCheckpoint = !isReverseRace ? getLastCheckpoint(destination) : Math.max(player.lastCheckpoint, destination);
+
+    // Create a temporary player array to check win condition after teleport
+    const tempPlayersAfterTeleport = [...game.players];
+    tempPlayersAfterTeleport[game.currentPlayerIndex] = { ...player };
+
+    // Check win condition after spaceport teleport using the game variant
+    const winnerAfterTeleport = checkWinCondition(variant, tempPlayersAfterTeleport, game.turnCount || 0);
+    if (winnerAfterTeleport) {
       return {
         success: true,
-        message: `🎉 ${player.name} WINS! Reached the edge of the galaxy!`,
+        message: `🎉 ${winnerAfterTeleport.name} WINS!`,
         won: true
       };
     }
-    
+
     return {
       success: true,
       message: `🚀 ${player.name} warped to position ${destination}!`,
@@ -113,7 +144,70 @@ function processMove(game, player, steps) {
   };
 }
 
-export function useFirebaseGame() {
+// Simplified win condition check function to be used in the Firebase hook
+function checkWinCondition(variant, players, turnCount = 0) {
+  // This implements the same logic as in useGameVariants but without React hooks
+  switch (variant.id) {
+    case 'classic':
+      return players.find(p => p.position >= 100);
+    case 'sprint':
+      return players.find(p => p.position >= 50);
+    case 'marathon':
+      return players.find(p => p.position >= 200);
+    case 'checkpointChallenge':
+      // Player must reach 100 AND have visited at least 5 checkpoints
+      return players.find(p => {
+        if (p.position < 100) return false;
+        const visitedCheckpoints = p.visitedCheckpoints || (p.checkpointsVisited ? p.checkpointsVisited.length || 0 : 0);
+        return (typeof visitedCheckpoints === 'number' ? visitedCheckpoints : (visitedCheckpoints.length || 0)) >= 5;
+      });
+    case 'alienHunter':
+      // After max turns (30), player with most aliens hit wins
+      if (turnCount >= 30) {
+        const sorted = [...players].sort((a, b) => {
+          const scoreA = (a.aliensHit || 0) + (a.alienCombo || 0) * 2;
+          const scoreB = (b.aliensHit || 0) + (b.alienCombo || 0) * 2;
+          return scoreB - scoreA;
+        });
+        return sorted[0].aliensHit > 0 ? sorted[0] : null;
+      }
+      return null;
+    case 'kingOfTheHill':
+      return players.find(p => {
+        if (p.position !== 50) return false;
+        return (p.turnsOnHill || 0) >= 2; // Required turns on hill
+      });
+    case 'reverseRace':
+      return players.find(p => p.position <= 0);
+    case 'suddenDeath':
+      const activePlayers = players.filter(p => !p.eliminated);
+      if (activePlayers.length === 1) return activePlayers[0];
+      if (activePlayers.length === 0) return null;
+      // Check if any active player reached 100
+      return activePlayers.find(p => p.position >= 100);
+    case 'timeAttack':
+      // Time attack not handled in this context as time isn't tracked here
+      return players.find(p => p.position >= 100);
+    case 'powerUpRush':
+      return players.find(p => p.position >= 100);
+    case 'spaceportMaster':
+      // After max turns (40), player with most spaceports used wins
+      if (turnCount >= 40) {
+        const sorted = [...players].sort((a, b) => {
+          const scoreA = (a.spaceportsUsed || 0) + (a.spaceportCombo || 0) * 1.5;
+          const scoreB = (b.spaceportsUsed || 0) + (b.spaceportCombo || 0) * 1.5;
+          return scoreB - scoreA;
+        });
+        return sorted[0].spaceportsUsed > 0 ? sorted[0] : null;
+      }
+      return null;
+    default:
+      // Default to classic win condition
+      return players.find(p => p.position >= 100);
+  }
+}
+
+export function useFirebaseGame(gameVariant = 'classic') {
   const { playSound } = useGameSounds();
   const { saveGameHistory } = useGameHistory();
   const { recordWin, recordGame } = useLeaderboard();
@@ -128,6 +222,7 @@ export function useFirebaseGame() {
   const [diceRolling, setDiceRolling] = useState(false);
   const gameRef = useRef(null);
   const moveCountRef = useRef(0);
+  const gameVariantRef = useRef(gameVariant);
 
   // Animate aliens
   useEffect(() => {
@@ -173,6 +268,7 @@ export function useFirebaseGame() {
 
     const game = {
       id: newGameId,
+      gameVariant: gameVariantRef.current, // Store the game variant
       players: [{
         id: newPlayerId,
         name: sanitizedName,
@@ -192,6 +288,7 @@ export function useFirebaseGame() {
       pausedAt: null,
       startedAt: Date.now(),
       totalMoves: 0,
+      turnCount: 0, // Track turns for variants like Alien Hunter
       message: `${sanitizedName}'s turn! Press SPIN to start!`,
       createdAt: Date.now(),
       updatedAt: Date.now()
@@ -391,6 +488,7 @@ export function useFirebaseGame() {
       const updatedPlayers = [...game.players, newPlayer];
       const updates = {
         players: updatedPlayers,
+        gameVariant: game.gameVariant, // Ensure game variant is preserved
         message: `${sanitizedName} joined! ${game.players[0].name}'s turn!`,
         updatedAt: Date.now()
       };
@@ -450,7 +548,7 @@ export function useFirebaseGame() {
       const updatedGame = { ...gameState };
       const currentPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
 
-      const result = processMove(updatedGame, currentPlayer, diceValue);
+      const result = processMove(updatedGame, currentPlayer, diceValue, gameVariantRef.current);
 
       if (result.won) {
         playSound('victory');
@@ -511,12 +609,16 @@ export function useFirebaseGame() {
         }
       }
 
+      // Increment turn count for turn-based win conditions (like Alien Hunter, Spaceport Master)
+      const newTurnCount = (gameState.turnCount || 0) + 1;
+
       await update(gameRef, {
         players: updatedGame.players,
         currentPlayerIndex: updatedGame.currentPlayerIndex,
         diceValue,
         isRolling: false,
         totalMoves: moveCountRef.current,
+        turnCount: newTurnCount, // Add turn count for variants
         message: updatedGame.message,
         updatedAt: Date.now()
       });

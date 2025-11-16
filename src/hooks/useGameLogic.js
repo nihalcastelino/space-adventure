@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useGameSounds } from './useGameSounds';
 import { useDifficulty } from './useDifficulty';
 import { useJeopardyMechanics } from './useJeopardyMechanics';
 import { usePlayerAssistance } from './usePlayerAssistance';
 import { useRoguePlayer } from './useRoguePlayer';
-import { GAME_VARIANTS } from './useGameVariants';
+import { useGameVariants, GAME_VARIANTS } from './useGameVariants';
 
 const DEFAULT_BOARD_SIZE = 100;
 const SPACEPORTS = {
@@ -17,11 +17,11 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
   const variant = GAME_VARIANTS[gameVariant] || GAME_VARIANTS.classic;
   const BOARD_SIZE = variant.boardSize || DEFAULT_BOARD_SIZE;
   const isReverseRace = variant.specialRules?.reverseMovement || false;
-  
+
   // Calculate initial position based on variant (must be before useState)
   const initialPosition = isReverseRace ? BOARD_SIZE : 0;
   const initialCheckpoint = isReverseRace ? BOARD_SIZE : 0;
-  
+
   const { playSound } = useGameSounds();
   const {
     difficulty,
@@ -42,6 +42,9 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
 
   // Initialize rogue player system
   const rogue = useRoguePlayer(true);
+
+  // Initialize game variants system
+  const gameVariants = useGameVariants(gameVariant);
 
   const playerColors = [
     'text-yellow-300',
@@ -420,21 +423,12 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
       return;
     }
 
-    // Check win condition (varies by variant)
-    if (isReverseRace && newPosition <= 0) {
-      // Reverse Race: win at position 0 or below
-      setMessage(`🎉 ${currentPlayer.name} WINS! Reached the starting point!`);
+    // Check win condition using the variant-specific win condition
+    const winner = gameVariants.checkWinCondition(players);
+    if (winner) {
+      setMessage(`🎉 ${winner.name} WINS!`);
       setGameWon(true);
-      setWinner(currentPlayer);
-      setIsRolling(false);
-      setAnimatingPlayer(null);
-      playSound('victory');
-      return;
-    } else if (!isReverseRace && newPosition >= BOARD_SIZE) {
-      // Normal variants: win at final position or beyond
-      setMessage(`🎉 ${currentPlayer.name} WINS! Reached the edge of the galaxy!`);
-      setGameWon(true);
-      setWinner(currentPlayer);
+      setWinner(winner);
       setIsRolling(false);
       setAnimatingPlayer(null);
       playSound('victory');
@@ -482,22 +476,19 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       setMessage(`✅ ${currentPlayer.name} warped to position ${destination}!`);
+
+      // Track spaceport use for variants like Spaceport Master
+      gameVariants.trackSpaceportUse(currentPlayer.id);
+
       setAnimationType(null);
       setAnimatingPlayer(null);
 
-      // Check win condition again after spaceport teleport
-      if (!isReverseRace && destination >= BOARD_SIZE) {
-        setMessage(`🎉 ${currentPlayer.name} WINS! Reached the edge of the galaxy!`);
+      // Check win condition again after spaceport teleport using variant-specific win condition
+      const winnerAfterTeleport = gameVariants.checkWinCondition(players);
+      if (winnerAfterTeleport) {
+        setMessage(`🎉 ${winnerAfterTeleport.name} WINS!`);
         setGameWon(true);
-        setWinner(currentPlayer);
-        setIsRolling(false);
-        setAnimatingPlayer(null);
-        playSound('victory');
-        return;
-      } else if (isReverseRace && destination <= 0) {
-        setMessage(`🎉 ${currentPlayer.name} WINS! Reached the starting point!`);
-        setGameWon(true);
-        setWinner(currentPlayer);
+        setWinner(winnerAfterTeleport);
         setIsRolling(false);
         setAnimatingPlayer(null);
         playSound('victory');
@@ -531,6 +522,9 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
       setMessage(`👾 ${currentPlayer.name} encountered an ALIEN at position ${newPosition}!`);
       await new Promise(resolve => setTimeout(resolve, 2000));
 
+      // Track alien hit for variants like Alien Hunter
+      gameVariants.trackAlienHit(currentPlayer.id);
+
       // Check assistance - can knockback be prevented?
       const checkpoint = updatedPlayers[currentPlayerIndex].lastCheckpoint;
       
@@ -563,6 +557,18 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
           assistance.grantImmunity(currentPlayer.id, safetyNet.immunityTurns);
           setMessage(safetyNet.message);
           await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+
+        // Check win condition after alien encounter prevented
+        const winnerAfterAlien = gameVariants.checkWinCondition(updatedPlayers);
+        if (winnerAfterAlien) {
+          setMessage(`🎉 ${winnerAfterAlien.name} WINS!`);
+          setGameWon(true);
+          setWinner(winnerAfterAlien);
+          setIsRolling(false);
+          setAnimatingPlayer(null);
+          playSound('victory');
+          return;
         }
 
         await new Promise(resolve => setTimeout(resolve, 1500));
@@ -603,6 +609,18 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
 
+      // Check win condition after alien encounter (in case of special rules)
+      const winnerAfterAlien = gameVariants.checkWinCondition(updatedPlayers);
+      if (winnerAfterAlien) {
+        setMessage(`🎉 ${winnerAfterAlien.name} WINS!`);
+        setGameWon(true);
+        setWinner(winnerAfterAlien);
+        setIsRolling(false);
+        setAnimatingPlayer(null);
+        playSound('victory');
+        return;
+      }
+
       await new Promise(resolve => setTimeout(resolve, 2000));
       nextPlayer();
       return;
@@ -616,6 +634,9 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
       playSound('checkpoint');
       await new Promise(resolve => setTimeout(resolve, 2000));
 
+      // Track checkpoint visit in game variants system for variants like Checkpoint Challenge
+      gameVariants.trackCheckpointVisit(currentPlayer.id, newCheckpoint);
+
       // Grant checkpoint immunity if landed exactly on checkpoint
       if (assistance.landedOnCheckpoint(newPosition)) {
         assistance.grantImmunity(currentPlayer.id, 1);
@@ -626,6 +647,9 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
       setMessage(`✓ ${currentPlayer.name} is now at position ${newPosition}`);
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
+
+    // Track hill position for King of the Hill variant
+    gameVariants.trackHillPosition(currentPlayer.id, newPosition);
 
     // Track successful movement (not knocked back)
     const startPosition = currentPlayer.position;
@@ -666,6 +690,9 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
     // Increment turn counter
     const newTurnCount = turnCount + 1;
     setTurnCount(newTurnCount);
+
+    // Increment variant-specific turn counter for turn-based win conditions
+    gameVariants.incrementTurn();
 
     // Advance jeopardy turn (spawns hazards, updates timers)
     jeopardy.nextTurn();
