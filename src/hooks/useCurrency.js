@@ -127,8 +127,7 @@ export function useCurrency() {
     }
   }, [coins, isPremium, lastWinDate, loginStreak, lastLoginDate, isAuthenticated, user]);
 
-
-  // Add coins
+  // Add coins (must be defined before checkDailyLogin)
   const addCoins = useCallback((amount, reason = '') => {
     const multiplier = isPremium ? CURRENCY_RATES.PREMIUM_MULTIPLIER : 1.0;
     const finalAmount = Math.floor(amount * multiplier);
@@ -137,6 +136,50 @@ export function useCurrency() {
 
     return finalAmount;
   }, [isPremium]);
+
+  // Check and award daily login bonus
+  const checkDailyLogin = useCallback(() => {
+    const today = new Date().toDateString();
+
+    if (lastLoginDate !== today) {
+      // Award daily login
+      let bonus = CURRENCY_RATES.DAILY_LOGIN;
+
+      // Check if maintaining streak
+      if (lastLoginDate) {
+        const lastDate = new Date(lastLoginDate);
+        const todayDate = new Date(today);
+        const dayDiff = Math.floor((todayDate - lastDate) / (1000 * 60 * 60 * 24));
+
+        if (dayDiff === 1) {
+          // Streak continues
+          const newStreak = loginStreak + 1;
+          setLoginStreak(newStreak);
+          bonus += CURRENCY_RATES.STREAK_BONUS * newStreak;
+        } else if (dayDiff > 1) {
+          // Streak broken
+          setLoginStreak(1);
+        }
+      } else {
+        setLoginStreak(1);
+      }
+
+      setLastLoginDate(today);
+      addCoins(bonus, 'Daily Login');
+
+      return { awarded: true, amount: bonus, streak: loginStreak + 1 };
+    }
+
+    return { awarded: false };
+  }, [lastLoginDate, loginStreak, addCoins]);
+
+  // Call checkDailyLogin after component mounts and data is loaded
+  useEffect(() => {
+    // Only check after initial load is complete
+    if (lastLoginDate !== undefined) {
+      checkDailyLogin();
+    }
+  }, [checkDailyLogin]);
 
   // Remove coins (for purchases)
   const removeCoins = useCallback((amount) => {
