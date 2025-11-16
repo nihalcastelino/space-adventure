@@ -13,7 +13,15 @@ export const PREMIUM_TIERS = {
       basicCosmetics: true,
       ads: true,
       coinMultiplier: 1.0
-    }
+    },
+    perks: [
+      'Play all game modes',
+      'Earn coins from games',
+      'Access to basic cosmetics',
+      'Daily login bonuses',
+      'Track your progress',
+      'Compete on leaderboards'
+    ]
   },
   MONTHLY: {
     id: 'monthly',

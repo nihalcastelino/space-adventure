@@ -32,40 +32,87 @@ export default function AdSenseAd({
     }
 
     // Load AdSense script if not already loaded
-    if (!window.adsbygoogle && !adLoadedRef.current) {
+    const existingScript = document.querySelector('script[src*="adsbygoogle"]');
+    if (!existingScript && !adLoadedRef.current) {
       const script = document.createElement('script');
       script.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9836174027317671';
       script.async = true;
       script.crossOrigin = 'anonymous';
+      script.onload = () => {
+        script.setAttribute('data-loaded', 'true');
+        console.log('AdSense script loaded');
+      };
+      script.onerror = () => {
+        console.error('Failed to load AdSense script');
+      };
       document.head.appendChild(script);
+      adLoadedRef.current = true;
+    } else if (existingScript) {
+      // Script already exists, mark as loaded
       adLoadedRef.current = true;
     }
 
     // Initialize ad after script loads
     const initializeAd = () => {
-      if (window.adsbygoogle && adRef.current && !adRef.current.dataset.adsbygoogleStatus) {
+      if (adRef.current && !adRef.current.dataset.adsbygoogleStatus) {
         try {
+          // Check if adsbygoogle is available
+          if (window.adsbygoogle && window.adsbygoogle.loaded !== true) {
+            // Initialize adsbygoogle array if needed
+            window.adsbygoogle = window.adsbygoogle || [];
+          }
+          
+          // Push ad configuration
           (window.adsbygoogle = window.adsbygoogle || []).push({});
+          
+          // Mark as initialized
+          adRef.current.dataset.adsbygoogleStatus = 'initialized';
+          console.log('AdSense ad initialized');
         } catch (e) {
-          console.error('AdSense error:', e);
+          console.error('AdSense initialization error:', e);
         }
       }
     };
 
     // Wait for script to load
-    if (window.adsbygoogle) {
-      initializeAd();
+    const script = document.querySelector('script[src*="adsbygoogle"]');
+    if (script && script.getAttribute('data-loaded') === 'true') {
+      // Script already loaded
+      setTimeout(initializeAd, 100);
+    } else if (window.adsbygoogle) {
+      // adsbygoogle already available
+      setTimeout(initializeAd, 100);
     } else {
+      // Wait for script to load
       const checkInterval = setInterval(() => {
         if (window.adsbygoogle) {
-          initializeAd();
           clearInterval(checkInterval);
+          setTimeout(initializeAd, 100);
         }
       }, 100);
 
+      // Also listen for script load event
+      if (script) {
+        script.addEventListener('load', () => {
+          script.setAttribute('data-loaded', 'true');
+          clearInterval(checkInterval);
+          setTimeout(initializeAd, 100);
+        });
+      }
+
       // Cleanup after 10 seconds
-      setTimeout(() => clearInterval(checkInterval), 10000);
+      setTimeout(() => {
+        clearInterval(checkInterval);
+        if (window.adsbygoogle) {
+          initializeAd();
+        }
+      }, 10000);
     }
+
+    // Cleanup function
+    return () => {
+      // Cleanup if needed
+    };
   }, [isPremium]);
 
   // Don't render for premium users
@@ -104,7 +151,7 @@ export default function AdSenseAd({
           ...(fullWidthResponsive ? {} : { width: '100%', height: '100px' })
         }}
         data-ad-client="ca-pub-9836174027317671"
-        data-ad-slot={adSlot}
+        {...(adSlot !== 'auto' ? { 'data-ad-slot': adSlot } : {})}
         data-ad-format={adFormat}
         data-full-width-responsive={fullWidthResponsive ? 'true' : 'false'}
       />

@@ -63,12 +63,18 @@ export function PremiumTierCard({ tier, currentTier, onPurchase, isPopular = fal
 
       {/* Features list */}
       <div className="space-y-2 mb-6">
-        {tier.perks?.map((perk, index) => (
-          <div key={index} className="flex items-start gap-2">
-            <Check className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
-            <span className="text-white text-sm">{perk}</span>
+        {tier.perks && tier.perks.length > 0 ? (
+          tier.perks.map((perk, index) => (
+            <div key={index} className="flex items-start gap-2">
+              <Check className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
+              <span className="text-white text-sm">{perk}</span>
+            </div>
+          ))
+        ) : (
+          <div className="text-gray-400 text-sm text-center py-2">
+            Basic features included
           </div>
-        ))}
+        )}
       </div>
 
       {/* Action button */}

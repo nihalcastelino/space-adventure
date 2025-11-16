@@ -8,6 +8,8 @@ import GameModeSelector from './components/GameModeSelector';
 import PremiumModal from './components/PremiumModal';
 import InstallPrompt from './components/InstallPrompt';
 import CheckoutSuccess from './components/CheckoutSuccess';
+import ConsentBanner from './components/ConsentBanner';
+import PrivacyPolicy from './components/PrivacyPolicy';
 import { supabase } from './lib/supabase';
 
 function App() {
@@ -17,6 +19,7 @@ function App() {
   const [randomizationSeed, setRandomizationSeed] = useState(null);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [checkoutSessionId, setCheckoutSessionId] = useState(null);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
 
   // Handle OAuth callback and Stripe checkout redirects
   useEffect(() => {
@@ -85,6 +88,18 @@ function App() {
     }
   }, []);
 
+  // Listen for privacy policy show event
+  useEffect(() => {
+    const handleShowPrivacyPolicy = () => {
+      setShowPrivacyPolicy(true);
+    };
+
+    window.addEventListener('showPrivacyPolicy', handleShowPrivacyPolicy);
+    return () => {
+      window.removeEventListener('showPrivacyPolicy', handleShowPrivacyPolicy);
+    };
+  }, []);
+
   const handleSelectMode = (mode, selectedDifficulty, variant = 'classic', seed = null) => {
     setGameMode(mode);
     setDifficulty(selectedDifficulty);
@@ -122,6 +137,10 @@ function App() {
         )}
 
         <InstallPrompt />
+        <ConsentBanner />
+        {showPrivacyPolicy && (
+          <PrivacyPolicy onClose={() => setShowPrivacyPolicy(false)} />
+        )}
       </>
     );
   }
@@ -164,6 +183,10 @@ function App() {
         />
       )}
       <InstallPrompt />
+      <ConsentBanner />
+      {showPrivacyPolicy && (
+        <PrivacyPolicy onClose={() => setShowPrivacyPolicy(false)} />
+      )}
     </div>
   );
 }
