@@ -318,8 +318,8 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal', gameVa
 
       {/* Player Panels - Fixed in screen corners with safe spacing, increased padding to prevent overlap */}
       <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 25 }}>
-        {/* Top panels - Adjusted spacing for mobile to avoid overlap */}
-        <div className="absolute top-12 sm:top-14 md:top-16 left-0 right-0 px-1 sm:px-2 md:px-3 flex justify-between gap-1 sm:gap-2">
+        {/* Top panels - Using responsive positioning */}
+        <div className={`absolute left-0 right-0 ${windowWidth < 640 ? 'top-2 px-1' : windowWidth < 768 ? 'top-4 px-2' : 'top-6 px-3'} flex justify-between gap-1 sm:gap-2`}>
           {/* Player 2: Top-Left */}
           {players[1] && (
             <div className="pointer-events-auto">
@@ -375,9 +375,9 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal', gameVa
           )}
         </div>
 
-        {/* Bottom panels - Increased spacing to avoid dice controls */}
-        <div className="absolute left-0 right-0 px-2 flex justify-between gap-2" style={{
-          bottom: windowWidth < 640 ? '100px' : windowWidth < 768 ? '120px' : '160px'
+        {/* Bottom panels - Using responsive spacing to avoid dice controls */}
+        <div className={`absolute left-0 right-0 ${windowWidth < 640 ? 'px-1' : 'px-2'} flex justify-between gap-1 sm:gap-2`} style={{
+          bottom: windowWidth < 640 ? '110px' : windowWidth < 768 ? '130px' : windowWidth < 1024 ? '150px' : '160px'
         }}>
           {/* Player 3: Bottom-Left */}
           {players[2] && (
@@ -446,48 +446,50 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal', gameVa
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: '8px',
+          gap: windowWidth < 640 ? '4px' : '8px',
           maxWidth: '800px',
           width: '100vw',
-          // Account for dice controls at bottom (approx 140px) + top panels (approx 80px) + padding
-          maxHeight: windowWidth < 640 
-            ? 'calc(100vh - 240px)' // Mobile: controls + panels + padding
+          // Account for dice controls at bottom + top panels + safe spacing
+          maxHeight: windowWidth < 640
+            ? 'calc(100vh - 260px)' // Mobile: controls + panels + padding
+            : windowWidth < 768
+            ? 'calc(100vh - 280px)' // Tablet: extra space for larger panels
             : windowWidth >= 1536 // 2xl breakpoint (foldables/unfolded tablets)
             ? 'calc(100vh - 200px)' // Very large screens: account for controls
             : 'calc(100vh - 180px)' // Desktop: controls + padding
         }}
       >
         {/* Board Content */}
-        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', width: '100%' }}>
-        {/* Starting Area - Outside the square board, reduced width to avoid player panel overlap */}
+        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: windowWidth < 640 ? '4px' : '8px', width: '100%' }}>
+        {/* Starting Area - Outside the square board, responsive width to avoid player panel overlap */}
         {players.filter(p => p.position === 0).length > 0 && (
           <div
-            className="w-[min(70vw,400px)] md:w-[min(50vw,450px)] lg:w-[min(55vw,500px)] xl:w-[min(60vw,550px)]"
+            className={`w-[min(${windowWidth < 640 ? '90' : windowWidth < 768 ? '80' : '70'}vw,${windowWidth < 640 ? '300' : windowWidth < 768 ? '350' : '400'}px)] md:w-[min(50vw,450px)] lg:w-[min(55vw,500px)] xl:w-[min(60vw,550px)]`}
             style={{
-              minHeight: '60px',
+              minHeight: windowWidth < 640 ? '45px' : '60px',
               backgroundColor: 'rgba(16, 185, 129, 0.2)',
               border: '3px solid rgba(16, 185, 129, 0.6)',
               borderRadius: '8px',
-              padding: '8px',
+              padding: windowWidth < 640 ? '6px' : '8px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '12px',
+              gap: windowWidth < 640 ? '8px' : '12px',
               boxShadow: '0 0 20px rgba(16, 185, 129, 0.4), inset 0 0 20px rgba(0, 0, 0, 0.3)',
               position: 'relative'
             }}
           >
             <div style={{
               position: 'absolute',
-              top: '4px',
+              top: windowWidth < 640 ? '2px' : '4px',
               left: '8px',
-              fontSize: '10px',
+              fontSize: windowWidth < 640 ? '8px' : '10px',
               color: 'rgba(255, 255, 255, 0.7)',
               fontWeight: 'bold'
             }}>
               🚀 Starting Spaceport
             </div>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', marginTop: '16px' }}>
+            <div style={{ display: 'flex', gap: windowWidth < 640 ? '4px' : '8px', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', marginTop: windowWidth < 640 ? '12px' : '16px' }}>
               {players.filter(p => p.position === 0).map(player => {
                 const isAnimating = animatingPlayer === player.id;
                 const animationClass = isAnimating && animationType ? `animate-rocket-${animationType}` : '';
@@ -498,8 +500,8 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal', gameVa
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
-                      gap: '4px',
-                      padding: '4px 8px',
+                      gap: windowWidth < 640 ? '2px' : '4px',
+                      padding: windowWidth < 640 ? '2px 4px' : '4px 8px',
                       backgroundColor: 'rgba(0, 0, 0, 0.3)',
                       borderRadius: '6px',
                       border: `2px solid ${player.color.includes('yellow') ? 'rgba(253, 224, 71, 0.6)' :
@@ -511,7 +513,7 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal', gameVa
                     <div
                       className={animationClass}
                       style={{
-                        fontSize: '24px',
+                        fontSize: windowWidth < 640 ? '16px' : '24px',
                         filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 8px currentColor)',
                         animation: animationClass ? undefined : 'float 2s ease-in-out infinite',
                         lineHeight: 1
@@ -519,7 +521,7 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal', gameVa
                     >
                       {player.icon || '🚀'}
                     </div>
-                    <span style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.9)', fontWeight: 'bold' }}>
+                    <span style={{ fontSize: windowWidth < 640 ? '8px' : '10px', color: 'rgba(255, 255, 255, 0.9)', fontWeight: 'bold' }}>
                       {player.name}
                     </span>
                   </div>
@@ -531,10 +533,10 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal', gameVa
 
         {/* Game Board - always square, respects container constraints */}
         <div
-          className="w-[min(90vw,600px)] h-[min(90vw,600px)] md:w-[min(60vw,600px)] md:h-[min(60vw,600px)] lg:w-[min(70vw,600px)] lg:h-[min(70vw,600px)] xl:w-[min(90vw,600px)] xl:h-[min(90vw,600px)] 2xl:w-[min(70vw,600px)] 2xl:h-[min(70vw,600px)]"
+          className={`w-[min(${windowWidth < 640 ? '95' : windowWidth < 768 ? '90' : '90'}vw,${windowWidth < 640 ? '280' : windowWidth < 768 ? '400' : '600'}px)] h-[min(${windowWidth < 640 ? '95' : windowWidth < 768 ? '90' : '90'}vw,${windowWidth < 640 ? '280' : windowWidth < 768 ? '400' : '600'}px)] md:w-[min(60vw,600px)] md:h-[min(60vw,600px)] lg:w-[min(70vw,600px)] lg:h-[min(70vw,600px)] xl:w-[min(90vw,600px)] xl:h-[min(90vw,600px)] 2xl:w-[min(70vw,600px)] 2xl:h-[min(70vw,600px)]`}
           style={{
-            maxWidth: '600px',
-            maxHeight: '600px',
+            maxWidth: windowWidth < 640 ? '280px' : windowWidth < 768 ? '400px' : '600px',
+            maxHeight: windowWidth < 640 ? '280px' : windowWidth < 768 ? '400px' : '600px',
             // Ensure board doesn't exceed container height
             height: 'min(100%, 600px)',
             width: 'min(100%, 600px)'

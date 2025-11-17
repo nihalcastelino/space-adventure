@@ -330,14 +330,21 @@ export function useGameVariants(initialVariant = 'classic') {
       turnsOnHill: variantState.hillPositions[p.id] || 0
     }));
 
-    return variant.winCondition(
-      updatedPlayers,
-      variantState.turnCount,
-      variant.specialRules?.maxTurns,
-      checkpoints,
-      variantState.timeElapsed,
-      variant.specialRules?.timeLimit
-    );
+    // Call winCondition with only the arguments it expects
+    // Most variants only need players, but some need additional params
+    if (variant.specialRules?.maxTurns) {
+      // Variants with turn limits (Alien Hunter, Spaceport Master)
+      return variant.winCondition(updatedPlayers, variantState.turnCount, variant.specialRules.maxTurns);
+    } else if (variant.specialRules?.timeLimit) {
+      // Time Attack variant
+      return variant.winCondition(updatedPlayers, variantState.timeElapsed, variant.specialRules.timeLimit);
+    } else if (variant.specialRules?.trackCheckpoints) {
+      // Checkpoint Challenge variant
+      return variant.winCondition(updatedPlayers, checkpoints);
+    } else {
+      // Classic and simple variants - just check position
+      return variant.winCondition(updatedPlayers);
+    }
   }, [gameVariant, variantState, getCurrentVariant]);
 
   // Track checkpoint visit
