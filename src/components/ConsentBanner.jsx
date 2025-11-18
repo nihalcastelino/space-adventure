@@ -13,9 +13,31 @@ export default function ConsentBanner() {
   const [consentGiven, setConsentGiven] = useState(null);
   const [isEEAUser, setIsEEAUser] = useState(false);
 
+  // Check if user is a Google crawler/bot
+  const isGoogleCrawler = () => {
+    if (typeof navigator === 'undefined') return false;
+    const userAgent = navigator.userAgent.toLowerCase();
+    const googleBots = [
+      'googlebot',
+      'mediapartners-google',
+      'adsbot-google',
+      'google-inspectiontool',
+      'apis-google',
+      'feedfetcher-google'
+    ];
+    return googleBots.some(bot => userAgent.includes(bot));
+  };
+
   // Check if user needs consent (EEA, UK, Switzerland)
   useEffect(() => {
     const checkConsentRequirement = async () => {
+      // Google crawlers - automatically grant consent and skip banner
+      if (isGoogleCrawler()) {
+        setConsentGiven('granted');
+        initializeConsentMode(true);
+        return;
+      }
+
       // Check if consent was already given
       const savedConsent = localStorage.getItem('gdpr_consent');
       if (savedConsent) {
@@ -52,13 +74,17 @@ export default function ConsentBanner() {
             setConsentGiven('granted');
             initializeConsentMode(true);
           }
+        } else {
+          // If API fails, grant consent by default (better for crawlers)
+          setConsentGiven('granted');
+          initializeConsentMode(true);
         }
       } catch (error) {
-        console.warn('Failed to detect user location, showing consent banner:', error);
-        // If detection fails, show banner to be safe
-        setIsEEAUser(true);
-        setShowBanner(true);
-        initializeConsentMode(false);
+        // If detection fails (e.g., network error, CORS), grant consent by default
+        // This ensures crawlers and users with network issues can access the site
+        console.warn('Failed to detect user location, granting consent by default:', error);
+        setConsentGiven('granted');
+        initializeConsentMode(true);
       }
     };
 

@@ -21,6 +21,8 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     # Allow Google crawlers (important for AdSense)
     Permissions-Policy = "interest-cohort=()"
+    # Ensure Google can crawl the site
+    X-Robots-Tag = "index, follow"
 
 # Allow Google crawlers to access robots.txt and ads.txt
 [[headers]]

@@ -33,9 +33,17 @@
 
     <!-- SEO & Social Sharing -->
     <meta name="description" content="Play Space Adventure - A fun multiplayer space-themed board game. Race to position 100 with friends across devices!" />
+    <meta name="keywords" content="space adventure, board game, multiplayer game, online game, space race, strategy game" />
     <meta property="og:title" content="Space Adventure - Multiplayer Board Game" />
     <meta property="og:description" content="Race to position 100 in this space-themed multiplayer game!" />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://spacerace.games" />
+    <meta property="og:image" content="https://spacerace.games/og-image.png" />
+    
+    <!-- Additional SEO for crawlers -->
+    <meta name="robots" content="index, follow" />
+    <meta name="googlebot" content="index, follow" />
+    <link rel="canonical" href="https://spacerace.games" />
 
     <!-- Google Consent Mode v2 - Must load before any Google tags -->
     <script>
@@ -59,6 +67,33 @@
   </head>
   <body>
     <div id="root"></div>
+    
+    <!-- Fallback content for crawlers and users without JavaScript -->
+    <noscript>
+      <div style="padding: 20px; text-align: center; font-family: Arial, sans-serif; background: #000; color: #fff; min-height: 100vh;">
+        <h1 style="color: #fbbf24; margin-bottom: 20px;">Space Adventure</h1>
+        <p style="font-size: 18px; margin-bottom: 20px;">A fun multiplayer space-themed board game where you race to position 100!</p>
+        <p style="font-size: 16px; margin-bottom: 20px;">Play with friends across devices in this exciting space race adventure.</p>
+        <div style="margin-top: 40px;">
+          <h2 style="color: #fbbf24; margin-bottom: 15px;">Game Features:</h2>
+          <ul style="text-align: left; display: inline-block; list-style: none; padding: 0;">
+            <li style="margin: 10px 0;">🚀 Multiplayer online gameplay</li>
+            <li style="margin: 10px 0;">🎲 Dice-based movement</li>
+            <li style="margin: 10px 0;">👾 AI opponents</li>
+            <li style="margin: 10px 0;">⚔️ Combat system</li>
+            <li style="margin: 10px 0;">🎯 Multiple game modes</li>
+            <li style="margin: 10px 0;">🌟 Character progression</li>
+          </ul>
+        </div>
+        <p style="margin-top: 40px; font-size: 14px; color: #888;">
+          JavaScript is required to play this game. Please enable JavaScript in your browser settings.
+        </p>
+        <p style="margin-top: 20px; font-size: 14px; color: #888;">
+          Visit <a href="https://spacerace.games" style="color: #fbbf24;">spacerace.games</a> to start playing!
+        </p>
+      </div>
+    </noscript>
+    
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

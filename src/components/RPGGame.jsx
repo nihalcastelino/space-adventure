@@ -1052,7 +1052,7 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
       </div>
 
       {/* Main Game Area - Responsive layout for mobile and folding phones */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
         {/* Left Panel - Character Stats - Hidden on small screens, collapsible */}
         <div className="hidden lg:block lg:w-80 bg-gray-900 bg-opacity-90 border-r border-gray-700 p-4 overflow-y-auto">
           <h2 className="text-white font-bold text-lg mb-4 break-words">Your Character</h2>
@@ -1083,9 +1083,9 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
         </div>
 
         {/* Center - Game Board - Scrollable on mobile */}
-        <div className="flex-1 flex flex-col items-center justify-center p-2 sm:p-4 overflow-auto min-h-0">
-          <div className="w-full max-w-full h-full flex items-center justify-center">
-            <div className="w-full max-w-full h-full max-h-full flex items-center justify-center">
+        <div className="flex-1 flex flex-col items-center justify-center p-2 sm:p-4 overflow-auto min-h-0 lg:min-h-auto">
+          <div className="w-full max-w-full flex-1 flex items-center justify-center min-h-0 pb-2 lg:pb-0">
+            <div className="w-full max-w-full flex items-center justify-center min-h-0">
               <GameBoard
                 boardSize={BOARD_SIZE}
                 players={players}
@@ -1111,7 +1111,7 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
         </div>
 
         {/* Right Panel - Game Controls - Bottom on mobile, side on desktop */}
-        <div className="w-full lg:w-80 bg-gray-900 bg-opacity-90 lg:border-l border-t lg:border-t-0 border-gray-700 p-3 sm:p-4 overflow-y-auto flex flex-col max-h-[40vh] lg:max-h-none">
+        <div className="w-full lg:w-80 bg-gray-900 bg-opacity-90 lg:border-l border-t lg:border-t-0 border-gray-700 p-3 sm:p-4 overflow-y-auto flex flex-col max-h-[35vh] lg:max-h-none flex-shrink-0">
           <GameControls
             diceValue={diceValue}
             message={combatMessage || message}
