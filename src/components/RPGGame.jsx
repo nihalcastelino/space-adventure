@@ -8,6 +8,7 @@ import CharacterStatsPanel from './CharacterStatsPanel';
 import CombatOverlay from './CombatOverlay';
 import SpaceJail from './SpaceJail';
 import GameOverModal from './GameOverModal';
+import DiceOverlay from './DiceOverlay';
 import { useRPGSystem } from '../hooks/useRPGSystem';
 import { useGameSounds } from '../hooks/useGameSounds';
 import { useDifficulty } from '../hooks/useDifficulty';
@@ -1363,6 +1364,20 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
         }
         return null;
       })()}
+
+      {/* Dice Overlay - Mobile/Folding devices only */}
+      {(viewport.isMobile || viewport.isFoldingFolded) && (
+        <DiceOverlay
+          diceValue={diceValue}
+          message={combatMessage || message}
+          isRolling={isRolling}
+          onRollDice={rollDice}
+          onReset={resetGame}
+          disabled={isRolling || gameWon || gameLost || isAITurn || rpg.combatState || showTacticalAction || !character}
+          characterName={character?.name}
+          jailInfo={jeopardy.getJailState(PLAYER_ID).inJail ? jeopardy.getJailState(PLAYER_ID) : null}
+        />
+      )}
 
       {/* Game Over Modal */}
       <GameOverModal

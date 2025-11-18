@@ -62,16 +62,16 @@ export function useViewportSize() {
   const headerHeight = 60;
   
   // Controls panel height varies by device type
+  // On mobile/folding, we use floating overlay, so no height reserved
   let controlsHeight = 0;
-  if (isMobile || isFoldingFolded) {
-    controlsHeight = Math.min(viewport.height * 0.3, 200);
-  } else if (isTablet || isFoldingUnfolded) {
+  if (isTablet || isFoldingUnfolded) {
     // On tablets/unfolded, controls are on the side, so no height reserved
     controlsHeight = 0;
-  } else {
+  } else if (isDesktop) {
     // Desktop: controls on side
     controlsHeight = 0;
   }
+  // Mobile/folding: floating overlay, no height reserved
   
   const padding = isMobile || isFoldingFolded ? 16 : (isTablet || isFoldingUnfolded ? 24 : 32);
   const availableHeight = viewport.height - headerHeight - controlsHeight - (padding * 2);
