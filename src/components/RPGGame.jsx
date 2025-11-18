@@ -15,6 +15,7 @@ import { useJeopardyMechanics } from '../hooks/useJeopardyMechanics';
 import { useGameVariants, GAME_VARIANTS } from '../hooks/useGameVariants';
 import { useCurrency } from '../hooks/useCurrency';
 import { getBackgroundImage } from '../utils/backgrounds';
+import { useViewportSize } from '../hooks/useViewportSize';
 
 const DEFAULT_BOARD_SIZE = 100;
 const SPACEPORTS = {
@@ -48,6 +49,7 @@ const TACTICAL_ACTIONS = {
  */
 export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVariant = 'classic' }) {
   const { playSound } = useGameSounds();
+  const viewport = useViewportSize();
   const [showCharacterCreation, setShowCharacterCreation] = useState(true);
   const [characterCreated, setCharacterCreated] = useState(false);
 
@@ -1052,7 +1054,7 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
       </div>
 
       {/* Main Game Area - Responsive layout for mobile and folding phones */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0 max-h-full">
         {/* Left Panel - Character Stats - Hidden on small screens, collapsible */}
         <div className="hidden lg:block lg:w-80 bg-gray-900 bg-opacity-90 border-r border-gray-700 p-4 overflow-y-auto">
           <h2 className="text-white font-bold text-lg mb-4 break-words">Your Character</h2>
@@ -1083,9 +1085,16 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
         </div>
 
         {/* Center - Game Board - Scrollable on mobile */}
-        <div className="flex-1 flex flex-col items-center justify-center p-2 sm:p-4 overflow-auto min-h-0 lg:min-h-auto">
-          <div className="w-full max-w-full flex-1 flex items-center justify-center min-h-0 pb-2 lg:pb-0">
-            <div className="w-full max-w-full flex items-center justify-center min-h-0">
+        <div 
+          className="flex-1 flex flex-col items-center justify-center p-1 sm:p-2 lg:p-4 overflow-y-auto min-h-0 lg:min-h-auto"
+          style={{
+            '--board-max-width': `${viewport.maxWidth}px`,
+            '--board-max-height': `${viewport.maxHeight}px`,
+            '--board-scale': viewport.scaleFactor,
+          }}
+        >
+          <div className="w-full max-w-full flex-1 flex items-center justify-start lg:justify-center min-h-0 pb-1 lg:pb-0 overflow-y-auto overflow-x-hidden">
+            <div className="w-full max-w-full flex items-center justify-center min-h-0 py-2 lg:py-0">
               <GameBoard
                 boardSize={BOARD_SIZE}
                 players={players}
@@ -1111,7 +1120,17 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
         </div>
 
         {/* Right Panel - Game Controls - Bottom on mobile, side on desktop */}
-        <div className="w-full lg:w-80 bg-gray-900 bg-opacity-90 lg:border-l border-t lg:border-t-0 border-gray-700 p-3 sm:p-4 overflow-y-auto flex flex-col max-h-[35vh] lg:max-h-none flex-shrink-0">
+        <div 
+          className="w-full lg:w-80 bg-gray-900 bg-opacity-90 lg:border-l border-t lg:border-t-0 border-gray-700 p-2 sm:p-3 lg:p-4 overflow-y-auto flex flex-col flex-shrink-0"
+          style={{
+            '--controls-max-height': viewport.isMobile 
+              ? `${Math.min(viewport.viewport.height * 0.3, 200)}px` 
+              : 'none',
+            maxHeight: viewport.isMobile 
+              ? `${Math.min(viewport.viewport.height * 0.3, 200)}px` 
+              : 'none',
+          }}
+        >
           <GameControls
             diceValue={diceValue}
             message={combatMessage || message}
