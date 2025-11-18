@@ -1114,6 +1114,9 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
                   tacticalSquares: TACTICAL_SQUARES 
                 }}
                 rogueState={null}
+                maxWidth={viewport.maxWidth}
+                maxHeight={viewport.maxHeight}
+                scaleFactor={viewport.scaleFactor}
               />
             </div>
           </div>
@@ -1123,10 +1126,7 @@ export default function RPGGame({ onBack, initialDifficulty = 'normal', gameVari
         <div 
           className="w-full lg:w-80 bg-gray-900 bg-opacity-90 lg:border-l border-t lg:border-t-0 border-gray-700 p-2 sm:p-3 lg:p-4 overflow-y-auto flex flex-col flex-shrink-0"
           style={{
-            '--controls-max-height': viewport.isMobile 
-              ? `${Math.min(viewport.viewport.height * 0.3, 200)}px` 
-              : 'none',
-            maxHeight: viewport.isMobile 
+            maxHeight: (viewport.isMobile || viewport.isFoldingFolded)
               ? `${Math.min(viewport.viewport.height * 0.3, 200)}px` 
               : 'none',
           }}

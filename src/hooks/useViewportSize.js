@@ -48,13 +48,32 @@ export function useViewportSize() {
   const isMobile = viewport.width < 640;
   const isTablet = viewport.width >= 640 && viewport.width < 1024;
   const isDesktop = viewport.width >= 1024;
-  const isFolding = viewport.height < 700 || (viewport.width < 500 && viewport.height < 800);
+  
+  // Detect folding device states
+  // Folding device when folded (small screen)
+  const isFoldingFolded = viewport.height < 700 || (viewport.width < 500 && viewport.height < 800);
+  // Folding device when unfolded (large screen - tablet-like)
+  const isFoldingUnfolded = (viewport.width >= 640 && viewport.width < 1400) && 
+                             (viewport.height >= 800 && viewport.height < 1200) &&
+                             (aspectRatio > 1.2 && aspectRatio < 2.0);
 
   // Calculate optimal board dimensions
-  // Reserve space for: header (~60px), controls panel (~30vh on mobile), padding
+  // Reserve space for: header (~60px), controls panel, padding
   const headerHeight = 60;
-  const controlsHeight = isMobile ? Math.min(viewport.height * 0.3, 200) : 0;
-  const padding = isMobile ? 16 : 32;
+  
+  // Controls panel height varies by device type
+  let controlsHeight = 0;
+  if (isMobile || isFoldingFolded) {
+    controlsHeight = Math.min(viewport.height * 0.3, 200);
+  } else if (isTablet || isFoldingUnfolded) {
+    // On tablets/unfolded, controls are on the side, so no height reserved
+    controlsHeight = 0;
+  } else {
+    // Desktop: controls on side
+    controlsHeight = 0;
+  }
+  
+  const padding = isMobile || isFoldingFolded ? 16 : (isTablet || isFoldingUnfolded ? 24 : 32);
   const availableHeight = viewport.height - headerHeight - controlsHeight - (padding * 2);
   const availableWidth = viewport.width - (padding * 2);
 
@@ -62,9 +81,9 @@ export function useViewportSize() {
   const maxBoardSize = Math.min(availableWidth, availableHeight);
   
   // Scale factor based on available space
-  // Smaller screens get more aggressive scaling
+  // Only apply scaling on small/folded screens
   let scaleFactor = 1;
-  if (isFolding) {
+  if (isFoldingFolded) {
     // Very small screens: scale down more
     if (viewport.height < 500) {
       scaleFactor = 0.75;
@@ -73,7 +92,7 @@ export function useViewportSize() {
     } else {
       scaleFactor = 0.85;
     }
-  } else if (isMobile) {
+  } else if (isMobile && !isFoldingUnfolded) {
     if (viewport.width < 360) {
       scaleFactor = 0.85;
     } else if (viewport.width < 480) {
@@ -82,16 +101,25 @@ export function useViewportSize() {
       scaleFactor = 0.95;
     }
   }
+  // No scaling for tablets, desktops, or unfolded folding devices
 
   // Calculate max dimensions
-  const maxWidth = Math.min(
-    availableWidth * 0.95,
-    isMobile ? viewport.width * 0.98 : 800
-  );
-  const maxHeight = Math.min(
-    availableHeight * scaleFactor,
-    isMobile ? viewport.height * 0.45 : viewport.height * 0.7
-  );
+  // For larger screens, use more of the available space
+  let maxWidth, maxHeight;
+  
+  if (isMobile || isFoldingFolded) {
+    // Small screens: use most of width, limited height
+    maxWidth = Math.min(availableWidth * 0.95, viewport.width * 0.98);
+    maxHeight = Math.min(availableHeight * scaleFactor, viewport.height * 0.45);
+  } else if (isTablet || isFoldingUnfolded) {
+    // Tablets/unfolded: use more space, maintain good aspect ratio
+    maxWidth = Math.min(availableWidth * 0.85, 900);
+    maxHeight = Math.min(availableHeight * 0.85, viewport.height * 0.75);
+  } else {
+    // Desktop: use generous space
+    maxWidth = Math.min(availableWidth * 0.8, 1000);
+    maxHeight = Math.min(availableHeight * 0.8, viewport.height * 0.75);
+  }
 
   return {
     viewport,
@@ -101,7 +129,8 @@ export function useViewportSize() {
     isMobile,
     isTablet,
     isDesktop,
-    isFolding,
+    isFoldingFolded,
+    isFoldingUnfolded,
     maxBoardSize,
     maxWidth,
     maxHeight,

@@ -48,6 +48,9 @@ export default function GameBoard({
   alienBlink,
   animatedPositions = {},
   encounterType = null,
+  maxWidth,
+  maxHeight,
+  scaleFactor = 1,
   aliens = DEFAULT_ALIENS,
   checkpoints = DEFAULT_CHECKPOINTS,
   hazards = null, // Jeopardy mechanics hazards
@@ -813,9 +816,9 @@ export default function GameBoard({
       <div
         style={{
           width: '100%',
-          maxWidth: '100%',
+          maxWidth: maxWidth ? `${maxWidth}px` : '100%',
           height: '100%',
-          maxHeight: '100%',
+          maxHeight: maxHeight ? `${maxHeight}px` : '100%',
           backgroundColor: 'rgba(15, 23, 42, 0.9)',
           border: '3px solid rgba(251, 191, 36, 0.6)',
           borderRadius: '16px',
@@ -827,10 +830,14 @@ export default function GameBoard({
           boxSizing: 'border-box',
           boxShadow: '0 0 40px rgba(251, 191, 36, 0.5), inset 0 0 40px rgba(0, 0, 0, 0.7), 0 0 60px rgba(251, 191, 36, 0.2)',
           position: 'relative',
-          overflow: 'hidden',
+          overflow: 'auto',
+          overflowX: 'hidden',
           backdropFilter: 'blur(2px)',
           WebkitBackdropFilter: 'blur(2px)',
-          transformOrigin: 'center center'
+          transformOrigin: 'center top',
+          transform: scaleFactor !== 1 ? `scale(${scaleFactor})` : 'none',
+          transition: 'transform 0.2s ease-out, max-height 0.2s ease-out',
+          marginBottom: '0.5rem'
         }}
         className="board-container"
       >
