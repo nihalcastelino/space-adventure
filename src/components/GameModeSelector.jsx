@@ -66,7 +66,7 @@ export default function GameModeSelector({ onSelectMode, onUpgrade }) {
 
   return (
     <div
-      className="fixed inset-0 flex items-start sm:items-center justify-center overflow-y-auto py-8 sm:py-4"
+      className="fixed inset-0 flex items-start sm:items-center justify-center overflow-y-auto py-8 sm:py-4 px-4 sm:px-8 md:px-12"
       onClick={handleClickOutside}
       style={{
         backgroundImage: `url(/${getScreenBackground('menu')})`,
@@ -139,13 +139,13 @@ export default function GameModeSelector({ onSelectMode, onUpgrade }) {
             <span>Choose Difficulty</span>
           </h3>
           {/* Grid - 2 columns on very small screens (< 400px), 3 on small, 6 on desktop */}
-          <div className="grid grid-cols-2 min-[400px]:grid-cols-3 sm:grid-cols-3 md:grid-cols-6 gap-1.5 sm:gap-2 md:gap-3 w-full max-w-full">
+          <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2 md:gap-3 w-full max-w-full">
             <button
               onClick={() => {
                 playSound('click');
                 setDifficulty('easy');
               }}
-              className={`p-1.5 sm:p-2 md:p-4 rounded-lg transition-all transform hover:scale-105 active:scale-95 ${
+              className={`flex-grow-0 flex-shrink-0 basis-28 p-1.5 sm:p-2 md:p-4 rounded-lg transition-all transform hover:scale-105 active:scale-95 ${
                 difficulty === 'easy'
                   ? 'bg-green-600 border-2 border-green-400 shadow-lg shadow-green-500/50'
                   : 'bg-gray-800 border-2 border-gray-700 hover:border-green-400'
@@ -161,7 +161,7 @@ export default function GameModeSelector({ onSelectMode, onUpgrade }) {
                 playSound('click');
                 setDifficulty('normal');
               }}
-              className={`p-1.5 sm:p-2 md:p-4 rounded-lg transition-all transform hover:scale-105 active:scale-95 ${
+              className={`flex-grow-0 flex-shrink-0 basis-28 p-1.5 sm:p-2 md:p-4 rounded-lg transition-all transform hover:scale-105 active:scale-95 ${
                 difficulty === 'normal'
                   ? 'bg-yellow-600 border-2 border-yellow-400 shadow-lg shadow-yellow-500/50'
                   : 'bg-gray-800 border-2 border-gray-700 hover:border-yellow-400'
@@ -183,7 +183,7 @@ export default function GameModeSelector({ onSelectMode, onUpgrade }) {
                 setDifficulty('hard');
               }}
               disabled={!premium.isPremium && !freemium.canUseDifficulty('hard')}
-              className={`p-1.5 sm:p-2 md:p-4 rounded-lg transition-all transform hover:scale-105 active:scale-95 relative ${
+              className={`flex-grow-0 flex-shrink-0 basis-28 p-1.5 sm:p-2 md:p-4 rounded-lg transition-all transform hover:scale-105 active:scale-95 relative ${
                 difficulty === 'hard'
                   ? 'bg-red-600 border-2 border-red-400 shadow-lg shadow-red-500/50'
                   : premium.isPremium || freemium.canUseDifficulty('hard')
@@ -215,7 +215,7 @@ export default function GameModeSelector({ onSelectMode, onUpgrade }) {
                 setDifficulty('extreme');
               }}
               disabled={!premium.isPremium}
-              className={`p-1.5 sm:p-2 md:p-4 rounded-lg transition-all transform hover:scale-105 active:scale-95 relative ${
+              className={`flex-grow-0 flex-shrink-0 basis-28 p-1.5 sm:p-2 md:p-4 rounded-lg transition-all transform hover:scale-105 active:scale-95 relative ${
                 difficulty === 'extreme'
                   ? 'bg-orange-600 border-2 border-orange-400 shadow-lg shadow-orange-500/50'
                   : premium.isPremium
@@ -245,7 +245,7 @@ export default function GameModeSelector({ onSelectMode, onUpgrade }) {
                 setDifficulty('nightmare');
               }}
               disabled={!premium.isPremium}
-              className={`p-1.5 sm:p-2 md:p-4 rounded-lg transition-all transform hover:scale-105 active:scale-95 relative ${
+              className={`flex-grow-0 flex-shrink-0 basis-28 p-1.5 sm:p-2 md:p-4 rounded-lg transition-all transform hover:scale-105 active:scale-95 relative ${
                 difficulty === 'nightmare'
                   ? 'bg-purple-600 border-2 border-purple-400 shadow-lg shadow-purple-500/50'
                   : premium.isPremium
@@ -275,7 +275,7 @@ export default function GameModeSelector({ onSelectMode, onUpgrade }) {
                 setDifficulty('chaos');
               }}
               disabled={!premium.isPremium}
-              className={`p-1.5 sm:p-2 md:p-4 rounded-lg transition-all transform hover:scale-105 active:scale-95 relative ${
+              className={`flex-grow-0 flex-shrink-0 basis-28 p-1.5 sm:p-2 md:p-4 rounded-lg transition-all transform hover:scale-105 active:scale-95 relative ${
                 difficulty === 'chaos'
                   ? 'bg-pink-600 border-2 border-pink-400 shadow-lg shadow-pink-500/50'
                   : premium.isPremium

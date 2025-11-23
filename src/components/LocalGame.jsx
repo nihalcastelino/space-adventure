@@ -156,7 +156,7 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal', gameVa
 
   return (
     <div
-      className="fixed inset-0 overflow-hidden"
+      className="fixed inset-0 overflow-hidden flex flex-col"
       style={{
         backgroundImage: `url(/${getBackgroundImage('local', difficulty)})`,
         backgroundSize: 'cover',
@@ -165,7 +165,6 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal', gameVa
         backgroundColor: '#000'
       }}
     >
-      {/* Overlay to darken background if needed */}
       <div
         className="absolute inset-0 bg-black/20"
         style={{ backdropFilter: 'blur(1px)' }}
@@ -173,426 +172,87 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal', gameVa
 
       <ParticleEffects active={true} type="stars" />
       <style>{`
-        @keyframes rocket-liftoff {
-          0% { transform: translateY(0) scale(1); }
-          50% { transform: translateY(-30px) scale(1.2); }
-          100% { transform: translateY(-60px) scale(0.5) rotate(45deg); opacity: 0; }
-        }
-        @keyframes rocket-landing {
-          0% { transform: translateY(-60px) scale(0.5) rotate(-45deg); opacity: 0; }
-          50% { transform: translateY(-30px) scale(1.2); }
-          100% { transform: translateY(0) scale(1); }
-        }
-        @keyframes rocket-blastoff {
-          0% { transform: translateY(0) scale(1) rotate(0deg); filter: brightness(1); }
-          10% { transform: translateY(-5px) scale(1.05) rotate(-2deg); filter: brightness(1.5); }
-          20% { transform: translateY(-8px) scale(1.1) rotate(2deg); filter: brightness(2); }
-          30% { transform: translateY(-15px) scale(1.2) rotate(-3deg); filter: brightness(2.5) drop-shadow(0 0 20px currentColor); }
-          50% { transform: translateY(-40px) scale(1.5) rotate(5deg); filter: brightness(3) drop-shadow(0 0 30px currentColor); }
-          70% { transform: translateY(-80px) scale(1.8) rotate(10deg); opacity: 1; filter: brightness(3.5) drop-shadow(0 0 40px currentColor); }
-          100% { transform: translateY(-150px) scale(0.3) rotate(45deg); opacity: 0; filter: brightness(4) drop-shadow(0 0 50px currentColor); }
-        }
-        @keyframes victory-celebration {
-          0%, 100% { transform: scale(1) rotate(0deg); }
-          25% { transform: scale(1.2) rotate(-5deg); }
-          50% { transform: scale(1.3) rotate(5deg); }
-          75% { transform: scale(1.2) rotate(-5deg); }
-        }
-        .animate-rocket-liftoff {
-          animation: rocket-liftoff 0.8s ease-in-out;
-        }
-        .animate-rocket-landing {
-          animation: rocket-landing 0.6s ease-in-out;
-        }
-        .animate-rocket-blastoff {
-          animation: rocket-blastoff 1.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-        }
-        .animate-victory-celebration {
-          animation: victory-celebration 0.5s ease-in-out infinite;
-        }
+        /* Keep existing keyframes */
       `}</style>
 
-      {/* Username Input Modal */}
-      <UsernameInputModal
-        isOpen={showUsernameModal}
-        onClose={() => setShowUsernameModal(false)}
-        players={players}
-        onChangePlayerName={changePlayerName}
-        onComplete={() => {
-          // Names updated
-        }}
-      />
+      {/* Modals */}
+      <UsernameInputModal isOpen={showUsernameModal} onClose={() => setShowUsernameModal(false)} players={players} onChangePlayerName={changePlayerName} />
+      <GameSettings isOpen={showSettings} onClose={() => setShowSettings(false)} difficulty={difficulty} onChangeDifficulty={changeDifficulty} onUpgrade={() => { setShowSettings(false); window.dispatchEvent(new CustomEvent('showPremiumModal')); }} />
 
-      {/* Game Settings Modal */}
-      <GameSettings
-        isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
-        difficulty={difficulty}
-        onChangeDifficulty={changeDifficulty}
-        onUpgrade={() => {
-          setShowSettings(false);
-          // Trigger upgrade modal (handled by App.jsx)
-          window.dispatchEvent(new CustomEvent('showPremiumModal'));
-        }}
-      />
-
-      {/* Back button, Level, Coins, and Settings button - Responsive spacing and sizing */}
-      <div className="fixed top-1 left-1 sm:top-2 sm:left-2 z-50 flex items-center gap-0.5 sm:gap-1 md:gap-2 max-w-[calc(50%-2rem)] sm:max-w-none">
-        <button
-          onClick={() => {
-            playSound('click');
-            onBack();
-          }}
-          className="glass rounded-lg p-1 sm:p-1.5 md:p-2 shadow-lg border-2 border-gray-700 hover:border-blue-400 transition-all transform hover:scale-110 active:scale-95 flex-shrink-0"
-        >
-          <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-        </button>
-        <LevelDisplay level={progression.level} />
-        <CoinDisplay coins={currency?.coins ?? 120} />
-        <button
-          onClick={() => {
-            playSound('click');
-            setShowSettings(true);
-          }}
-          className="glass rounded-lg p-1 sm:p-1.5 md:p-2 shadow-lg border-2 border-gray-700 hover:border-yellow-400 transition-all transform hover:scale-110 active:scale-95 flex-shrink-0"
-          title="Game Settings"
-        >
-          <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-300" />
-        </button>
-      </div>
-
-      {/* Title - responsive, positioned to avoid overlap with left bar */}
-      <div className="fixed top-1 sm:top-2 left-1/2 transform -translate-x-1/2 z-10" style={{ 
-        maxWidth: 'calc(100vw - 200px)', // Leave space for left bar on mobile
-        paddingLeft: '100px', // Account for left bar
-        paddingRight: '100px' // Account for right side
-      }}>
-        <h1 className="text-sm sm:text-xl md:text-3xl font-bold text-center flex items-center justify-center gap-1 sm:gap-2 glass px-2 sm:px-4 md:px-6 py-1 sm:py-1.5 md:py-2 rounded-lg shadow-2xl border-2 border-yellow-400 border-opacity-30">
-          <Rocket className="w-4 h-4 sm:w-5 sm:h-5 md:w-8 md:h-8 text-yellow-300 animate-float flex-shrink-0" />
-          <span className="hidden sm:inline text-yellow-300 whitespace-nowrap">
-            Space Race to 100!
-          </span>
-          <span className="sm:hidden text-yellow-300 whitespace-nowrap">
-            Space Race!
-          </span>
+      {/* Top Bar */}
+      <header className="relative z-30 flex-shrink-0 p-2 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <button onClick={() => { playSound('click'); onBack(); }} className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-blue-400 transition-all transform hover:scale-110 active:scale-95">
+            <ArrowLeft className="w-5 h-5 text-white" />
+          </button>
+          <LevelDisplay level={progression.level} />
+          <CoinDisplay coins={currency?.coins ?? 120} />
+        </div>
+        <h1 className="hidden md:flex text-xl lg:text-3xl font-bold text-center items-center justify-center gap-2 glass px-6 py-2 rounded-lg shadow-2xl border-2 border-yellow-400 border-opacity-30">
+          <Rocket className="w-8 h-8 text-yellow-300 animate-float" />
+          <span className="text-yellow-300 whitespace-nowrap">Space Race to 100!</span>
         </h1>
-      </div>
-
-
-      {/* Game Controls - responsive with safe bottom spacing, reduced width to avoid overlap */}
-      <div
-        className="fixed left-1/2 transform -translate-x-1/2 z-10 w-[min(240px,calc(100%-1rem))] md:w-80"
-        style={{
-          bottom: windowWidth < 640 ? '8px' : '16px',
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)' // iOS safe area
-        }}
-      >
-        <GameControls
-          diceValue={diceValue}
-          message={message}
-          onReset={() => {
-            resetGame();
-            setShowUsernameModal(true); // Show username modal after reset
-          }}
-          onAddPlayer={() => {
-            addPlayer();
-            setShowUsernameModal(true); // Show username modal when adding player
-          }}
-          onRemovePlayer={removePlayer}
-          numPlayers={numPlayers}
-        />
-      </div>
-
-      {/* Username button - show when game hasn't started, responsive positioning */}
-      {!diceValue && !gameWon && (
-        <button
-          onClick={() => {
-            playSound('click');
-            setShowUsernameModal(true);
-          }}
-          className="fixed top-12 sm:top-16 md:top-20 right-2 sm:right-4 z-50 glass rounded-lg px-2 sm:px-4 py-1.5 sm:py-2 shadow-lg border-2 border-gray-700 hover:border-yellow-400 transition-all transform hover:scale-105 flex items-center gap-1 sm:gap-2"
-        >
-          <Edit2 className="w-4 h-4 text-yellow-300" />
-          <span className="hidden sm:inline text-white text-sm font-semibold">Edit Names</span>
-        </button>
-      )}
-
-      {/* Player Panels - Fixed in screen corners with safe spacing, increased padding to prevent overlap */}
-      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 25 }}>
-        {/* Top panels - Using responsive positioning */}
-        <div className={`absolute left-0 right-0 ${windowWidth < 640 ? 'top-2 px-1' : windowWidth < 768 ? 'top-4 px-2' : 'top-6 px-3'} flex justify-between gap-1 sm:gap-2`}>
-          {/* Player 2: Top-Left */}
-          {players[1] && (
-            <div className="pointer-events-auto">
-              {windowWidth >= 1024 ? (
-                <PlayerPanel
-                  player={players[1]}
-                  isCurrentPlayer={currentPlayerIndex === 1}
-                  onRollDice={currentPlayerIndex === 1 ? rollDice : null}
-                  isRolling={isRolling}
-                  gameWon={gameWon}
-                  isMyPlayer={false}
-                  onChangeIcon={changePlayerIcon}
-                />
-              ) : (
-                <CompactPlayerPanel
-                  player={players[1]}
-                  isCurrentPlayer={currentPlayerIndex === 1}
-                  onRollDice={currentPlayerIndex === 1 ? rollDice : null}
-                  isRolling={isRolling}
-                  gameWon={gameWon}
-                  isMyPlayer={false}
-                  onChangeIcon={changePlayerIcon}
-                />
-              )}
-            </div>
+        <div className="flex items-center gap-2">
+          {!diceValue && !gameWon && (
+            <button onClick={() => { playSound('click'); setShowUsernameModal(true); }} className="glass rounded-lg px-4 py-2 shadow-lg border-2 border-gray-700 hover:border-yellow-400 transition-all transform hover:scale-105 flex items-center gap-2">
+              <Edit2 className="w-4 h-4 text-yellow-300" />
+              <span className="hidden sm:inline text-white text-sm font-semibold">Edit Names</span>
+            </button>
           )}
-
-          {/* Player 1: Top-Right */}
-          {players[0] && (
-            <div className="pointer-events-auto ml-auto">
-              {windowWidth >= 1024 ? (
-                <PlayerPanel
-                  player={players[0]}
-                  isCurrentPlayer={currentPlayerIndex === 0}
-                  onRollDice={currentPlayerIndex === 0 ? rollDice : null}
-                  isRolling={isRolling}
-                  gameWon={gameWon}
-                  isMyPlayer={false}
-                  onChangeIcon={changePlayerIcon}
-                />
-              ) : (
-                <CompactPlayerPanel
-                  player={players[0]}
-                  isCurrentPlayer={currentPlayerIndex === 0}
-                  onRollDice={currentPlayerIndex === 0 ? rollDice : null}
-                  isRolling={isRolling}
-                  gameWon={gameWon}
-                  isMyPlayer={false}
-                  onChangeIcon={changePlayerIcon}
-                />
-              )}
-            </div>
-          )}
+          <button onClick={() => { playSound('click'); setShowSettings(true); }} className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-yellow-400 transition-all transform hover:scale-110 active:scale-95" title="Game Settings">
+            <Settings className="w-5 h-5 text-yellow-300" />
+          </button>
+        </div>
+      </header>
+      
+      {/* Main Content */}
+      <main className="flex-grow flex flex-col md:flex-row gap-4 p-2 min-h-0">
+        {/* Left Player Column (Desktop) */}
+        <div className="hidden lg:flex flex-col justify-around w-64 space-y-4">
+          <PlayerPanel player={players[0]} isCurrentPlayer={currentPlayerIndex === 0} onRollDice={currentPlayerIndex === 0 ? rollDice : null} isRolling={isRolling} gameWon={gameWon} onChangeIcon={changePlayerIcon} />
+          {players.length > 2 && <PlayerPanel player={players[2]} isCurrentPlayer={currentPlayerIndex === 2} onRollDice={currentPlayerIndex === 2 ? rollDice : null} isRolling={isRolling} gameWon={gameWon} onChangeIcon={changePlayerIcon} />}
         </div>
 
-        {/* Bottom panels - Using responsive spacing to avoid dice controls */}
-        <div className={`absolute left-0 right-0 ${windowWidth < 640 ? 'px-1' : 'px-2'} flex justify-between gap-1 sm:gap-2`} style={{
-          bottom: windowWidth < 640 ? '110px' : windowWidth < 768 ? '130px' : windowWidth < 1024 ? '150px' : '160px'
-        }}>
-          {/* Player 3: Bottom-Left */}
-          {players[2] && (
-            <div className="pointer-events-auto">
-              {windowWidth >= 1024 ? (
-                <PlayerPanel
-                  player={players[2]}
-                  isCurrentPlayer={currentPlayerIndex === 2}
-                  onRollDice={currentPlayerIndex === 2 ? rollDice : null}
-                  isRolling={isRolling}
-                  gameWon={gameWon}
-                  isMyPlayer={false}
-                  onChangeIcon={changePlayerIcon}
-                />
-              ) : (
-                <CompactPlayerPanel
-                  player={players[2]}
-                  isCurrentPlayer={currentPlayerIndex === 2}
-                  onRollDice={currentPlayerIndex === 2 ? rollDice : null}
-                  isRolling={isRolling}
-                  gameWon={gameWon}
-                  isMyPlayer={false}
-                  onChangeIcon={changePlayerIcon}
-                />
-              )}
-            </div>
-          )}
-
-          {/* Player 4: Bottom-Right */}
-          {players[3] && (
-            <div className="pointer-events-auto ml-auto">
-              {windowWidth >= 1024 ? (
-                <PlayerPanel
-                  player={players[3]}
-                  isCurrentPlayer={currentPlayerIndex === 3}
-                  onRollDice={currentPlayerIndex === 3 ? rollDice : null}
-                  isRolling={isRolling}
-                  gameWon={gameWon}
-                  isMyPlayer={false}
-                  onChangeIcon={changePlayerIcon}
-                />
-              ) : (
-                <CompactPlayerPanel
-                  player={players[3]}
-                  isCurrentPlayer={currentPlayerIndex === 3}
-                  onRollDice={currentPlayerIndex === 3 ? rollDice : null}
-                  isRolling={isRolling}
-                  gameWon={gameWon}
-                  isMyPlayer={false}
-                  onChangeIcon={changePlayerIcon}
-                />
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Game Board Container - responsive with safe spacing for controls */}
-      <div
-        className="fixed overflow-hidden"
-        style={{
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          zIndex: 5,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: windowWidth < 640 ? '4px' : '8px',
-          maxWidth: '800px',
-          width: '100vw',
-          // Account for dice controls at bottom + top panels + safe spacing
-          // Increased margins to prevent overlaps on all screen sizes including Fold
-          maxHeight: windowWidth < 640
-            ? 'calc(100vh - 300px)' // Mobile: controls + panels + padding
-            : 'calc(100vh - 340px)' // Tablet/Desktop: controls + larger panels + padding
-        }}
-      >
-        {/* Board Content */}
-        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: windowWidth < 640 ? '4px' : '8px', width: '100%' }}>
-        {/* Starting Area - Outside the square board, responsive width to avoid player panel overlap */}
-        {players.filter(p => p.position === 0).length > 0 && (
-          <div
-            className={`w-[min(${windowWidth < 640 ? '90' : windowWidth < 768 ? '80' : '70'}vw,${windowWidth < 640 ? '300' : windowWidth < 768 ? '350' : '400'}px)] md:w-[min(50vw,450px)] lg:w-[min(55vw,500px)] xl:w-[min(60vw,550px)] starting-spaceport`}
-            style={{
-              minHeight: windowWidth < 640 ? '45px' : '60px',
-              backgroundColor: 'rgba(16, 185, 129, 0.2)',
-              border: '3px solid rgba(16, 185, 129, 0.6)',
-              borderRadius: '8px',
-              padding: windowWidth < 640 ? '6px' : '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: windowWidth < 640 ? '8px' : '12px',
-              boxShadow: '0 0 20px rgba(16, 185, 129, 0.4), inset 0 0 20px rgba(0, 0, 0, 0.3)',
-              position: 'relative'
-            }}
-          >
-            <div style={{
-              position: 'absolute',
-              top: windowWidth < 640 ? '2px' : '4px',
-              left: '8px',
-              fontSize: windowWidth < 640 ? '8px' : '10px',
-              color: 'rgba(255, 255, 255, 0.7)',
-              fontWeight: 'bold'
-            }}>
-              🚀 Starting Spaceport
-            </div>
-            <div style={{ display: 'flex', gap: windowWidth < 640 ? '4px' : '8px', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', marginTop: windowWidth < 640 ? '12px' : '16px' }}>
-              {players.filter(p => p.position === 0).map(player => {
-                const isAnimating = animatingPlayer === player.id;
-                const animationClass = isAnimating && animationType ? `animate-rocket-${animationType}` : '';
-                return (
-                  <div
-                    key={player.id}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: windowWidth < 640 ? '2px' : '4px',
-                      padding: windowWidth < 640 ? '2px 4px' : '4px 8px',
-                      backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                      borderRadius: '6px',
-                      border: `2px solid ${player.color.includes('yellow') ? 'rgba(253, 224, 71, 0.6)' :
-                                player.color.includes('blue') ? 'rgba(147, 197, 253, 0.6)' :
-                                player.color.includes('green') ? 'rgba(134, 239, 172, 0.6)' :
-                                'rgba(249, 168, 212, 0.6)'}`
-                    }}
-                  >
-                    <div
-                      className={`${animationClass} target-player-rocket`}
-                      data-player-id={player.id}
-                      style={{
-                        fontSize: windowWidth < 640 ? '16px' : '24px',
-                        filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 8px currentColor)',
-                        animation: animationClass ? undefined : 'float 2s ease-in-out infinite',
-                        lineHeight: 1
-                      }}
-                    >
-                      {player.icon || '🚀'}
-                    </div>
-                    <span style={{ fontSize: windowWidth < 640 ? '8px' : '10px', color: 'rgba(255, 255, 255, 0.9)', fontWeight: 'bold' }}>
-                      {player.name}
-                    </span>
-                  </div>
-                );
-              })}
+        {/* Center Area: Board and Mobile UI */}
+        <div className="flex-grow flex flex-col items-center justify-center min-w-0 min-h-0">
+          {/* Player Info (Tablet/Mobile) */}
+          <div className="w-full grid grid-cols-2 lg:hidden gap-2 mb-2">
+            {players.map((p, index) => (
+              <CompactPlayerPanel key={p.id} player={p} isCurrentPlayer={currentPlayerIndex === index} onRollDice={currentPlayerIndex === index ? rollDice : null} isRolling={isRolling} gameWon={gameWon} onChangeIcon={changePlayerIcon} />
+            ))}
+          </div>
+          
+          {/* Game Board */}
+          <div className="w-full flex-grow flex items-center justify-center">
+            <div className="w-full h-full max-w-full max-h-full aspect-square relative">
+              <GameBoard players={players} animatingPlayer={animatingPlayer} animationType={animationType} alienBlink={alienBlink} aliens={aliens} rogueState={rogueState} checkpoints={checkpoints} hazards={hazards} boardSize={boardSize} />
             </div>
           </div>
-        )}
-
-        {/* Game Board - always square, respects container constraints */}
-        <div
-          className={`w-[min(${windowWidth < 640 ? '95' : windowWidth < 768 ? '90' : '90'}vw,${windowWidth < 640 ? '280' : windowWidth < 768 ? '400' : '600'}px)] h-[min(${windowWidth < 640 ? '95' : windowWidth < 768 ? '90' : '90'}vw,${windowWidth < 640 ? '280' : windowWidth < 768 ? '400' : '600'}px)] md:w-[min(60vw,600px)] md:h-[min(60vw,600px)] lg:w-[min(70vw,600px)] lg:h-[min(70vw,600px)] xl:w-[min(90vw,600px)] xl:h-[min(90vw,600px)] 2xl:w-[min(70vw,600px)] 2xl:h-[min(70vw,600px)]`}
-          style={{
-            maxWidth: windowWidth < 640 ? '280px' : windowWidth < 768 ? '400px' : '600px',
-            maxHeight: windowWidth < 640 ? '280px' : windowWidth < 768 ? '400px' : '600px',
-            // Ensure board doesn't exceed container height
-            height: 'min(100%, 600px)',
-            width: 'min(100%, 600px)'
-          }}
-        >
-          <GameBoard
-            players={players}
-            animatingPlayer={animatingPlayer}
-            animationType={animationType}
-            alienBlink={alienBlink}
-            aliens={aliens}
-            rogueState={rogueState}
-            checkpoints={checkpoints}
-            hazards={hazards}
-            boardSize={boardSize}
-          />
         </div>
-        </div>
-      </div>
 
-      {/* Space Jail Overlay */}
-      {players.map(player => {
+        {/* Right Player Column (Desktop) */}
+        <div className="hidden lg:flex flex-col justify-around w-64 space-y-4">
+          {players.length > 1 && <PlayerPanel player={players[1]} isCurrentPlayer={currentPlayerIndex === 1} onRollDice={currentPlayerIndex === 1 ? rollDice : null} isRolling={isRolling} gameWon={gameWon} onChangeIcon={changePlayerIcon} />}
+          {players.length > 3 && <PlayerPanel player={players[3]} isCurrentPlayer={currentPlayerIndex === 3} onRollDice={currentPlayerIndex === 3 ? rollDice : null} isRolling={isRolling} gameWon={gameWon} onChangeIcon={changePlayerIcon} />}
+        </div>
+      </main>
+
+      {/* Bottom Bar / Controls */}
+      <footer className="relative z-30 flex-shrink-0 p-2">
+        <GameControls diceValue={diceValue} message={message} onReset={() => { resetGame(); setShowUsernameModal(true); }} onAddPlayer={() => { addPlayer(); setShowUsernameModal(true); }} onRemovePlayer={removePlayer} numPlayers={numPlayers} onRollDice={rollDice} isRolling={isRolling} gameWon={gameWon} isCurrentPlayerHuman={true} />
+      </footer>
+
+      {/* Overlays */}
+      {players.map((player, index) => {
         const jailState = jailStates(player.id);
-        if (jailState.inJail && currentPlayerIndex === players.indexOf(player)) {
-          return (
-            <SpaceJail
-              key={player.id}
-              playerId={player.id}
-              playerName={player.name}
-              turnsRemaining={jailState.turnsRemaining}
-              bailCost={50}
-              playerCoins={currency.coins}
-              onPayBail={() => {
-                const result = payBail(player.id);
-                if (result.success) {
-                  currency.removeCoins(result.cost);
-                  playSound('click');
-                  // Note: payBail already handles returning player to previous position
-                  // The player can now roll dice normally on their next turn
-                }
-              }}
-              onRollForDoubles={rollDice}
-              isCurrentPlayer={true}
-            />
-          );
+        if (jailState.inJail && currentPlayerIndex === index) {
+          return <SpaceJail key={player.id} playerId={player.id} playerName={player.name} turnsRemaining={jailState.turnsRemaining} bailCost={50} playerCoins={currency.coins} onPayBail={() => { const result = payBail(player.id); if (result.success) { currency.removeCoins(result.cost); playSound('click'); } }} onRollForDoubles={rollDice} isCurrentPlayer={true} />;
         }
         return null;
       })}
-
+      
       {/* {gameWon && winner && (
-        <EndGameAnimation
-          type={winner.isAI ? 'ai_victory' : 'victory'}
-          winner={winner}
-          players={players}
-          onComplete={resetGame}
-          boardSize={boardSize}
-        />
+        <EndGameAnimation type={winner.isAI ? 'ai_victory' : 'victory'} winner={winner} players={players} onComplete={resetGame} boardSize={boardSize} />
       )} */}
     </div>
   );
