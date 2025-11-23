@@ -14,12 +14,14 @@ import { useProgression } from '../hooks/useProgression';
 import { useCurrency } from '../hooks/useCurrency';
 import { CoinDisplay, LevelDisplay } from './PowerUpUI';
 import LevelUpAnimation from './LevelUpAnimation';
+import EndGameAnimation from './EndGameAnimation';
 import { getBackgroundImage } from '../utils/backgrounds';
 
 export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficulty = 'medium', gameVariant = 'classic', randomizationSeed = null }) {
   const { playSound } = useGameSounds();
   const [showSettings, setShowSettings] = useState(false);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+  const [demoWinType, setDemoWinType] = useState(null); // For debugging end animations
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -70,6 +72,11 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
 
   // In AI mode, player at index 1 is always the AI
   const isAITurn = currentPlayerIndex === 1;
+
+  // Force losing players to position 0 for visual display when AI wins
+  const displayPlayers = gameWon && winner?.isAI 
+    ? players.map(p => p.id === winner.id ? p : { ...p, position: 0 })
+    : players;
 
   const { aiPersonality, isAIThinking, takeAITurn, getAIMessage } = useAIOpponent(
     aiDifficulty,
@@ -143,6 +150,24 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
           <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-300" />
         </button>
       </div>
+
+      {/* DEBUG: Demo End Animations (Temporary) */}
+      {/* {process.env.NODE_ENV === 'development' && (
+        <div className="fixed top-12 right-2 z-50 flex flex-col gap-1 opacity-50 hover:opacity-100 transition-opacity">
+          <button
+            onClick={() => setDemoWinType('victory')}
+            className="px-2 py-1 bg-green-800 text-white text-xs rounded shadow"
+          >
+            Demo Win
+          </button>
+          <button
+            onClick={() => setDemoWinType('ai_victory')}
+            className="px-2 py-1 bg-red-800 text-white text-xs rounded shadow"
+          >
+            Demo AI Win
+          </button>
+        </div>
+      )} */}
 
       {/* Title - responsive, positioned to avoid overlap with left bar */}
       <div className="fixed top-1 sm:top-2 left-1/2 transform -translate-x-1/2 z-10" style={{ 
@@ -253,19 +278,18 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
           gap: '8px',
           maxWidth: '800px',
           width: '100vw',
-          // Account for dice controls at bottom (approx 140px) + top panels (approx 80px) + padding
+          // Account for dice controls at bottom (approx 140px) + top panels (approx 100px) + padding
+          // Increased safety margins to prevent overlap on Fold/Tablet devices
           maxHeight: windowWidth < 640 
-            ? 'calc(100vh - 240px)' // Mobile: controls + panels + padding
-            : windowWidth >= 1536 // 2xl breakpoint (foldables/unfolded tablets)
-            ? 'calc(100vh - 200px)' // Very large screens: account for controls
-            : 'calc(100vh - 180px)' // Desktop: controls + padding
+            ? 'calc(100vh - 280px)' // Mobile: controls + panels + padding
+            : 'calc(100vh - 320px)' // Desktop/Tablet: controls + larger panels + padding
         }}
       >
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', width: '100%' }}>
           {/* Starting Area */}
-          {players.filter(p => p.position === 0).length > 0 && (
+          {displayPlayers.filter(p => p.position === 0).length > 0 && (
             <div
-              className="w-[min(70vw,400px)] md:w-[min(50vw,450px)] lg:w-[min(55vw,500px)] xl:w-[min(60vw,550px)]"
+              className="w-[min(70vw,400px)] md:w-[min(50vw,450px)] lg:w-[min(55vw,500px)] xl:w-[min(60vw,550px)] starting-spaceport"
               style={{
                 minHeight: '60px',
                 backgroundColor: 'rgba(16, 185, 129, 0.2)',
@@ -291,7 +315,7 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
                 🚀 Starting Spaceport
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', marginTop: '16px' }}>
-                {players.filter(p => p.position === 0).map(player => {
+                {displayPlayers.filter(p => p.position === 0).map(player => {
                   const isAnimating = animatingPlayer === player.id;
                   const animationClass = isAnimating && animationType ? `animate-rocket-${animationType}` : '';
                   return (
@@ -312,7 +336,9 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
                         <Bot className={`text-red-300 ${animationClass}`} style={{ width: '24px', height: '24px' }} />
                       ) : (
                         <div
-                          className={animationClass}
+                          className={`${animationClass} target-player-rocket`}
+                          data-player-id={player.id}
+                          data-is-ai={player.isAI}
                           style={{
                             fontSize: '24px',
                             filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 8px currentColor)',
@@ -345,7 +371,7 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
             }}
           >
             <GameBoard
-              players={players}
+              players={displayPlayers}
               animatingPlayer={animatingPlayer}
               animationType={animationType}
               alienBlink={alienBlink}
@@ -364,6 +390,19 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
         isActive={showLevelUp}
         onComplete={() => setShowLevelUp(false)}
       />
+
+      {/* {(gameWon && winner || demoWinType) && (
+        <EndGameAnimation
+          type={demoWinType || (winner?.isAI ? 'ai_victory' : 'victory')}
+          winner={winner || (demoWinType === 'ai_victory' ? { isAI: true, name: 'AI' } : { name: 'Player' })}
+          players={players}
+          onComplete={() => {
+            if (demoWinType) setDemoWinType(null);
+            else resetGame();
+          }}
+          boardSize={boardSize}
+        />
+      )} */}
 
       {/* Space Jail Overlay */}
       {players.map(player => {

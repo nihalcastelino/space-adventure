@@ -15,6 +15,7 @@ import { useLeaderboard } from '../hooks/useLeaderboard';
 import { useGameHistory } from '../hooks/useGameHistory';
 import { CoinDisplay, LevelDisplay } from './PowerUpUI';
 import LevelUpAnimation from './LevelUpAnimation';
+import EndGameAnimation from './EndGameAnimation';
 import UsernameInputModal from './UsernameInputModal';
 import { getBackgroundImage } from '../utils/backgrounds';
 
@@ -450,13 +451,10 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal', gameVa
           maxWidth: '800px',
           width: '100vw',
           // Account for dice controls at bottom + top panels + safe spacing
+          // Increased margins to prevent overlaps on all screen sizes including Fold
           maxHeight: windowWidth < 640
-            ? 'calc(100vh - 260px)' // Mobile: controls + panels + padding
-            : windowWidth < 768
-            ? 'calc(100vh - 280px)' // Tablet: extra space for larger panels
-            : windowWidth >= 1536 // 2xl breakpoint (foldables/unfolded tablets)
-            ? 'calc(100vh - 200px)' // Very large screens: account for controls
-            : 'calc(100vh - 180px)' // Desktop: controls + padding
+            ? 'calc(100vh - 300px)' // Mobile: controls + panels + padding
+            : 'calc(100vh - 340px)' // Tablet/Desktop: controls + larger panels + padding
         }}
       >
         {/* Board Content */}
@@ -464,7 +462,7 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal', gameVa
         {/* Starting Area - Outside the square board, responsive width to avoid player panel overlap */}
         {players.filter(p => p.position === 0).length > 0 && (
           <div
-            className={`w-[min(${windowWidth < 640 ? '90' : windowWidth < 768 ? '80' : '70'}vw,${windowWidth < 640 ? '300' : windowWidth < 768 ? '350' : '400'}px)] md:w-[min(50vw,450px)] lg:w-[min(55vw,500px)] xl:w-[min(60vw,550px)]`}
+            className={`w-[min(${windowWidth < 640 ? '90' : windowWidth < 768 ? '80' : '70'}vw,${windowWidth < 640 ? '300' : windowWidth < 768 ? '350' : '400'}px)] md:w-[min(50vw,450px)] lg:w-[min(55vw,500px)] xl:w-[min(60vw,550px)] starting-spaceport`}
             style={{
               minHeight: windowWidth < 640 ? '45px' : '60px',
               backgroundColor: 'rgba(16, 185, 129, 0.2)',
@@ -511,7 +509,8 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal', gameVa
                     }}
                   >
                     <div
-                      className={animationClass}
+                      className={`${animationClass} target-player-rocket`}
+                      data-player-id={player.id}
                       style={{
                         fontSize: windowWidth < 640 ? '16px' : '24px',
                         filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 8px currentColor)',
@@ -585,6 +584,16 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal', gameVa
         }
         return null;
       })}
+
+      {/* {gameWon && winner && (
+        <EndGameAnimation
+          type={winner.isAI ? 'ai_victory' : 'victory'}
+          winner={winner}
+          players={players}
+          onComplete={resetGame}
+          boardSize={boardSize}
+        />
+      )} */}
     </div>
   );
 }

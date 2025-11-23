@@ -88,19 +88,31 @@ export default function DiceOverlay({
         </div>
 
         {/* Dice Display */}
-        <div className="bg-gray-800 bg-opacity-70 p-4 rounded-lg mb-3 text-center border border-yellow-400 border-opacity-30 relative">
+        <div className="bg-gray-800 bg-opacity-70 p-4 rounded-lg mb-3 text-center border border-yellow-400 border-opacity-30 relative perspective-[1000px]">
           <div className="text-xs text-gray-400 mb-1">Dice Roll</div>
           <div
-            className={`text-5xl font-bold text-white transition-all duration-300 relative z-10 ${
-              diceRolling ? 'animate-bounce scale-110' : 'scale-100'
+            className={`text-5xl font-bold text-white transition-all duration-500 relative z-10 inline-block transform-style-3d ${
+              diceRolling ? 'animate-dice-spin' : 'scale-100'
             }`}
             style={{
               textShadow: '0 0 20px rgba(255, 255, 255, 0.5), 0 0 40px rgba(59, 130, 246, 0.5)'
             }}
           >
-            {diceValue || (isRolling ? '...' : '?')}
+            {diceValue || (isRolling ? '🎲' : '?')}
           </div>
-          {diceValue && (
+          <style>{`
+            @keyframes dice-spin {
+               0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg); }
+               25% { transform: rotateX(90deg) rotateY(90deg) rotateZ(45deg); }
+               50% { transform: rotateX(180deg) rotateY(180deg) rotateZ(90deg); }
+               75% { transform: rotateX(270deg) rotateY(270deg) rotateZ(135deg); }
+               100% { transform: rotateX(360deg) rotateY(360deg) rotateZ(180deg); }
+            }
+            .animate-dice-spin {
+              animation: dice-spin 0.5s linear infinite;
+            }
+          `}</style>
+          {diceValue && !diceRolling && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
               <div className="w-20 h-20 border-4 border-blue-400 border-opacity-40 rounded-full animate-ping opacity-50"></div>
             </div>

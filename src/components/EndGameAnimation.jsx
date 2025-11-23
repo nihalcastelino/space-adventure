@@ -8,12 +8,13 @@ import { useEffect, useState, useRef } from 'react';
  * - Defeat: Alien armada descends and destroys the board
  */
 export default function EndGameAnimation({ 
-  type, // 'victory' or 'defeat'
+  type, // 'victory', 'defeat', or 'ai_victory'
+  winner, // Winner object
+  players = [], // Array of players with positions
   onComplete,
   boardSize = 100 // Board size to render destruction
 }) {
   const canvasRef = useRef(null);
-  const [phase, setPhase] = useState(0); // 0: animation, 1: game over screen
   const [showGameOver, setShowGameOver] = useState(false);
 
   useEffect(() => {
@@ -25,118 +26,123 @@ export default function EndGameAnimation({
     let frameCount = 0;
 
     const resizeCanvas = () => {
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
     };
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
     // Animation particles/effects
     const effects = [];
+    
+    // Determine actual animation type based on winner if not explicitly set
+    const animType = type || (winner?.isAI || winner?.name?.includes('AI') || winner?.name?.includes('Bot') ? 'ai_victory' : 'victory');
 
-    if (type === 'defeat') {
-      // Create board cells for destruction
-      const cols = 10;
-      const rows = Math.ceil(boardSize / cols);
-      const padding = 40; // More padding for visibility
-      const availableWidth = canvas.width - padding * 2;
-      const availableHeight = canvas.height - padding * 2;
-      const cellWidth = availableWidth / cols;
-      const cellHeight = availableHeight / rows;
-      
-      // Ensure minimum cell size
-      const minCellSize = 20;
-      const actualCellWidth = Math.max(cellWidth - 4, minCellSize);
-      const actualCellHeight = Math.max(cellHeight - 4, minCellSize);
-      
-      for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < cols; col++) {
-          const cellNumber = row * cols + col + 1;
-          if (cellNumber > boardSize) continue;
+    // Reduced delay for immediate action
+    const ATTACK_START = 30; 
+
+    if (animType === 'defeat' || animType === 'ai_victory') {
+      // Find and target actual player rocket DOM elements
+      const rocketElements = document.querySelectorAll('.target-player-rocket');
+      const playerTargets = [];
+
+      rocketElements.forEach(el => {
+          const isAI = el.getAttribute('data-is-ai') === 'true';
+          const playerId = el.getAttribute('data-player-id');
           
-          const isEvenRow = row % 2 === 0;
-          const actualCol = isEvenRow ? col : (cols - 1 - col);
-          const x = padding + (actualCol / cols) * availableWidth;
-          const y = padding + ((rows - 1 - row) / rows) * availableHeight;
-          
+          // Target non-AI players in AI victory, or everyone in defeat
+          if ((animType === 'ai_victory' && !isAI) || animType === 'defeat') {
+              const rect = el.getBoundingClientRect();
+              const styles = window.getComputedStyle(el);
+              
+              playerTargets.push({
+                  id: playerId,
+                  originalElement: el,
+                  // Initial coords
+                  x: rect.left + rect.width / 2,
+                  y: rect.top + rect.height / 2,
+                  width: rect.width,
+                  height: rect.height,
+                  // Visuals
+                  color: styles.color || '#FFF',
+                  fontSize: parseFloat(styles.fontSize) || 24,
+                  icon: el.textContent || '🚀',
+                  // State
+                  destroyed: false,
+                  destroyFrame: ATTACK_START + Math.random() * 30 + 20,
+                  particles: []
+              });
+          }
+      });
+
+      // Find Spaceport
+      const spaceportEl = document.querySelector('.starting-spaceport');
+      if (spaceportEl) {
+          const rect = spaceportEl.getBoundingClientRect();
           effects.push({
-            type: 'boardCell',
-            cellNumber,
-            x: x + actualCellWidth / 2,
-            y: y + actualCellHeight / 2,
-            width: actualCellWidth,
-            height: actualCellHeight,
+            type: 'spaceportTarget',
+            originalElement: spaceportEl,
+            x: rect.left + rect.width / 2,
+            y: rect.top + rect.height / 2,
+            width: rect.width,
+            height: rect.height,
             destroyed: false,
-            destroyFrame: Math.random() * 250 + 100, // Random destruction timing (100-350 frames)
-            rotation: 0,
-            rotationSpeed: (Math.random() - 0.5) * 0.15,
-            vx: 0,
-            vy: 0,
-            particles: [],
-            originalX: x + actualCellWidth / 2,
-            originalY: y + actualCellHeight / 2
+            destroyFrame: ATTACK_START + 60,
+            particles: []
           });
-        }
       }
 
-      // Alien armada - create alien ships
-      for (let i = 0; i < 20; i++) {
-        effects.push({
-          type: 'alien',
-          x: Math.random() * canvas.width,
-          y: -50 - Math.random() * 200,
-          speed: Math.random() * 2 + 1,
-          size: Math.random() * 20 + 15,
-          rotation: Math.random() * Math.PI * 2
-        });
-      }
-
-      // Missiles targeting board cells
-      for (let i = 0; i < 40; i++) {
-        const targetCell = effects.find(e => e.type === 'boardCell' && !e.destroyed);
-        if (targetCell) {
+      // Add player targets to effects list
+      playerTargets.forEach(target => {
           effects.push({
-            type: 'missile',
+            type: 'playerTarget',
+            ...target
+          });
+      });
+      
+      // Initialize Armada
+      if (animType === 'defeat') {
+          for (let i = 0; i < 20; i++) {
+            effects.push({
+                type: 'alien',
+                x: Math.random() * canvas.width,
+                y: -50 - Math.random() * 200,
+                speed: Math.random() * 2 + 2, // Faster
+                size: Math.random() * 20 + 15,
+                rotation: Math.random() * Math.PI * 2,
+                delay: ATTACK_START
+            });
+        }
+      } else if (animType === 'ai_victory') {
+        for (let i = 0; i < 30; i++) { // More ships
+          effects.push({
+            type: 'ai_ship',
             x: Math.random() * canvas.width,
-            y: -10 - Math.random() * 100,
-            speed: Math.random() * 3 + 2,
-            targetX: targetCell.x + (Math.random() - 0.5) * targetCell.width,
-            targetY: targetCell.y + (Math.random() - 0.5) * targetCell.height,
-            exploded: false,
-            targetCell: targetCell
+            y: -50 - Math.random() * 250, // Start closer
+            speed: Math.random() * 3 + 2, // Faster descent
+            size: Math.random() * 25 + 20,
+            rotation: Math.random() * Math.PI * 2,
+            shipType: Math.floor(Math.random() * 3),
+            fireCooldown: Math.random() * 30 + 10, // Fire sooner
+            delay: 0 // No delay, start descending immediately
           });
         }
       }
 
-      // Energy beams
-      for (let i = 0; i < 15; i++) {
-        effects.push({
-          type: 'beam',
-          x: Math.random() * canvas.width,
-          y: 0,
-          width: Math.random() * 5 + 3,
-          length: 0,
-          maxLength: Math.random() * canvas.height * 0.8 + canvas.height * 0.2,
-          speed: Math.random() * 10 + 5,
-          color: `hsl(${Math.random() * 60 + 0}, 100%, 50%)`
-        });
-      }
     } else {
-      // Victory - fireworks and celebration
-      for (let i = 0; i < 15; i++) {
+      // Victory Setup (Fireworks)
+      for (let i = 0; i < 20; i++) {
         effects.push({
           type: 'firework',
           x: Math.random() * canvas.width,
           y: canvas.height + 50,
           targetY: Math.random() * canvas.height * 0.6 + canvas.height * 0.1,
-          speed: Math.random() * 3 + 2,
+          speed: Math.random() * 4 + 3,
           exploded: false,
           particles: []
         });
       }
-
-      // Stars/confetti
-      for (let i = 0; i < 50; i++) {
+      for (let i = 0; i < 60; i++) {
         effects.push({
           type: 'star',
           x: Math.random() * canvas.width,
@@ -150,334 +156,274 @@ export default function EndGameAnimation({
     }
 
     const animate = () => {
+      // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       frameCount++;
-
-      if (type === 'defeat') {
-        // Draw board background first (before darkening)
-        const boardPadding = 40;
-        ctx.fillStyle = 'rgba(15, 23, 42, 1)'; // Fully opaque
-        ctx.fillRect(boardPadding, boardPadding, canvas.width - boardPadding * 2, canvas.height - boardPadding * 2);
-        ctx.strokeStyle = 'rgba(251, 191, 36, 1)'; // Fully opaque gold border
-        ctx.lineWidth = 5;
-        ctx.strokeRect(boardPadding, boardPadding, canvas.width - boardPadding * 2, canvas.height - boardPadding * 2);
-
-        // Draw and destroy board cells
-        effects.filter(e => e.type === 'boardCell').forEach(cell => {
-          if (!cell.destroyed && frameCount >= cell.destroyFrame) {
-            cell.destroyed = true;
-            cell.vx = (Math.random() - 0.5) * 3;
-            cell.vy = (Math.random() - 0.5) * 3;
-            
-            // Create destruction particles
-            for (let i = 0; i < 12; i++) {
-              cell.particles.push({
-                x: cell.x,
-                y: cell.y,
-                vx: (Math.random() - 0.5) * 6,
-                vy: (Math.random() - 0.5) * 6,
-                life: 50,
-                size: Math.random() * 4 + 2,
-                color: `hsl(${Math.random() * 60 + 0}, 100%, ${50 + Math.random() * 50}%)`
-              });
-            }
-          }
-          
-          if (!cell.destroyed) {
-            // Draw intact cell with proper styling
-            const timeUntilDestroy = cell.destroyFrame - frameCount;
-            const pulseAlpha = timeUntilDestroy < 30 ? 0.7 + Math.sin(frameCount * 0.3) * 0.2 : 1;
-            
-            ctx.save();
-            ctx.translate(cell.x, cell.y);
-            ctx.globalAlpha = pulseAlpha;
-            
-            // Cell background - make it fully visible
-            ctx.fillStyle = 'rgba(31, 41, 55, 1)'; // Fully opaque dark gray
-            ctx.fillRect(-cell.width / 2, -cell.height / 2, cell.width, cell.height);
-            
-            // Cell border - thicker and more visible
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; // Bright white border
-            ctx.lineWidth = 2;
-            ctx.strokeRect(-cell.width / 2, -cell.height / 2, cell.width, cell.height);
-            
-            // Cell number - larger and more visible
-            ctx.fillStyle = 'rgba(255, 255, 255, 1)'; // Fully opaque white
-            const fontSize = Math.max(14, Math.min(cell.width * 0.4, cell.height * 0.4, 24));
-            ctx.font = `bold ${fontSize}px Arial`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(cell.cellNumber.toString(), 0, 0);
-            
-            ctx.restore();
-          } else {
-            // Draw destroyed cell fragments
-            cell.x += cell.vx;
-            cell.y += cell.vy;
-            cell.rotation += cell.rotationSpeed;
-            cell.vx *= 0.97;
-            cell.vy *= 0.97;
-            
-            const timeSinceDestroy = frameCount - cell.destroyFrame;
-            const alpha = Math.max(0, 1 - timeSinceDestroy / 120);
-            
-            ctx.save();
-            ctx.translate(cell.x, cell.y);
-            ctx.rotate(cell.rotation);
-            ctx.globalAlpha = alpha * 0.4;
-            
-            // Draw broken cell fragment
-            ctx.fillStyle = 'rgba(239, 68, 68, 0.6)';
-            ctx.fillRect(-cell.width / 2, -cell.height / 2, cell.width, cell.height);
-            
-            // Crack lines
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(-cell.width / 2, -cell.height / 2);
-            ctx.lineTo(cell.width / 2, cell.height / 2);
-            ctx.moveTo(cell.width / 2, -cell.height / 2);
-            ctx.lineTo(-cell.width / 2, cell.height / 2);
-            ctx.stroke();
-            
-            ctx.restore();
-            
-            // Draw destruction particles
-            cell.particles.forEach(particle => {
-              particle.x += particle.vx;
-              particle.y += particle.vy;
-              particle.vx *= 0.96;
-              particle.vy *= 0.96;
-              particle.life--;
-              
-              const pAlpha = particle.life / 50;
-              ctx.fillStyle = particle.color.replace(')', `, ${pAlpha})`).replace('hsl', 'hsla');
-              ctx.beginPath();
-              ctx.arc(particle.x, particle.y, particle.size * pAlpha, 0, Math.PI * 2);
-              ctx.fill();
-            });
-            
-            // Remove dead particles
-            cell.particles = cell.particles.filter(p => p.life > 0);
-          }
-        });
-
-        // Darken background over time (after board is drawn)
-        const darkenAlpha = Math.min(frameCount / 400, 0.6);
+      
+      if (animType === 'defeat' || animType === 'ai_victory') {
+        // Background dimming
+        const darkenAlpha = Math.min(frameCount / 200, 0.6);
         ctx.fillStyle = `rgba(0, 0, 0, ${darkenAlpha})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Draw alien ships (on top)
-        effects.filter(e => e.type === 'alien').forEach(alien => {
-          alien.y += alien.speed;
-          alien.rotation += 0.02;
+        // --- UPDATE TARGET POSITIONS (SYNC WITH DOM) ---
+        // This prevents blinking by ensuring canvas draws exactly where DOM element is
+        [...effects.filter(e => e.type === 'playerTarget'), ...effects.filter(e => e.type === 'spaceportTarget')].forEach(target => {
+            if (!target.destroyed && target.originalElement) {
+                const rect = target.originalElement.getBoundingClientRect();
+                target.x = rect.left + rect.width / 2;
+                target.y = rect.top + rect.height / 2;
+                target.width = rect.width;
+                target.height = rect.height;
 
-          ctx.save();
-          ctx.translate(alien.x, alien.y);
-          ctx.rotate(alien.rotation);
-          ctx.globalAlpha = 0.9;
-          ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
-          ctx.beginPath();
-          ctx.moveTo(0, -alien.size);
-          ctx.lineTo(-alien.size * 0.5, alien.size * 0.5);
-          ctx.lineTo(alien.size * 0.5, alien.size * 0.5);
-          ctx.closePath();
-          ctx.fill();
-          
-          // Glow
-          ctx.shadowBlur = 20;
-          ctx.shadowColor = 'rgba(239, 68, 68, 0.9)';
-          ctx.fill();
-          ctx.restore();
-        });
-
-        // Draw missiles
-        effects.filter(e => e.type === 'missile').forEach(missile => {
-          if (!missile.exploded) {
-            // Move towards target
-            const dx = missile.targetX - missile.x;
-            const dy = missile.targetY - missile.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            
-            if (dist < 5) {
-              missile.exploded = true;
-              // Destroy target cell if it exists
-              if (missile.targetCell && !missile.targetCell.destroyed) {
-                missile.targetCell.destroyed = true;
-                missile.targetCell.destroyFrame = frameCount;
-              }
-              // Create explosion particles
-              for (let i = 0; i < 15; i++) {
-                effects.push({
-                  type: 'explosion',
-                  x: missile.x,
-                  y: missile.y,
-                  vx: (Math.random() - 0.5) * 4,
-                  vy: (Math.random() - 0.5) * 4,
-                  life: 30,
-                  size: Math.random() * 5 + 3
-                });
-              }
-            } else {
-              missile.x += (dx / dist) * missile.speed;
-              missile.y += (dy / dist) * missile.speed;
-              
-              ctx.fillStyle = 'rgba(255, 200, 0, 0.9)';
-              ctx.beginPath();
-              ctx.arc(missile.x, missile.y, 3, 0, Math.PI * 2);
-              ctx.fill();
-              
-              // Trail
-              ctx.strokeStyle = 'rgba(255, 200, 0, 0.5)';
-              ctx.lineWidth = 2;
-              ctx.beginPath();
-              ctx.moveTo(missile.x - dx / dist * 10, missile.y - dy / dist * 10);
-              ctx.lineTo(missile.x, missile.y);
-              ctx.stroke();
+                // Once attack starts, hide DOM element and rely on canvas draw
+                if (frameCount > 5) { 
+                    target.originalElement.style.opacity = '0'; 
+                }
             }
-          }
         });
 
-        // Draw energy beams
-        effects.filter(e => e.type === 'beam').forEach(beam => {
-          if (beam.length < beam.maxLength) {
-            beam.length += beam.speed;
-          }
-          
-          const gradient = ctx.createLinearGradient(beam.x, 0, beam.x, beam.length);
-          gradient.addColorStop(0, beam.color);
-          gradient.addColorStop(1, 'transparent');
-          
-          ctx.fillStyle = gradient;
-          ctx.fillRect(beam.x - beam.width / 2, 0, beam.width, beam.length);
-          
-          // Glow
-          ctx.shadowBlur = 30;
-          ctx.shadowColor = beam.color;
-          ctx.fillRect(beam.x - beam.width / 2, 0, beam.width, beam.length);
-          ctx.shadowBlur = 0;
-        });
+        // --- DRAW TARGETS ---
+        // 1. Player Rockets
+        effects.filter(e => e.type === 'playerTarget').forEach(target => {
+            if (!target.destroyed) {
+                // Shake effect
+                const shakeX = frameCount > ATTACK_START ? (Math.random() - 0.5) * 6 : 0;
+                const shakeY = frameCount > ATTACK_START ? (Math.random() - 0.5) * 6 : 0;
 
-        // Draw explosions
-        effects.filter(e => e.type === 'explosion').forEach(explosion => {
-          explosion.x += explosion.vx;
-          explosion.y += explosion.vy;
-          explosion.life--;
-          
-          const alpha = explosion.life / 30;
-          ctx.fillStyle = `rgba(255, ${100 + Math.random() * 155}, 0, ${alpha})`;
-          ctx.beginPath();
-          ctx.arc(explosion.x, explosion.y, explosion.size * alpha, 0, Math.PI * 2);
-          ctx.fill();
-        });
-
-        // Remove dead explosions
-        const explosionIndex = effects.findIndex(e => e.type === 'explosion' && e.life <= 0);
-        if (explosionIndex !== -1) {
-          effects.splice(explosionIndex, 1);
-        }
-
-        // Show game over after animation (wait for board destruction)
-        const allCellsDestroyed = effects.filter(e => e.type === 'boardCell').every(cell => cell.destroyed);
-        if (frameCount > 500 || (allCellsDestroyed && frameCount > 300)) {
-          setShowGameOver(true);
-          if (onComplete) {
-            setTimeout(() => onComplete(), 2000);
-          }
-        }
-      } else {
-        // Victory animation
-        // Draw stars/confetti
-        effects.filter(e => e.type === 'star').forEach(star => {
-          star.y -= star.speed;
-          star.rotation += star.rotationSpeed;
-          
-          if (star.y < -10) {
-            star.y = canvas.height + 10;
-            star.x = Math.random() * canvas.width;
-          }
-
-          ctx.save();
-          ctx.translate(star.x, star.y);
-          ctx.rotate(star.rotation);
-          ctx.fillStyle = `rgba(255, 255, 255, ${0.7 + Math.sin(frameCount * 0.1) * 0.3})`;
-          ctx.beginPath();
-          for (let i = 0; i < 5; i++) {
-            const angle = (Math.PI * 2 * i) / 5;
-            const x = Math.cos(angle) * star.size;
-            const y = Math.sin(angle) * star.size;
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-          }
-          ctx.closePath();
-          ctx.fill();
-          ctx.restore();
-        });
-
-        // Draw fireworks
-        effects.filter(e => e.type === 'firework').forEach(firework => {
-          if (!firework.exploded) {
-            firework.y -= firework.speed;
-            
-            if (firework.y <= firework.targetY) {
-              firework.exploded = true;
-              // Create firework particles
-              for (let i = 0; i < 30; i++) {
-                const angle = (Math.PI * 2 * i) / 30;
-                const speed = Math.random() * 3 + 2;
-                firework.particles.push({
-                  x: firework.x,
-                  y: firework.y,
-                  vx: Math.cos(angle) * speed,
-                  vy: Math.sin(angle) * speed,
-                  life: 60,
-                  color: `hsl(${Math.random() * 360}, 100%, 50%)`,
-                  size: Math.random() * 3 + 2
-                });
-              }
+                ctx.save();
+                ctx.translate(target.x + shakeX, target.y + shakeY);
+                // Scale up in fear
+                const scale = frameCount > ATTACK_START ? 1.0 + Math.sin(frameCount * 0.5) * 0.1 : 1.0;
+                ctx.scale(scale, scale);
+                
+                // Draw text
+                ctx.font = `${target.fontSize}px sans-serif`; // Ensure valid font string
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillStyle = target.color;
+                ctx.shadowColor = target.color;
+                ctx.shadowBlur = 10;
+                ctx.fillText(target.icon, 0, 0);
+                ctx.restore();
             } else {
-              // Draw rocket
-              ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-              ctx.beginPath();
-              ctx.arc(firework.x, firework.y, 3, 0, Math.PI * 2);
-              ctx.fill();
-              
-              // Trail
-              ctx.strokeStyle = 'rgba(255, 200, 0, 0.7)';
-              ctx.lineWidth = 2;
-              ctx.beginPath();
-              ctx.moveTo(firework.x, firework.y + 10);
-              ctx.lineTo(firework.x, firework.y);
-              ctx.stroke();
+                // Generate particles ONCE on destruction
+                if (target.particles.length === 0) {
+                    for (let i = 0; i < 40; i++) {
+                        target.particles.push({
+                            x: target.x,
+                            y: target.y,
+                            vx: (Math.random() - 0.5) * 15,
+                            vy: (Math.random() - 0.5) * 15,
+                            life: 100,
+                            size: Math.random() * 6 + 4,
+                            color: target.color === '#FFF' ? `hsl(${Math.random()*60 + 10}, 100%, 50%)` : target.color
+                        });
+                    }
+                    // Add explosion flash
+                    effects.push({
+                        type: 'explosion',
+                        x: target.x,
+                        y: target.y,
+                        vx: 0, vy: 0,
+                        life: 20,
+                        size: 60 // Big flash
+                    });
+                }
             }
-          } else {
-            // Draw particles
-            firework.particles.forEach(particle => {
-              particle.x += particle.vx;
-              particle.y += particle.vy;
-              particle.vx *= 0.98;
-              particle.vy *= 0.98;
-              particle.life--;
-
-              const alpha = particle.life / 60;
-              ctx.fillStyle = particle.color.replace(')', `, ${alpha})`).replace('hsl', 'hsla');
-              ctx.beginPath();
-              ctx.arc(particle.x, particle.y, particle.size * alpha, 0, Math.PI * 2);
-              ctx.fill();
+            
+            // Update/Draw Particles
+            target.particles.forEach(p => {
+                p.x += p.vx; p.y += p.vy; p.vx *= 0.95; p.vy *= 0.95; p.life--;
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life / 100;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+                ctx.globalAlpha = 1;
             });
-
-            // Remove dead particles
-            firework.particles = firework.particles.filter(p => p.life > 0);
-          }
         });
 
-        // Show game over after animation
-        if (frameCount > 300) {
-          setShowGameOver(true);
-          if (onComplete) {
-            setTimeout(() => onComplete(), 2000);
-          }
+        // 2. Spaceport
+        effects.filter(e => e.type === 'spaceportTarget').forEach(target => {
+             if (!target.destroyed) {
+                 ctx.save();
+                 ctx.translate(target.x, target.y);
+                 // Match Spaceport style
+                 ctx.fillStyle = 'rgba(16, 185, 129, 0.3)'; 
+                 ctx.fillRect(-target.width/2, -target.height/2, target.width, target.height);
+                 ctx.strokeStyle = 'rgba(16, 185, 129, 0.8)';
+                 ctx.lineWidth = 3;
+                 ctx.strokeRect(-target.width/2, -target.height/2, target.width, target.height);
+                 ctx.restore();
+             } else if (target.particles.length === 0) {
+                 // Explode
+                 for (let i = 0; i < 60; i++) {
+                    target.particles.push({
+                        x: target.x + (Math.random()-0.5)*target.width,
+                        y: target.y + (Math.random()-0.5)*target.height,
+                        vx: (Math.random()-0.5)*12, vy: (Math.random()-0.5)*12,
+                        life: 120, size: Math.random()*8+4,
+                        color: `rgba(16, 185, 129, 1)`
+                    });
+                 }
+             }
+             // Particles
+             target.particles.forEach(p => {
+                p.x += p.vx; p.y += p.vy; p.vx *= 0.95; p.vy *= 0.95; p.life--;
+                ctx.fillStyle = p.color; ctx.globalAlpha = p.life/120;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+                ctx.globalAlpha = 1;
+             });
+        });
+
+        // --- ARMADA & WEAPONS ---
+        if (animType === 'ai_victory') {
+            // AI Ships
+            effects.filter(e => e.type === 'ai_ship').forEach(ship => {
+                ship.y += ship.speed;
+                // Oscillate X slightly
+                ship.x += Math.sin(frameCount * 0.05) * 1; 
+                
+                // Fire Logic
+                if (frameCount > ATTACK_START && ship.fireCooldown-- <= 0) {
+                    // Find a living target
+                    const targets = [...effects.filter(e => e.type === 'playerTarget' && !e.destroyed),
+                                     ...effects.filter(e => e.type === 'spaceportTarget' && !e.destroyed)];
+                    
+                    if (targets.length > 0) {
+                        const t = targets[Math.floor(Math.random() * targets.length)];
+                        effects.push({
+                            type: 'laser',
+                            x: ship.x, y: ship.y,
+                            targetX: t.x + (Math.random()-0.5)*20,
+                            targetY: t.y + (Math.random()-0.5)*20,
+                            speed: 15,
+                            hit: false, exploded: false,
+                            color: '#FF0000',
+                            isHeavy: false
+                        });
+                        ship.fireCooldown = Math.random() * 20 + 10;
+                    }
+                }
+
+                // Draw Ship
+                if (ship.y < canvas.height + 100) {
+                    ctx.save();
+                    ctx.translate(ship.x, ship.y);
+                    ctx.rotate(ship.rotation + Math.PI); // Point down
+                    ctx.fillStyle = ship.shipType === 0 ? '#A855F7' : ship.shipType === 1 ? '#22C55E' : '#EF4444';
+                    ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 15;
+                    
+                    ctx.beginPath();
+                    if (ship.shipType === 0) { // Triangle
+                        ctx.moveTo(0, 20); ctx.lineTo(-15, -15); ctx.lineTo(15, -15);
+                    } else { // Diamond
+                        ctx.moveTo(0, 25); ctx.lineTo(15, 0); ctx.lineTo(0, -25); ctx.lineTo(-15, 0);
+                    }
+                    ctx.closePath(); ctx.fill();
+                    ctx.restore();
+                }
+            });
         }
+
+        // --- PROJECTILES ---
+        effects.filter(e => e.type === 'laser').forEach(proj => {
+            if (!proj.hit) {
+                const dx = proj.targetX - proj.x;
+                const dy = proj.targetY - proj.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+
+                if (dist < 20) {
+                    proj.hit = true;
+                    proj.exploded = true;
+                    // Create small explosion at impact
+                    effects.push({
+                        type: 'explosion',
+                        x: proj.x, y: proj.y,
+                        vx: 0, vy: 0, life: 30, size: 20
+                    });
+
+                    // CHECK COLLISIONS WITH TARGETS
+                    [...effects.filter(e => e.type === 'playerTarget'), 
+                     ...effects.filter(e => e.type === 'spaceportTarget')].forEach(t => {
+                        if (!t.destroyed && Math.abs(t.x - proj.x) < 50 && Math.abs(t.y - proj.y) < 50) {
+                            t.destroyed = true;
+                            t.destroyFrame = frameCount; // Explode now
+                        }
+                     });
+
+                } else {
+                    proj.x += (dx/dist) * proj.speed;
+                    proj.y += (dy/dist) * proj.speed;
+                    
+                    ctx.strokeStyle = proj.color;
+                    ctx.lineWidth = 4;
+                    ctx.shadowColor = proj.color; ctx.shadowBlur = 10;
+                    ctx.beginPath();
+                    ctx.moveTo(proj.x - (dx/dist)*20, proj.y - (dy/dist)*20);
+                    ctx.lineTo(proj.x, proj.y);
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                }
+            }
+        });
+
+        // --- EXPLOSIONS ---
+        effects.filter(e => e.type === 'explosion').forEach(exp => {
+            exp.life--;
+            ctx.fillStyle = `rgba(255, ${100 + Math.random()*155}, 0, ${exp.life/30})`;
+            ctx.beginPath(); ctx.arc(exp.x, exp.y, exp.size * (exp.life/30), 0, Math.PI*2); ctx.fill();
+        });
+        // Remove dead explosions
+        const deadExp = effects.filter(e => e.type === 'explosion' && e.life <= 0);
+        deadExp.forEach(d => {
+            const idx = effects.indexOf(d);
+            if(idx > -1) effects.splice(idx, 1);
+        });
+
+        // Completion Check
+        const allTargetsDestroyed = effects.filter(e => e.type === 'playerTarget' || e.type === 'spaceportTarget').every(t => t.destroyed);
+        if ((frameCount > 600 || (allTargetsDestroyed && frameCount > ATTACK_START + 100)) && !showGameOver) {
+            if (onComplete) {
+                // Restore opacity before unmounting/resetting
+                 effects.filter(e => e.type === 'playerTarget' || e.type === 'spaceportTarget').forEach(t => {
+                   if (t.originalElement) t.originalElement.style.opacity = '1';
+               });
+               setTimeout(onComplete, 2000);
+               setShowGameOver(true); // Prevent multi-trigger
+            }
+        }
+
+      } else {
+         // Victory Logic (unchanged)
+         effects.filter(e => e.type === 'star').forEach(star => {
+          star.y -= star.speed;
+          if (star.y < -10) { star.y = canvas.height + 10; star.x = Math.random() * canvas.width; }
+          ctx.fillStyle = `rgba(255, 255, 255, ${0.5 + Math.random()*0.5})`;
+          ctx.fillRect(star.x, star.y, star.size, star.size);
+        });
+        effects.filter(e => e.type === 'firework').forEach(fw => {
+             if(!fw.exploded) {
+                 fw.y -= fw.speed;
+                 if(fw.y < fw.targetY) {
+                     fw.exploded = true;
+                     for(let k=0; k<30; k++) {
+                         fw.particles.push({x: fw.x, y: fw.y, vx: (Math.random()-0.5)*5, vy: (Math.random()-0.5)*5, life: 60, color: `hsl(${Math.random()*360}, 100%, 50%)`});
+                     }
+                 } else {
+                     ctx.fillStyle = '#FFF'; ctx.fillRect(fw.x, fw.y, 3, 3);
+                 }
+             } else {
+                 fw.particles.forEach(p => {
+                     p.x += p.vx; p.y += p.vy; p.vy += 0.05; p.life--;
+                     ctx.fillStyle = p.color; ctx.globalAlpha = p.life/60;
+                     ctx.fillRect(p.x, p.y, 3, 3); ctx.globalAlpha = 1;
+                 });
+             }
+        });
+         if (frameCount > 300 && !showGameOver) {
+            if(onComplete) setTimeout(onComplete, 2000);
+            setShowGameOver(true);
+         }
       }
 
       animationFrameId = requestAnimationFrame(animate);
@@ -488,8 +434,13 @@ export default function EndGameAnimation({
     return () => {
       window.removeEventListener('resize', resizeCanvas);
       cancelAnimationFrame(animationFrameId);
+      // Safety cleanup
+      const rockets = document.querySelectorAll('.target-player-rocket');
+      rockets.forEach(el => el.style.opacity = '1');
+      const spaceport = document.querySelector('.starting-spaceport');
+      if (spaceport) spaceport.style.opacity = '1';
     };
-  }, [type, onComplete, boardSize]);
+  }, [type, winner, onComplete, boardSize, players]);
 
   return (
     <div className="fixed inset-0 z-[100] pointer-events-none">
@@ -497,34 +448,6 @@ export default function EndGameAnimation({
         ref={canvasRef}
         className="absolute inset-0 w-full h-full"
       />
-      {showGameOver && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto">
-          <div className="text-center">
-            <div className={`text-6xl md:text-8xl font-bold mb-4 ${
-              type === 'victory' ? 'text-yellow-400' : 'text-red-500'
-            }`} style={{
-              textShadow: `0 0 20px ${type === 'victory' ? 'rgba(251, 191, 36, 0.8)' : 'rgba(239, 68, 68, 0.8)'}`,
-              animation: 'pulse 1s ease-in-out infinite'
-            }}>
-              {type === 'victory' ? '🎉 VICTORY!' : '💀 GAME OVER'}
-            </div>
-            <div className="text-2xl md:text-3xl text-white font-semibold mb-8">
-              {type === 'victory' 
-                ? 'You have conquered the stars!' 
-                : 'The alien armada has destroyed everything...'}
-            </div>
-            {onComplete && (
-              <button
-                onClick={onComplete}
-                className="px-8 py-4 bg-gray-800 hover:bg-gray-700 text-white font-bold text-lg rounded-lg transition-all transform hover:scale-105 border-2 border-gray-600"
-              >
-                Continue
-              </button>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
-

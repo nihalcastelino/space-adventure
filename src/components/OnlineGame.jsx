@@ -9,6 +9,7 @@ import ParticleEffects from './ParticleEffects';
 import GameSettings from './GameSettings';
 import Leaderboard from './Leaderboard';
 import GameHistory from './GameHistory';
+import EndGameAnimation from './EndGameAnimation';
 import { useGameSounds } from '../hooks/useGameSounds';
 import { useNotifications } from '../hooks/useNotifications';
 import { getBackgroundImage, getScreenBackground } from '../utils/backgrounds';
@@ -755,11 +756,11 @@ export default function OnlineGame({ onBack }) {
           gap: '4px',
           maxWidth: '800px',
           width: windowWidth < 640 ? 'min(85vw, 600px)' : 'min(90vw, 600px)',
+          // Account for dice controls at bottom (approx 140px) + top panels (approx 100px) + padding
+          // Increased safety margins to prevent overlap on Fold/Tablet devices
           maxHeight: windowWidth < 640 
-            ? 'calc(100vh - 280px)' // Mobile: account for controls and panels
-            : windowWidth >= 1536 // 2xl breakpoint (foldables/unfolded tablets)
-            ? 'calc(100vh - 200px)' // Very large screens: account for controls
-            : 'calc(100vh - 180px)' // Desktop: controls + padding
+            ? 'calc(100vh - 300px)' // Mobile: controls + panels + padding
+            : 'calc(100vh - 340px)' // Desktop/Tablet: controls + larger panels + padding
         }}
       >
         {/* Board Content */}
@@ -767,7 +768,7 @@ export default function OnlineGame({ onBack }) {
         {/* Starting Area - Outside the square board */}
         {gameState.players.filter(p => p.position === 0).length > 0 && (
           <div
-            className="w-[min(70vw,400px)] md:w-[min(50vw,450px)] lg:w-[min(55vw,500px)] xl:w-[min(60vw,550px)]"
+            className="w-[min(70vw,400px)] md:w-[min(50vw,450px)] lg:w-[min(55vw,500px)] xl:w-[min(60vw,550px)] starting-spaceport"
             style={{
               minHeight: '45px',
               backgroundColor: 'rgba(16, 185, 129, 0.1)',
@@ -814,7 +815,8 @@ export default function OnlineGame({ onBack }) {
                     }}
                   >
                     <Rocket
-                      className={`${player.color} ${animationClass}`}
+                      className={`${player.color} ${animationClass} target-player-rocket`}
+                      data-player-id={player.id}
                       style={{
                         width: '20px',
                         height: '20px',
@@ -854,6 +856,16 @@ export default function OnlineGame({ onBack }) {
         </div>
         </div>
       </div>
+
+      {/* End Game Animation */}
+      {gameState.gameWon && gameState.winner && (
+        <EndGameAnimation
+          type={'victory'} // Online game assumes human victory usually, or we can detect winner ID
+          winner={gameState.winner}
+          players={gameState.players}
+          onComplete={handleResetGame}
+        />
+      )}
     </div>
   );
 }

@@ -37,29 +37,7 @@ const SpaceAdventure = () => {
   const [winner, setWinner] = useState(null);
   const [animatingPlayer, setAnimatingPlayer] = useState(null);
   const [animationType, setAnimationType] = useState(null); // 'liftoff', 'landing', 'eaten'
-  const [alienBlink, setAlienBlink] = useState({});
 
-  const playerColors = [
-    'text-yellow-300',
-    'text-blue-300',
-    'text-green-300',
-    'text-pink-300'
-  ];
-
-  const playerCorners = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
-
-  // Animate aliens
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const newBlink = {};
-      aliens.forEach(pos => {
-        newBlink[pos] = Math.random() > 0.5;
-      });
-      setAlienBlink(newBlink);
-    }, 500);
-    
-    return () => clearInterval(interval);
-  }, []);
 
   const addPlayer = () => {
     if (numPlayers < 4) {
@@ -461,11 +439,11 @@ const SpaceAdventure = () => {
             )}
             
             {isAlien && (
-              <div className="relative z-10">
-                <div className={`text-3xl drop-shadow-2xl ${alienBlink[cellNumber] ? 'animate-bounce' : ''}`}>
+              <div className="relative z-10 alien-container">
+                <div className="text-3xl drop-shadow-2xl alien-icon">
                   👾
                 </div>
-                <div className={`absolute inset-0 bg-red-500 rounded-full blur-lg opacity-30 ${alienBlink[cellNumber] ? 'animate-ping' : ''}`}></div>
+                <div className="absolute inset-0 bg-red-500 rounded-full blur-lg opacity-30 alien-glow"></div>
                 <div className="absolute -inset-3 border-2 border-red-400 rounded-full opacity-40 animate-pulse"></div>
                 <div className="absolute -inset-4 border border-red-500 rounded-full opacity-20"></div>
               </div>
@@ -542,8 +520,38 @@ const SpaceAdventure = () => {
     return cells;
   };
 
+  const PlayerPanel = ({ player, isCurrent, onRollDice, isRolling, gameWon }) => {
+    if (!player) return null;
+  
+    return (
+      <div className="w-full bg-gray-900 bg-opacity-95 rounded-lg p-2 shadow-2xl border-2 border-gray-700">
+        <div className={`p-3 rounded ${isCurrent ? 'bg-blue-800 border-2 border-blue-400 animate-pulse' : 'bg-gray-800'}`}>
+          <div className="flex items-center gap-2 mb-2">
+            <Rocket className={`w-6 h-6 ${player.color}`} />
+            <span className={`font-bold text-lg ${player.color}`}>{player.name}</span>
+          </div>
+          <div className="text-sm text-gray-300 space-y-1">
+            <div>Position: <span className="font-bold text-white text-lg">{player.position}</span></div>
+            <div>Checkpoint: <span className="font-bold text-blue-300">{player.lastCheckpoint}</span></div>
+          </div>
+        </div>
+        {isCurrent && (
+          <div className="mt-3">
+            <button
+              onClick={onRollDice}
+              disabled={isRolling || gameWon}
+              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition-all transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed shadow-lg"
+            >
+              {isRolling ? '🎲 ...' : '🎲 SPIN'}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <div className="fixed inset-0 bg-gradient-to-b from-purple-900 via-blue-900 to-black overflow-hidden">
+    <div className="h-screen w-screen bg-gradient-to-b from-purple-900 via-blue-900 to-black overflow-hidden flex flex-col p-4 gap-4">
       <style>{`
         @keyframes rocket-liftoff {
           0% { transform: translateY(0) scale(1); }
@@ -561,169 +569,107 @@ const SpaceAdventure = () => {
         .animate-rocket-landing {
           animation: rocket-landing 0.6s ease-in-out;
         }
+        @keyframes alien-bounce {
+          0%, 100% {
+            transform: translateY(-15%);
+            animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+          }
+          50% {
+            transform: translateY(0);
+            animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+          }
+        }
+        @keyframes alien-ping {
+          75%, 100% {
+            transform: scale(1.5);
+            opacity: 0;
+          }
+        }
+        .alien-container:hover .alien-icon {
+            animation: alien-bounce 1s infinite;
+        }
+        .alien-container:hover .alien-glow {
+            animation: alien-ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
       `}</style>
-      
-      {/* Top Left - Player 1 */}
-      {players[0] && (
-        <div className="fixed top-4 left-4 w-64 bg-gray-900 bg-opacity-95 rounded-lg p-4 shadow-2xl border-2 border-gray-700">
-          <div className={`p-3 rounded ${currentPlayerIndex === 0 ? 'bg-blue-800 border-2 border-blue-400 animate-pulse' : 'bg-gray-800'}`}>
-            <div className="flex items-center gap-2 mb-2">
-              <Rocket className={`w-6 h-6 ${players[0].color}`} />
-              <span className={`font-bold text-lg ${players[0].color}`}>{players[0].name}</span>
-            </div>
-            <div className="text-sm text-gray-300 space-y-1">
-              <div>Position: <span className="font-bold text-white text-lg">{players[0].position}</span></div>
-              <div>Checkpoint: <span className="font-bold text-blue-300">{players[0].lastCheckpoint}</span></div>
-            </div>
-          </div>
-          {currentPlayerIndex === 0 && (
-            <div className="mt-3">
-              <button
-                onClick={rollDice}
-                disabled={isRolling || gameWon}
-                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition-all transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed shadow-lg"
-              >
-                {isRolling ? '🎲 ...' : '🎲 SPIN'}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
 
-      {/* Top Right - Player 2 */}
-      {players[1] && (
-        <div className="fixed top-4 right-4 w-64 bg-gray-900 bg-opacity-95 rounded-lg p-4 shadow-2xl border-2 border-gray-700">
-          <div className={`p-3 rounded ${currentPlayerIndex === 1 ? 'bg-blue-800 border-2 border-blue-400 animate-pulse' : 'bg-gray-800'}`}>
-            <div className="flex items-center gap-2 mb-2">
-              <Rocket className={`w-6 h-6 ${players[1].color}`} />
-              <span className={`font-bold text-lg ${players[1].color}`}>{players[1].name}</span>
-            </div>
-            <div className="text-sm text-gray-300 space-y-1">
-              <div>Position: <span className="font-bold text-white text-lg">{players[1].position}</span></div>
-              <div>Checkpoint: <span className="font-bold text-blue-300">{players[1].lastCheckpoint}</span></div>
-            </div>
-          </div>
-          {currentPlayerIndex === 1 && (
-            <div className="mt-3">
-              <button
-                onClick={rollDice}
-                disabled={isRolling || gameWon}
-                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition-all transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed shadow-lg"
-              >
-                {isRolling ? '🎲 ...' : '🎲 SPIN'}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Bottom Left - Player 3 */}
-      {players[2] && (
-        <div className="fixed bottom-4 left-4 w-64 bg-gray-900 bg-opacity-95 rounded-lg p-4 shadow-2xl border-2 border-gray-700">
-          <div className={`p-3 rounded ${currentPlayerIndex === 2 ? 'bg-blue-800 border-2 border-blue-400 animate-pulse' : 'bg-gray-800'}`}>
-            <div className="flex items-center gap-2 mb-2">
-              <Rocket className={`w-6 h-6 ${players[2].color}`} />
-              <span className={`font-bold text-lg ${players[2].color}`}>{players[2].name}</span>
-            </div>
-            <div className="text-sm text-gray-300 space-y-1">
-              <div>Position: <span className="font-bold text-white text-lg">{players[2].position}</span></div>
-              <div>Checkpoint: <span className="font-bold text-blue-300">{players[2].lastCheckpoint}</span></div>
-            </div>
-          </div>
-          {currentPlayerIndex === 2 && (
-            <div className="mt-3">
-              <button
-                onClick={rollDice}
-                disabled={isRolling || gameWon}
-                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition-all transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed shadow-lg"
-              >
-                {isRolling ? '🎲 ...' : '🎲 SPIN'}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Bottom Right - Player 4 */}
-      {players[3] && (
-        <div className="fixed bottom-4 right-4 w-64 bg-gray-900 bg-opacity-95 rounded-lg p-4 shadow-2xl border-2 border-gray-700">
-          <div className={`p-3 rounded ${currentPlayerIndex === 3 ? 'bg-blue-800 border-2 border-blue-400 animate-pulse' : 'bg-gray-800'}`}>
-            <div className="flex items-center gap-2 mb-2">
-              <Rocket className={`w-6 h-6 ${players[3].color}`} />
-              <span className={`font-bold text-lg ${players[3].color}`}>{players[3].name}</span>
-            </div>
-            <div className="text-sm text-gray-300 space-y-1">
-              <div>Position: <span className="font-bold text-white text-lg">{players[3].position}</span></div>
-              <div>Checkpoint: <span className="font-bold text-blue-300">{players[3].lastCheckpoint}</span></div>
-            </div>
-          </div>
-          {currentPlayerIndex === 3 && (
-            <div className="mt-3">
-              <button
-                onClick={rollDice}
-                disabled={isRolling || gameWon}
-                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition-all transform hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed shadow-lg"
-              >
-                {isRolling ? '🎲 ...' : '🎲 SPIN'}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Center Top - Title and Controls */}
-      <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-10">
-        <h1 className="text-3xl font-bold text-center text-yellow-300 flex items-center justify-center gap-2 bg-gray-900 bg-opacity-90 px-6 py-2 rounded-lg shadow-2xl">
+      {/* Header */}
+      <div className="text-center">
+        <h1 className="text-2xl lg:text-3xl font-bold text-yellow-300 inline-flex items-center justify-center gap-2 bg-gray-900 bg-opacity-90 px-6 py-2 rounded-lg shadow-2xl">
           <Rocket className="w-8 h-8" />
           Space Race to 100!
         </h1>
       </div>
 
-      {/* Center Bottom - Game Status and Controls */}
-      <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-10 w-96">
-        <div className="bg-gray-900 bg-opacity-95 rounded-lg p-4 shadow-2xl border-2 border-gray-700">
-          <div className="bg-gray-800 p-3 rounded text-center mb-3">
-            <div className="text-xs text-gray-400 mb-1">Dice Roll</div>
-            <div className="text-4xl font-bold text-white">
-              {diceValue || '?'}
-            </div>
+      <div className="flex-grow flex flex-col lg:flex-row gap-4 min-h-0">
+        
+        {/* Left Player Column (Desktop) */}
+        <div className="hidden lg:flex flex-col justify-between w-64 space-y-4">
+          <PlayerPanel player={players[0]} isCurrent={currentPlayerIndex === 0} onRollDice={rollDice} isRolling={isRolling} gameWon={gameWon} />
+          <PlayerPanel player={players[2]} isCurrent={currentPlayerIndex === 2} onRollDice={rollDice} isRolling={isRolling} gameWon={gameWon} />
+        </div>
+
+        {/* Center: Game Board + Mobile Controls */}
+        <div className="flex-grow flex flex-col items-center justify-center min-w-0 min-h-0">
+          <div className="flex items-center justify-center w-full h-full p-2">
+            <div className="relative w-full h-full max-w-[600px] max-h-[600px] aspect-square">
+                  <div className="bg-gray-900 bg-opacity-90 rounded-lg p-2 shadow-2xl border-2 border-gray-700 w-full h-full">
+                      {renderBoard()}
+                  </div>
+              </div>
           </div>
           
-          <div className="bg-blue-900 bg-opacity-50 p-2 rounded mb-3">
-            <p className="text-white font-medium text-sm text-center">{message}</p>
+           {/* Mobile Controls & Status */}
+          <div className="lg:hidden w-full mt-4">
+            <div className="bg-gray-900 bg-opacity-95 rounded-lg p-2 shadow-2xl border-2 border-gray-700">
+                <p className="text-white font-medium text-sm text-center mb-2">{message}</p>
+                <div className="flex items-center gap-2">
+                    <div className="bg-gray-800 p-2 rounded text-center flex-1">
+                        <div className="text-xs text-gray-400">Dice</div>
+                        <div className="text-2xl font-bold text-white">{diceValue || '?'}</div>
+                    </div>
+                     <button
+                        onClick={rollDice}
+                        disabled={isRolling || gameWon}
+                        className="flex-grow bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold py-3 rounded-lg text-lg"
+                      >
+                        {isRolling ? '🎲 ...' : '🎲 SPIN'}
+                      </button>
+                    <button onClick={resetGame} className="bg-gray-700 text-white p-3 rounded"><Minus className="w-5 h-5" /></button>
+                </div>
+            </div>
           </div>
+        </div>
 
-          <div className="flex gap-2">
-            <button
-              onClick={resetGame}
-              className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-3 rounded-lg transition-all text-sm"
-            >
-              Reset
-            </button>
-            <button
-              onClick={removePlayer}
-              disabled={numPlayers <= 2}
-              className="bg-red-600 hover:bg-red-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white p-2 rounded"
-            >
-              <Minus className="w-4 h-4" />
-            </button>
-            <button
-              onClick={addPlayer}
-              disabled={numPlayers >= 4}
-              className="bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white p-2 rounded"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
+        {/* Right Player Column (Desktop) */}
+        <div className="hidden lg:flex flex-col justify-between w-64 space-y-4">
+          <PlayerPanel player={players[1]} isCurrent={currentPlayerIndex === 1} onRollDice={rollDice} isRolling={isRolling} gameWon={gameWon} />
+          <PlayerPanel player={players[3]} isCurrent={currentPlayerIndex === 3} onRollDice={rollDice} isRolling={isRolling} gameWon={gameWon} />
         </div>
       </div>
 
-      {/* Center - Game Board - Always Visible */}
-      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-        <div className="bg-gray-900 bg-opacity-90 rounded-lg p-3 shadow-2xl border-2 border-gray-700" style={{ maxWidth: '600px', maxHeight: '600px' }}>
-          {renderBoard()}
+       {/* Bottom Controls (Desktop) */}
+       <div className="hidden lg:flex justify-center items-center">
+            <div className="bg-gray-900 bg-opacity-95 rounded-lg p-4 shadow-2xl border-2 border-gray-700 flex items-center gap-4">
+              <div className="bg-gray-800 p-3 rounded text-center">
+                <div className="text-xs text-gray-400 mb-1">Dice Roll</div>
+                <div className="text-4xl font-bold text-white">
+                  {diceValue || '?'}
+                </div>
+              </div>
+              
+              <div className="bg-blue-900 bg-opacity-50 p-2 rounded w-96">
+                <p className="text-white font-medium text-sm text-center">{message}</p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button onClick={resetGame} className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-3 rounded-lg">Reset</button>
+                 <button onClick={removePlayer} disabled={numPlayers <= 2} className="bg-red-600 hover:bg-red-700 disabled:bg-gray-700 p-2 rounded"><Minus className="w-4 h-4" /></button>
+                <button onClick={addPlayer} disabled={numPlayers >= 4} className="bg-green-600 hover:bg-green-700 disabled:bg-gray-700 p-2 rounded"><Plus className="w-4 h-4" /></button>
+              </div>
+            </div>
         </div>
-      </div>
+
     </div>
   );
 };

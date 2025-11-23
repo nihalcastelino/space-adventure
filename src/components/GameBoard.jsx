@@ -593,7 +593,9 @@ export default function GameBoard({
                   return (
                     <div
                       key={player.id}
-                      className={`player-rocket-moving ${animationClass}`}
+                      className={`player-rocket-moving ${animationClass} target-player-rocket`}
+                      data-player-id={player.id}
+                      data-is-ai={player.isAI}
                       style={{
                         fontSize: `${responsiveSize.rocket}px`,
                         filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 12px currentColor) contrast(1.4) saturate(1.6)',
@@ -616,6 +618,42 @@ export default function GameBoard({
     return cells;
   };
 
+  // Parallax effect hook
+  const useParallax = () => {
+    const [offset, setOffset] = useState({ x: 0, y: 0 });
+    
+    useEffect(() => {
+      const handleMouseMove = (e) => {
+        const x = (e.clientX / window.innerWidth - 0.5) * 20;
+        const y = (e.clientY / window.innerHeight - 0.5) * 20;
+        setOffset({ x, y });
+      };
+      
+      // Device orientation for mobile
+      const handleOrientation = (e) => {
+        if (e.beta && e.gamma) {
+           // beta is front-back tilt (-180 to 180)
+           // gamma is left-right tilt (-90 to 90)
+           const x = (e.gamma / 45) * 20; 
+           const y = (e.beta / 45) * 20;
+           setOffset({ x, y });
+        }
+      };
+      
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('deviceorientation', handleOrientation);
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('deviceorientation', handleOrientation);
+      };
+    }, []);
+    
+    return offset;
+  };
+
+  const parallax = useParallax();
+
+  // Render board cells before return statement
   const boardCells = renderBoard();
 
   return (
@@ -624,6 +662,15 @@ export default function GameBoard({
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.6; }
+        }
+        @keyframes screen-shake {
+          0% { transform: translate(0, 0) rotate(0deg); }
+          10%, 30%, 50%, 70%, 90% { transform: translate(-2px, 2px) rotate(-0.5deg); }
+          20%, 40%, 60%, 80% { transform: translate(2px, -2px) rotate(0.5deg); }
+          100% { transform: translate(0, 0) rotate(0deg); }
+        }
+        .screen-shake {
+          animation: screen-shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
         }
         @keyframes sparkle-fade {
           0% { opacity: 0; transform: scale(0) rotate(0deg); }
@@ -816,30 +863,37 @@ export default function GameBoard({
       <div
         style={{
           width: '100%',
+          // Use clamp for responsive sizing but respect maxWidth if provided
           maxWidth: maxWidth ? `${maxWidth}px` : '100%',
-          height: '100%',
-          maxHeight: maxHeight ? `${maxHeight}px` : '100%',
+          // Calculate height to maintain aspect ratio based on grid dimensions
+          aspectRatio: `${10} / ${Math.ceil(BOARD_SIZE / 10)}`, 
+          height: 'auto', // Let aspect ratio drive height
+          maxHeight: maxHeight ? `${maxHeight}px` : '90vh',
           backgroundColor: 'rgba(15, 23, 42, 0.9)',
           border: '3px solid rgba(251, 191, 36, 0.6)',
           borderRadius: '16px',
           padding: '3px',
           display: 'grid',
-          gridTemplateColumns: `repeat(10, minmax(0, 1fr))`,
-          gridTemplateRows: `repeat(${Math.ceil(BOARD_SIZE / 10)}, minmax(0, 1fr))`,
-          gap: '2px',
+          gridTemplateColumns: `repeat(10, 1fr)`, // 1fr is better than minmax(0, 1fr) for aspect ratio
+          gridTemplateRows: `repeat(${Math.ceil(BOARD_SIZE / 10)}, 1fr)`,
+          gap: 'clamp(1px, 0.5vmin, 4px)', // Responsive gap
           boxSizing: 'border-box',
           boxShadow: '0 0 40px rgba(251, 191, 36, 0.5), inset 0 0 40px rgba(0, 0, 0, 0.7), 0 0 60px rgba(251, 191, 36, 0.2)',
           position: 'relative',
-          overflow: 'auto',
-          overflowX: 'hidden',
+          overflow: 'hidden', // Hide overflow for shake effects
           backdropFilter: 'blur(2px)',
           WebkitBackdropFilter: 'blur(2px)',
           transformOrigin: 'center top',
-          transform: scaleFactor !== 1 ? `scale(${scaleFactor})` : 'none',
-          transition: 'transform 0.2s ease-out, max-height 0.2s ease-out',
-          marginBottom: '0.5rem'
+          // Combine existing scale with parallax and shake
+          transform: `${scaleFactor !== 1 ? `scale(${scaleFactor})` : ''} translate(${parallax.x}px, ${parallax.y}px)`,
+          transition: 'transform 0.1s ease-out, max-height 0.2s ease-out',
+          marginBottom: '0.5rem',
+          animation: encounterType === 'alien' || getHazardAtCell(players.find(p => p.id === animatingPlayer)?.position)?.type === 'blackHole' 
+            ? 'screen-shake 0.5s cubic-bezier(.36,.07,.19,.97) both' 
+            : 'none'
         }}
         className="board-container"
+        id="game-board-container"
       >
           {boardCells}
 
