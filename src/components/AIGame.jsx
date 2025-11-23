@@ -19,13 +19,6 @@ import { getBackgroundImage } from '../utils/backgrounds';
 export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficulty = 'medium', gameVariant = 'classic', randomizationSeed = null }) {
   const { playSound } = useGameSounds();
   const [showSettings, setShowSettings] = useState(false);
-  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
-
-  useEffect(() => {
-    const handleResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   const progression = useProgression();
   const currency = useCurrency();
@@ -100,7 +93,7 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
         backgroundPosition: 'center',
       }}
     >
-      <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/40" />
 
       {/* --- Modals and Overlays --- */}
       <ParticleEffects active={true} type="stars" />
@@ -112,66 +105,62 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
         {/* Top Bar */}
         <header className="flex-shrink-0 p-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <button onClick={() => { playSound('click'); onBack(); }} className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-blue-400 transition-all transform hover:scale-110">
+            <button onClick={() => { playSound('click'); onBack(); }} className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-blue-400">
               <ArrowLeft className="w-5 h-5 text-white" />
             </button>
             <LevelDisplay level={progression.level} />
             <CoinDisplay coins={currency?.coins ?? 0} />
           </div>
-          <h1 className="hidden md:flex text-xl lg:text-3xl font-bold text-center items-center justify-center gap-2 glass px-6 py-2 rounded-lg shadow-2xl border-2 border-purple-400 border-opacity-30">
-            <span className="text-yellow-300 whitespace-nowrap">vs {aiPersonality.name}</span>
-            <Bot className="w-8 h-8 text-purple-300" />
+          <h1 className="text-xl font-bold text-yellow-300 flex items-center gap-2">
+            vs {aiPersonality.name} <Bot className="w-6 h-6 text-purple-300" />
           </h1>
           <div className="flex items-center gap-2">
-            <button onClick={() => { playSound('click'); setShowSettings(true); }} className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-yellow-400 transition-all transform hover:scale-110" title="Game Settings">
+            <button onClick={() => { playSound('click'); setShowSettings(true); }} className="glass rounded-lg p-2 shadow-lg border-2 border-gray-700 hover:border-yellow-400" title="Game Settings">
               <Settings className="w-5 h-5 text-yellow-300" />
             </button>
           </div>
         </header>
 
-        {/* Main Content Area */}
-        <main className="flex-grow flex-1 flex flex-col md:flex-row gap-2 p-2 min-h-0">
-          {/* Left Player Column (Desktop) */}
-          <div className="hidden lg:flex flex-col justify-around w-64">
-            <PlayerPanel player={players[0]} isCurrentPlayer={currentPlayerIndex === 0} onRollDice={currentPlayerIndex === 0 ? rollDice : null} isRolling={isRolling} gameWon={gameWon} isMyPlayer={true} onChangeIcon={changePlayerIcon} />
+        {/* Scrollable Content */}
+        <main className="flex-grow flex-1 min-h-0 overflow-y-auto p-2 space-y-4">
+          
+          {/* Player Panels */}
+          <div className="grid grid-cols-2 gap-2">
+            <CompactPlayerPanel player={players[0]} isCurrentPlayer={currentPlayerIndex === 0} isMyPlayer={true} />
+            <CompactPlayerPanel player={players[1]} isCurrentPlayer={currentPlayerIndex === 1} isMyPlayer={false} />
           </div>
 
-          {/* Center Column (Board and Mobile Controls) */}
-          <div className="flex-grow flex flex-col gap-2 min-w-0 min-h-0">
-            {/* Player Info (Tablet/Mobile) */}
-            <div className="w-full grid grid-cols-2 lg:hidden gap-2">
-              <CompactPlayerPanel player={players[0]} isCurrentPlayer={currentPlayerIndex === 0} onRollDice={currentPlayerIndex === 0 ? rollDice : null} isRolling={isRolling} gameWon={gameWon} isMyPlayer={true} onChangeIcon={changePlayerIcon} />
-              <CompactPlayerPanel player={players[1]} isCurrentPlayer={currentPlayerIndex === 1} onRollDice={null} isRolling={isRolling || isAIThinking} gameWon={gameWon} isMyPlayer={false} onChangeIcon={changePlayerIcon} />
-            </div>
-
-            {/* Board */}
-            <div className="flex-grow relative min-h-0">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-full h-full max-w-full max-h-full aspect-square">
-                  <GameBoard players={displayPlayers} animatingPlayer={animatingPlayer} animationType={animationType} alienBlink={alienBlink} aliens={aliens} checkpoints={checkpoints} hazards={hazards} boardSize={boardSize} />
-                </div>
-              </div>
-            </div>
-            
-            {/* Controls (Mobile) */}
-            <div className="lg:hidden flex-shrink-0">
-              <GameControls diceValue={diceValue} message={isAIThinking ? `${aiPersonality.icon} AI is thinking...` : message} onReset={resetGame} numPlayers={2} onRollDice={rollDice} isRolling={isRolling} gameWon={gameWon} isCurrentPlayerHuman={!isAITurn} />
-            </div>
+          {/* Game Board */}
+          <div className="w-full max-w-[600px] mx-auto aspect-square">
+            <GameBoard 
+              players={displayPlayers} 
+              animatingPlayer={animatingPlayer} 
+              animationType={animationType} 
+              alienBlink={alienBlink} 
+              aliens={aliens} 
+              checkpoints={checkpoints} 
+              hazards={hazards} 
+              boardSize={boardSize} 
+            />
           </div>
 
-          {/* Right Player Column (Desktop) */}
-          <div className="hidden lg:flex flex-col justify-around w-64">
-            <PlayerPanel player={players[1]} isCurrentPlayer={currentPlayerIndex === 1} onRollDice={null} isRolling={isRolling || isAIThinking} gameWon={gameWon} isMyPlayer={false} onChangeIcon={changePlayerIcon} />
+          {/* Game Controls */}
+          <div className="flex-shrink-0">
+            <GameControls 
+              diceValue={diceValue} 
+              message={isAIThinking ? `${aiPersonality.icon} AI is thinking...` : message} 
+              onReset={resetGame} 
+              numPlayers={2} 
+              onRollDice={rollDice} 
+              isRolling={isRolling} 
+              gameWon={gameWon} 
+              isCurrentPlayerHuman={!isAITurn} 
+            />
           </div>
         </main>
-        
-        {/* Footer / Controls (Desktop) */}
-        <footer className="hidden lg:flex flex-shrink-0 p-2 justify-center">
-          <GameControls diceValue={diceValue} message={isAIThinking ? `${aiPersonality.icon} AI is thinking...` : message} onReset={resetGame} numPlayers={2} onRollDice={rollDice} isRolling={isRolling} gameWon={gameWon} isCurrentPlayerHuman={!isAITurn} />
-        </footer>
       </div>
 
-      {/* Game Overlays */}
+      {/* Game Event Overlays */}
       {players.map((player, index) => {
         const jailState = jailStates(player.id);
         if (jailState.inJail && currentPlayerIndex === index) {
