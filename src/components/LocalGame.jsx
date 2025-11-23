@@ -126,7 +126,14 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal', gameVa
           {/* Player Panels */}
           <div className="grid grid-cols-2 gap-2">
             {players.map((p, index) => (
-              <CompactPlayerPanel key={p.id} player={p} isCurrentPlayer={currentPlayerIndex === index} />
+              <CompactPlayerPanel 
+                key={p.id} 
+                player={p} 
+                isCurrentPlayer={currentPlayerIndex === index}
+                onRollDice={currentPlayerIndex === index ? rollDice : null}
+                isRolling={isRolling}
+                gameWon={gameWon}
+              />
             ))}
           </div>
 
@@ -153,11 +160,7 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal', gameVa
               onReset={resetGame} 
               onAddPlayer={addPlayer} 
               onRemovePlayer={removePlayer} 
-              numPlayers={numPlayers} 
-              onRollDice={rollDice} 
-              isRolling={isRolling} 
-              gameWon={gameWon} 
-              isCurrentPlayerHuman={true} 
+              numPlayers={numPlayers}
             />
           </div>
 

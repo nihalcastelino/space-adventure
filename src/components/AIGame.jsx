@@ -126,8 +126,22 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
           
           {/* Player Panels */}
           <div className="grid grid-cols-2 gap-2">
-            <CompactPlayerPanel player={players[0]} isCurrentPlayer={currentPlayerIndex === 0} isMyPlayer={true} />
-            <CompactPlayerPanel player={players[1]} isCurrentPlayer={currentPlayerIndex === 1} isMyPlayer={false} />
+            <CompactPlayerPanel 
+              player={players[0]} 
+              isCurrentPlayer={currentPlayerIndex === 0} 
+              isMyPlayer={true}
+              onRollDice={currentPlayerIndex === 0 ? rollDice : null}
+              isRolling={isRolling}
+              gameWon={gameWon}
+            />
+            <CompactPlayerPanel 
+              player={players[1]} 
+              isCurrentPlayer={currentPlayerIndex === 1} 
+              isMyPlayer={false}
+              onRollDice={null}
+              isRolling={isRolling || isAIThinking}
+              gameWon={gameWon}
+            />
           </div>
 
           {/* Game Board */}
@@ -150,11 +164,7 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
               diceValue={diceValue} 
               message={isAIThinking ? `${aiPersonality.icon} AI is thinking...` : message} 
               onReset={resetGame} 
-              numPlayers={2} 
-              onRollDice={rollDice} 
-              isRolling={isRolling} 
-              gameWon={gameWon} 
-              isCurrentPlayerHuman={!isAITurn} 
+              numPlayers={2}
             />
           </div>
         </main>
