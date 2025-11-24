@@ -1,23 +1,17 @@
-import { useState } from 'react';
 import { X } from 'lucide-react';
 import { useGameSounds } from '../hooks/useGameSounds';
+import { SHIP_ABILITIES } from '../lib/abilities';
 
 /**
  * Space Vehicle Icons
  */
 export const VEHICLE_ICONS = [
-  { id: 'rocket', icon: '🚀', name: 'Classic Rocket', description: 'The original space explorer' },
-  { id: 'ufo', icon: '🛸', name: 'UFO', description: 'Flying saucer from beyond' },
-  { id: 'satellite', icon: '🛰️', name: 'Satellite', description: 'Orbital observer' },
-  { id: 'shooting_star', icon: '🌠', name: 'Shooting Star', description: 'Blazing through space' },
-  { id: 'star', icon: '⭐', name: 'Star Ship', description: 'Shine bright like a star' },
-  { id: 'comet', icon: '💫', name: 'Comet', description: 'Speeding through the cosmos' },
-  { id: 'sparkle', icon: '✨', name: 'Sparkle Ship', description: 'Dazzling and bright' },
-  { id: 'fire', icon: '🔥', name: 'Fire Ship', description: 'Burning through space' },
-  { id: 'lightning', icon: '⚡', name: 'Lightning Bolt', description: 'Fast as lightning' },
-  { id: 'moon', icon: '🌙', name: 'Moon Ship', description: 'Lunar traveler' },
-  { id: 'planet', icon: '🪐', name: 'Planet Hopper', description: 'Ring around the cosmos' },
-  { id: 'sun', icon: '☀️', name: 'Solar Flyer', description: 'Bright as the sun' }
+  { id: 'rocket', icon: '🚀', name: 'Classic Rocket' },
+  { id: 'shield', icon: '🛡️', name: 'Guardian' },
+  { id: 'speedster', icon: '⚡', name: 'Speedster' },
+  { id: 'explorer', icon: '🛸', name: 'Explorer' },
+  { id: 'satellite', icon: '🛰️', name: 'Satellite' },
+  { id: 'shooting_star', icon: '🌠', name: 'Shooting Star' },
 ];
 
 /**
@@ -25,7 +19,6 @@ export const VEHICLE_ICONS = [
  */
 export default function IconSelector({ isOpen, onClose, onSelectIcon, currentIcon, playerName }) {
   const { playSound } = useGameSounds();
-  const [hoveredIcon, setHoveredIcon] = useState(null);
 
   if (!isOpen) return null;
 
@@ -69,19 +62,17 @@ export default function IconSelector({ isOpen, onClose, onSelectIcon, currentIco
 
         {/* Icon Grid */}
         <div className="p-4 overflow-y-auto" style={{ maxHeight: '500px' }}>
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {VEHICLE_ICONS.map((iconData) => {
               const isSelected = currentIcon === iconData.icon;
-              const isHovered = hoveredIcon === iconData.id;
+              const ability = SHIP_ABILITIES[iconData.icon];
 
               return (
                 <button
                   key={iconData.id}
                   onClick={() => handleSelect(iconData)}
-                  onMouseEnter={() => setHoveredIcon(iconData.id)}
-                  onMouseLeave={() => setHoveredIcon(null)}
                   className={`
-                    glass rounded-lg p-3 border-2 transition-all transform
+                    glass rounded-lg p-3 border-2 text-center transition-all transform
                     ${isSelected
                       ? 'border-yellow-400 scale-105 shadow-lg shadow-yellow-400/50'
                       : 'border-gray-700 hover:border-blue-400 hover:scale-105'
@@ -93,19 +84,16 @@ export default function IconSelector({ isOpen, onClose, onSelectIcon, currentIco
                       : 'rgba(31, 41, 55, 0.5)'
                   }}
                 >
-                  {/* Icon */}
-                  <div className="text-4xl mb-2 flex items-center justify-center">
-                    {iconData.icon}
-                  </div>
-
-                  {/* Name */}
-                  <div className="text-white text-xs font-bold text-center mb-1">
-                    {iconData.name}
-                  </div>
-
-                  {/* Selected Badge */}
+                  <div className="text-4xl mb-2">{iconData.icon}</div>
+                  <div className="text-white text-xs font-bold mb-1">{iconData.name}</div>
+                  {ability && (
+                    <div className="text-blue-300 text-[10px] leading-tight">
+                      <p className="font-bold">{ability.name}</p>
+                      <p>{ability.description}</p>
+                    </div>
+                  )}
                   {isSelected && (
-                    <div className="text-yellow-300 text-xs text-center">
+                    <div className="text-yellow-300 text-xs text-center mt-2">
                       ✓ Selected
                     </div>
                   )}
@@ -113,15 +101,6 @@ export default function IconSelector({ isOpen, onClose, onSelectIcon, currentIco
               );
             })}
           </div>
-
-          {/* Description */}
-          {hoveredIcon && (
-            <div className="mt-4 p-3 glass rounded-lg border-2 border-blue-400/30">
-              <p className="text-blue-300 text-sm text-center">
-                {VEHICLE_ICONS.find(i => i.id === hoveredIcon)?.description}
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Footer */}

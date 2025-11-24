@@ -239,43 +239,49 @@ export function PremiumModal({ currentTier, subscriptionStatus, onPurchase, onCa
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
             <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
               <Sparkles className="w-6 h-6 text-yellow-400" />
-              Premium Benefits
+              All Premium Benefits
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex items-start gap-3">
-                <div className="bg-yellow-600 p-2 rounded-lg">
-                  <Zap className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <div className="text-white font-bold">Earn More Coins</div>
-                  <div className="text-gray-400 text-sm">Up to 2x coins from every game</div>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="bg-green-600 p-2 rounded-lg">
-                  <Shield className="w-6 h-6 text-white" />
-                </div>
+                <div className="bg-green-600 p-2 rounded-lg"><Shield className="w-6 h-6 text-white" /></div>
                 <div>
                   <div className="text-white font-bold">Ad-Free Experience</div>
-                  <div className="text-gray-400 text-sm">Play without any interruptions</div>
+                  <div className="text-gray-400 text-sm">Play completely uninterrupted, on any device.</div>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <div className="bg-purple-600 p-2 rounded-lg">
-                  <Star className="w-6 h-6 text-white" />
-                </div>
+                <div className="bg-yellow-600 p-2 rounded-lg"><Zap className="w-6 h-6 text-white" /></div>
                 <div>
-                  <div className="text-white font-bold">Exclusive Cosmetics</div>
-                  <div className="text-gray-400 text-sm">Access premium skins and themes</div>
+                  <div className="text-white font-bold">Unlock All Difficulties & Variants</div>
+                  <div className="text-gray-400 text-sm">Challenge yourself with Hard, Extreme, and Chaos modes.</div>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <div className="bg-blue-600 p-2 rounded-lg">
-                  <Gift className="w-6 h-6 text-white" />
-                </div>
+                <div className="bg-purple-600 p-2 rounded-lg"><Star className="w-6 h-6 text-white" /></div>
                 <div>
-                  <div className="text-white font-bold">Daily Bonuses</div>
-                  <div className="text-gray-400 text-sm">Get free coins every day</div>
+                  <div className="text-white font-bold">Exclusive Ship Icons & Cosmetics</div>
+                  <div className="text-gray-400 text-sm">Access a unique collection of premium-only ships and dice.</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="bg-blue-600 p-2 rounded-lg"><Gift className="w-6 h-6 text-white" /></div>
+                <div>
+                  <div className="text-white font-bold">Enhanced Daily Bonuses</div>
+                  <div className="text-gray-400 text-sm">Get more free coins and rewards every day.</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="bg-pink-600 p-2 rounded-lg"><Users className="w-6 h-6 text-white" /></div>
+                <div>
+                  <div className="text-white font-bold">Custom Game Lobbies</div>
+                  <div className="text-gray-400 text-sm">Create private online games to play with your friends.</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="bg-orange-600 p-2 rounded-lg"><Scroll className="w-6 h-6 text-white" /></div>
+                <div>
+                  <div className="text-white font-bold">Full Game History</div>
+                  <div className="text-gray-400 text-sm">Review all your past games and statistics.</div>
                 </div>
               </div>
             </div>
