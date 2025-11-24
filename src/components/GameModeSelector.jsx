@@ -165,7 +165,41 @@ function ShopModal({ coins, onClose, onUpgrade }) {
   };
 
   const handlePurchase = async (packageId) => {
-    // ... (existing handlePurchase logic)
+    const priceId = coinPriceIds[packageId];
+    if (!priceId) {
+      alert('This package is not available for purchase right now.');
+      return;
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      alert('You must be signed in to make a purchase.');
+      // Optionally, trigger the Auth modal here
+      return;
+    }
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || '/.netlify/functions/create-checkout';
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ priceId, tier: 'coins', type: 'coins' }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create checkout session.');
+      }
+
+      window.location.href = data.url;
+    } catch (error) {
+      console.error('Purchase Error:', error);
+      alert(`Error: ${error.message}`);
+    }
   };
 
   const starterPack = { id: 'starter_pack', name: 'Starter Pack', coins: 1000, price: '$1.99', icon: '🎁', description: 'Get a massive coin boost and an exclusive ship!' };
