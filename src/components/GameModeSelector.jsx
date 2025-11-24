@@ -158,7 +158,7 @@ function ShopModal({ coins, onClose, onUpgrade }) {
   const { isPremium } = usePremium();
   
   const coinPriceIds = {
-    starter_pack: 'price_123456789_STARTERPACK', // Placeholder
+    starter_pack: import.meta.env.VITE_STRIPE_PRICE_STARTER_PACK,
     coins_small: import.meta.env.VITE_STRIPE_PRICE_COINS_SMALL,
     coins_medium: import.meta.env.VITE_STRIPE_PRICE_COINS_MEDIUM,
     coins_large: import.meta.env.VITE_STRIPE_PRICE_COINS_LARGE,
