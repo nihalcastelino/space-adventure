@@ -121,7 +121,29 @@ async function createProducts() {
     priceIds.premium_lifetime_usd = premiumLifetimePrice.id;
     console.log('  ✅ Price created:', premiumLifetimePrice.id, '($19.99 one-time)');
 
-    // 3. Coin Packages (One-time payments)
+    // 3. Starter Pack (One-time payment)
+    console.log('\n📦 Creating Starter Pack...');
+    const starterPackProduct = await stripe.products.create({
+      name: 'Space Adventure Starter Pack',
+      description: 'A huge boost to begin your adventure! 1,000 coins + 200 bonus coins.',
+      metadata: {
+        type: 'coins',
+        coins: '1000',
+        bonus: '200',
+      },
+    });
+    console.log('  ✅ Product created:', starterPackProduct.id);
+
+    const starterPackPrice = await stripe.prices.create({
+      product: starterPackProduct.id,
+      unit_amount: 199, // $1.99
+      currency: 'usd',
+      nickname: 'Starter Pack (USD)',
+    });
+    priceIds.starter_pack = starterPackPrice.id;
+    console.log('  ✅ Price created:', starterPackPrice.id, '($1.99 one-time)');
+
+    // 4. Coin Packages (One-time payments)
     console.log('\n📦 Creating Coin Packages...');
 
     const coinPackages = [
@@ -160,6 +182,7 @@ async function createProducts() {
     console.log('# Stripe Price IDs (created automatically)');
     console.log(`VITE_STRIPE_PRICE_MONTHLY=${priceIds.premium_monthly_usd}`);
     console.log(`VITE_STRIPE_PRICE_LIFETIME=${priceIds.premium_lifetime_usd}`);
+    console.log(`VITE_STRIPE_PRICE_STARTER_PACK=${priceIds.starter_pack}`);
     console.log(`VITE_STRIPE_PRICE_COINS_SMALL=${priceIds.coins_small}`);
     console.log(`VITE_STRIPE_PRICE_COINS_MEDIUM=${priceIds.coins_medium}`);
     console.log(`VITE_STRIPE_PRICE_COINS_LARGE=${priceIds.coins_large}`);
