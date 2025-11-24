@@ -36,8 +36,8 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
 
   const gameLogic = useGameLogic(initialDifficulty, gameVariant);
   const {
-    players,
-    currentPlayerIndex,
+    players = [],
+    currentPlayerIndex = 0,
     diceValue,
     isRolling,
     message,
@@ -57,13 +57,15 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
     jailStates,
     payBail,
     boardSize
-  } = gameLogic;
+  } = gameLogic || {};
 
   const isAITurn = currentPlayerIndex === 1;
 
-  const displayPlayers = gameWon && winner?.isAI 
-    ? players.map(p => p.id === winner.id ? p : { ...p, position: 0 })
-    : players;
+  const displayPlayers = (players && players.length > 0) 
+    ? (gameWon && winner?.isAI 
+        ? players.map(p => p.id === winner.id ? p : { ...p, position: 0 })
+        : players)
+    : [];
 
   const { aiPersonality, isAIThinking, takeAITurn } = useAIOpponent(
     aiDifficulty,
@@ -125,24 +127,26 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
         <main className="flex-grow flex-1 min-h-0 overflow-y-auto p-2 space-y-4">
           
           {/* Player Panels */}
-          <div className="grid grid-cols-2 gap-2">
-            <CompactPlayerPanel 
-              player={players[0]} 
-              isCurrentPlayer={currentPlayerIndex === 0} 
-              isMyPlayer={true}
-              onRollDice={currentPlayerIndex === 0 ? rollDice : null}
-              isRolling={isRolling}
-              gameWon={gameWon}
-            />
-            <CompactPlayerPanel 
-              player={players[1]} 
-              isCurrentPlayer={currentPlayerIndex === 1} 
-              isMyPlayer={false}
-              onRollDice={null}
-              isRolling={isRolling || isAIThinking}
-              gameWon={gameWon}
-            />
-          </div>
+          {players && players.length >= 2 && (
+            <div className="grid grid-cols-2 gap-2">
+              <CompactPlayerPanel 
+                player={players[0]} 
+                isCurrentPlayer={currentPlayerIndex === 0} 
+                isMyPlayer={true}
+                onRollDice={currentPlayerIndex === 0 ? rollDice : null}
+                isRolling={isRolling}
+                gameWon={gameWon}
+              />
+              <CompactPlayerPanel 
+                player={players[1]} 
+                isCurrentPlayer={currentPlayerIndex === 1} 
+                isMyPlayer={false}
+                onRollDice={null}
+                isRolling={isRolling || isAIThinking}
+                gameWon={gameWon}
+              />
+            </div>
+          )}
 
           {/* Game Board */}
           <div className="w-full max-w-[600px] mx-auto aspect-square">
@@ -171,7 +175,7 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
       </div>
 
       {/* Game Event Overlays */}
-      {players.map((player, index) => {
+      {players && players.length > 0 && players.map((player, index) => {
         const jailState = jailStates(player.id);
         if (jailState.inJail && currentPlayerIndex === index) {
           return <SpaceJail key={player.id} playerId={player.id} playerName={player.name} turnsRemaining={jailState.turnsRemaining} bailCost={50} playerCoins={currency.coins} onPayBail={() => { const result = payBail(player.id); if (result.success) { currency.removeCoins(result.cost); playSound('click'); } }} onRollForDoubles={rollDice} isCurrentPlayer={true} />;

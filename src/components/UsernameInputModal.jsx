@@ -60,6 +60,8 @@ export default function UsernameInputModal({
   if (!isOpen || !players || players.length === 0) return null;
 
   const currentPlayer = players[currentPlayerIndex];
+  if (!currentPlayer) return null; // Safety check in case currentPlayerIndex is out of bounds
+  
   const currentName = playerNames[currentPlayer.id] || `Player ${currentPlayer.id}`;
   const isLastPlayer = currentPlayerIndex === players.length - 1;
 
