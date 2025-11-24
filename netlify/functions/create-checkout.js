@@ -192,6 +192,9 @@ exports.handler = async (event) => {
       subscription_data: !isOneTimePayment ? {
         metadata: { user_id: user.id, tier },
       } : undefined,
+      customer_update: {
+        address: 'auto',
+      },
       automatic_tax: {
         enabled: true, // Auto-calculate VAT/GST based on customer location
       },
