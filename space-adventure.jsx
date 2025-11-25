@@ -22,7 +22,10 @@ const SpaceAdventure = () => {
   const aliens = [14, 23, 29, 38, 45, 50, 54, 61, 68, 75, 82, 88, 94, 98];
   
   // Checkpoints - safe spots you return to when eaten
-  const checkpoints = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90];
+  const checkpoints = {
+    0: true, 10: true, 20: true, 30: true, 40: true, 50: true, 60: true, 
+    70: true, 80: true, 90: true
+  };
   
   const [numPlayers, setNumPlayers] = useState(2);
   const [players, setPlayers] = useState([
@@ -38,6 +41,8 @@ const SpaceAdventure = () => {
   const [animatingPlayer, setAnimatingPlayer] = useState(null);
   const [animationType, setAnimationType] = useState(null); // 'liftoff', 'landing', 'eaten'
 
+  const playerColors = ['text-yellow-300', 'text-blue-300', 'text-green-300', 'text-pink-300'];
+  const playerCorners = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
 
   const addPlayer = () => {
     if (numPlayers < 4) {
@@ -65,9 +70,10 @@ const SpaceAdventure = () => {
   };
 
   const getLastCheckpoint = (position) => {
-    for (let i = checkpoints.length - 1; i >= 0; i--) {
-      if (checkpoints[i] <= position) {
-        return checkpoints[i];
+    const checkpointKeys = Object.keys(checkpoints).map(Number);
+    for (let i = checkpointKeys.length - 1; i >= 0; i--) {
+      if (checkpointKeys[i] <= position) {
+        return checkpointKeys[i];
       }
     }
     return 0;
@@ -357,7 +363,7 @@ const SpaceAdventure = () => {
         const playersHere = players.filter(p => p.position === cellNumber);
         const isSpaceport = spaceports[cellNumber];
         const isAlien = aliens.includes(cellNumber);
-        const isCheckpoint = checkpoints.includes(cellNumber);
+        const isCheckpoint = checkpoints[cellNumber];
         const isFinish = cellNumber === boardSize;
         
         const spaceTheme = getSpaceTheme(cellNumber);

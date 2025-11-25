@@ -42,10 +42,10 @@ const DEFAULT_ALIENS = [14, 23, 29, 38, 45, 50, 54, 61, 68, 75, 82, 88, 94, 98];
 const DEFAULT_CHECKPOINTS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90];
 
 export default function GameBoard({
-  players,
+  players = [],
   animatingPlayer,
   animationType,
-  alienBlink,
+  alienBlink = {},
   animatedPositions = {},
   encounterType = null,
   maxWidth,
@@ -57,8 +57,8 @@ export default function GameBoard({
   rogueState = null, // Rogue player state
   boardSize = DEFAULT_BOARD_SIZE // Variant-specific board size
 }) {
-  const ALIENS = aliens;
-  const CHECKPOINTS = checkpoints;
+  const ALIENS = aliens || DEFAULT_ALIENS;
+  const CHECKPOINTS = checkpoints || DEFAULT_CHECKPOINTS;
   const [sparkles, setSparkles] = useState([]);
   const responsiveSize = useResponsiveSize();
 
@@ -304,7 +304,7 @@ export default function GameBoard({
                   fontSize: `${Math.max(20, Math.min(32, responsiveSize.rocket + 4))}px`,
                   zIndex: 5,
                   filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 12px rgba(239, 68, 68, 0.9)) drop-shadow(0 0 20px rgba(239, 68, 68, 0.6)) contrast(1.4) saturate(1.5)',
-                  animation: alienBlink[cellNumber] ? 'alien-attack 0.3s ease-in-out' : 'alien-idle 2s ease-in-out infinite',
+                  animation: (alienBlink && alienBlink[cellNumber]) ? 'alien-attack 0.3s ease-in-out' : 'alien-idle 2s ease-in-out infinite',
                   imageRendering: 'pixelated',
                   WebkitImageRendering: 'pixelated'
                 }}
@@ -888,7 +888,7 @@ export default function GameBoard({
           transform: `${scaleFactor !== 1 ? `scale(${scaleFactor})` : ''} translate(${parallax.x}px, ${parallax.y}px)`,
           transition: 'transform 0.1s ease-out, max-height 0.2s ease-out',
           marginBottom: '0.5rem',
-          animation: encounterType === 'alien' || getHazardAtCell(players.find(p => p.id === animatingPlayer)?.position)?.type === 'blackHole' 
+          animation: encounterType === 'alien' || (players && players.length > 0 && getHazardAtCell(players.find(p => p.id === animatingPlayer)?.position)?.type === 'blackHole')
             ? 'screen-shake 0.5s cubic-bezier(.36,.07,.19,.97) both' 
             : 'none'
         }}
