@@ -7,6 +7,7 @@ import { useRoguePlayer } from './useRoguePlayer';
 import { useGameVariants, GAME_VARIANTS } from './useGameVariants';
 import { SHIP_ABILITIES } from '../lib/abilities';
 import { useAchievements } from './useAchievements';
+import { useRocketAnimation } from './useRocketAnimation';
 
 const DEFAULT_BOARD_SIZE = 100;
 const SPACEPORTS = {
@@ -33,6 +34,7 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
   const assistance = usePlayerAssistance();
   const rogue = useRoguePlayer(true);
   const gameVariants = useGameVariants(gameVariant);
+  const { animatedPositions, animatingPlayer, encounterType, animateMovement } = useRocketAnimation();
 
   const getInitialAbilityState = (icon) => {
     const abilityDef = SHIP_ABILITIES[icon] || {};
@@ -108,34 +110,54 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
     
     setIsRolling(true);
     const currentPlayer = players[currentPlayerIndex];
-    let newPosition = currentPlayer.position + steps;
+    const fromPosition = currentPlayer.position;
+    let targetPosition = fromPosition + steps;
+    
+    // Check for spaceport and alien encounters
+    const hasSpaceport = SPACEPORTS[targetPosition] !== undefined;
+    const hasAlien = ALIENS.includes(targetPosition);
+    let finalPosition = targetPosition;
+    let alienTarget = fromPosition;
     
     // Handle spaceport teleportation
-    if (SPACEPORTS[newPosition]) {
-      const destination = SPACEPORTS[newPosition];
-      newPosition = destination;
-      setMessage(`🚀 ${currentPlayer.name} uses spaceport! Teleports to ${destination}!`);
-      await new Promise(resolve => setTimeout(resolve, 800));
+    if (hasSpaceport) {
+      finalPosition = SPACEPORTS[targetPosition];
+      setMessage(`🚀 ${currentPlayer.name} uses spaceport! Teleports to ${finalPosition}!`);
     }
     
     // Handle alien encounters
-    if (ALIENS.includes(newPosition)) {
-      const lastCheckpoint = getLastCheckpoint(currentPlayer.position);
-      newPosition = lastCheckpoint;
-      setMessage(`👾 ${currentPlayer.name} encountered an alien! Sent back to checkpoint ${lastCheckpoint}!`);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    if (hasAlien) {
+      alienTarget = getLastCheckpoint(fromPosition);
+      finalPosition = alienTarget;
+      setMessage(`👾 ${currentPlayer.name} encountered an alien! Sent back to checkpoint ${alienTarget}!`);
     }
     
+    // Clamp final position to board size
+    finalPosition = Math.min(finalPosition, BOARD_SIZE);
+    
+    // Animate the movement
+    await animateMovement(
+      currentPlayer.id,
+      fromPosition,
+      targetPosition,
+      hasSpaceport,
+      hasAlien,
+      alienTarget
+    );
+    
+    // Add a small delay after animation completes
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
     // Update checkpoint
-    const newCheckpoint = getLastCheckpoint(newPosition);
+    const newCheckpoint = getLastCheckpoint(finalPosition);
     const updatedPlayers = players.map((p, i) => {
       if (i === currentPlayerIndex) {
         return {
           ...p,
-          position: Math.min(newPosition, BOARD_SIZE),
+          position: finalPosition,
           lastCheckpoint: Math.max(p.lastCheckpoint, newCheckpoint),
-          alienEncounters: ALIENS.includes(newPosition) ? p.alienEncounters + 1 : p.alienEncounters,
-          spaceportUses: SPACEPORTS[newPosition] ? p.spaceportUses + 1 : p.spaceportUses
+          alienEncounters: hasAlien ? p.alienEncounters + 1 : p.alienEncounters,
+          spaceportUses: hasSpaceport ? p.spaceportUses + 1 : p.spaceportUses
         };
       }
       return p;
@@ -144,21 +166,22 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
     setPlayers(updatedPlayers);
     
     // Check win condition
-    const finalPosition = Math.min(newPosition, BOARD_SIZE);
     if (finalPosition >= BOARD_SIZE) {
       setGameWon(true);
       setWinner(updatedPlayers[currentPlayerIndex]);
       setIsPerfectLanding(finalPosition === BOARD_SIZE);
       setMessage(`🎉 ${currentPlayer.name} wins!`);
+      playSound('win');
     } else {
-      // Switch to next player
+      // Switch to next player with a delay
+      await new Promise(resolve => setTimeout(resolve, 500));
       const nextIndex = (currentPlayerIndex + 1) % players.length;
       setCurrentPlayerIndex(nextIndex);
       setMessage(`${updatedPlayers[nextIndex].name}'s turn!`);
     }
     
     setIsRolling(false);
-  }, [players, currentPlayerIndex, gameWon, isRolling, BOARD_SIZE, ALIENS, CHECKPOINTS, getLastCheckpoint]);
+  }, [players, currentPlayerIndex, gameWon, isRolling, BOARD_SIZE, ALIENS, CHECKPOINTS, getLastCheckpoint, animateMovement, playSound]);
 
   const rollDice = useCallback(() => {
     if (isRolling || gameWon) return;
@@ -168,9 +191,10 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
     setDiceValue(roll);
     playSound('dice');
     
+    // Show dice result for a moment before moving
     setTimeout(() => {
       movePlayer(roll);
-    }, 500);
+    }, 800);
   }, [isRolling, gameWon, movePlayer, playSound]);
 
   const resetGame = useCallback(() => {
@@ -239,9 +263,10 @@ export function useGameLogic(initialDifficulty = 'normal', gameVariant = 'classi
     message,
     gameWon,
     winner,
-    animatingPlayer: null,
-    animationType: null,
+    animatingPlayer,
+    animationType: encounterType,
     alienBlink: {},
+    animatedPositions,
     aliens: ALIENS,
     checkpoints: CHECKPOINTS,
     difficulty,

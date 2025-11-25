@@ -25,21 +25,24 @@ export function useRocketAnimation() {
 
     // Step 1: Animate moving forward through each square
     const steps = toPos - fromPos;
+    // Adjust speed based on distance - longer moves are faster per square
+    const baseDelay = steps > 10 ? 120 : steps > 5 ? 150 : 200; // Faster for longer moves
+    
     for (let i = 1; i <= steps; i++) {
       const currentPos = fromPos + i;
       setAnimatedPositions(prev => ({ ...prev, [playerId]: currentPos }));
-      await new Promise(resolve => setTimeout(resolve, 200)); // 200ms per square
+      await new Promise(resolve => setTimeout(resolve, baseDelay)); // Adjustable delay per square
     }
 
     // Step 2: Show spaceport encounter if applicable
     if (hasSpaceport && SPACEPORTS[toPos]) {
       setEncounterType('spaceport');
-      await new Promise(resolve => setTimeout(resolve, 800)); // Show warp effect
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Show warp effect longer
       
       const warpTarget = SPACEPORTS[toPos];
-      // Quick warp animation
+      // Animate warp teleportation
       setAnimatedPositions(prev => ({ ...prev, [playerId]: warpTarget }));
-      await new Promise(resolve => setTimeout(resolve, 600));
+      await new Promise(resolve => setTimeout(resolve, 800)); // Hold at destination
     }
 
     // Step 3: Show alien encounter if applicable
@@ -47,16 +50,18 @@ export function useRocketAnimation() {
       const finalPos = hasSpaceport ? SPACEPORTS[toPos] : toPos;
       if (ALIENS.includes(finalPos)) {
         setEncounterType('alien');
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Show alien eating effect
+        await new Promise(resolve => setTimeout(resolve, 1200)); // Show alien eating effect longer
         
         // Animate moving backwards
         if (alienTarget < finalPos) {
+          const backwardSteps = finalPos - alienTarget;
+          const backwardDelay = backwardSteps > 10 ? 100 : backwardSteps > 5 ? 120 : 150;
           for (let i = finalPos - 1; i >= alienTarget; i--) {
             setAnimatedPositions(prev => ({ ...prev, [playerId]: i }));
-            await new Promise(resolve => setTimeout(resolve, 150)); // Faster backwards
+            await new Promise(resolve => setTimeout(resolve, backwardDelay));
           }
         }
-        await new Promise(resolve => setTimeout(resolve, 400));
+        await new Promise(resolve => setTimeout(resolve, 500)); // Pause at checkpoint
       }
     }
 
