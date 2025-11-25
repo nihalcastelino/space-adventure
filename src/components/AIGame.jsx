@@ -36,12 +36,16 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
 
   const gameLogic = useGameLogic(initialDifficulty, gameVariant);
   
-  // Debug: Log if gameLogic is missing or incomplete
+  // Debug: Log if gameLogic is missing or incomplete (only once)
+  const hasLoggedWarning = useRef(false);
   useEffect(() => {
+    if (hasLoggedWarning.current) return;
     if (!gameLogic) {
       console.warn('AIGame: useGameLogic returned undefined. Using fallback functions.');
+      hasLoggedWarning.current = true;
     } else if (!gameLogic.rollDice || !gameLogic.resetGame) {
       console.warn('AIGame: useGameLogic is incomplete. Missing rollDice or resetGame. Using fallback functions.');
+      hasLoggedWarning.current = true;
     }
   }, [gameLogic]);
   
