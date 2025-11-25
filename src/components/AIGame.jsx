@@ -36,44 +36,108 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
 
   const gameLogic = useGameLogic(initialDifficulty, gameVariant);
   
-  // Debug: Log if gameLogic is missing
+  // Debug: Log if gameLogic is missing or incomplete
   useEffect(() => {
     if (!gameLogic) {
-      console.warn('AIGame: useGameLogic returned undefined. Player widgets may not function correctly.');
+      console.warn('AIGame: useGameLogic returned undefined. Using fallback functions.');
+    } else if (!gameLogic.rollDice || !gameLogic.resetGame) {
+      console.warn('AIGame: useGameLogic is incomplete. Missing rollDice or resetGame. Using fallback functions.');
     }
   }, [gameLogic]);
   
   const {
     players: gameLogicPlayers = [],
-    currentPlayerIndex = 0,
-    diceValue,
-    isRolling,
-    message,
-    gameWon,
-    winner,
-    animatingPlayer,
-    animationType,
-    alienBlink,
-    aliens,
-    checkpoints,
-    difficulty = initialDifficulty,
-    changeDifficulty,
-    rollDice,
-    resetGame,
-    changePlayerIcon,
-    hazards,
-    jailStates,
-    payBail,
-    boardSize
+    currentPlayerIndex: gameLogicCurrentPlayerIndex = 0,
+    diceValue: gameLogicDiceValue,
+    isRolling: gameLogicIsRolling = false,
+    message: gameLogicMessage = "Player 1's turn! Press SPIN to start!",
+    gameWon: gameLogicGameWon = false,
+    winner: gameLogicWinner,
+    animatingPlayer: gameLogicAnimatingPlayer,
+    animationType: gameLogicAnimationType,
+    alienBlink: gameLogicAlienBlink = {},
+    aliens: gameLogicAliens,
+    checkpoints: gameLogicCheckpoints,
+    difficulty: gameLogicDifficulty = initialDifficulty,
+    changeDifficulty: gameLogicChangeDifficulty,
+    rollDice: gameLogicRollDice,
+    resetGame: gameLogicResetGame,
+    changePlayerIcon: gameLogicChangePlayerIcon,
+    hazards: gameLogicHazards,
+    jailStates: gameLogicJailStates,
+    payBail: gameLogicPayBail,
+    boardSize: gameLogicBoardSize = 100
   } = gameLogic || {};
 
   // Ensure players array is always initialized with at least 2 players
-  const players = gameLogicPlayers && gameLogicPlayers.length > 0 
-    ? gameLogicPlayers 
-    : [
-        { id: 1, name: 'Player 1', position: 0, lastCheckpoint: 0, icon: '🚀', color: 'text-yellow-300', isAI: false, corner: 'top-left' },
-        { id: 2, name: 'AI', position: 0, lastCheckpoint: 0, icon: '🤖', color: 'text-blue-300', isAI: true, corner: 'top-right' }
-      ];
+  const [localPlayers, setLocalPlayers] = useState([
+    { id: 1, name: 'Player 1', position: 0, lastCheckpoint: 0, icon: '🚀', color: 'text-yellow-300', isAI: false, corner: 'top-left' },
+    { id: 2, name: 'AI', position: 0, lastCheckpoint: 0, icon: '🤖', color: 'text-blue-300', isAI: true, corner: 'top-right' }
+  ]);
+  const [localCurrentPlayerIndex, setLocalCurrentPlayerIndex] = useState(0);
+  const [localDiceValue, setLocalDiceValue] = useState(null);
+  const [localIsRolling, setLocalIsRolling] = useState(false);
+  const [localMessage, setLocalMessage] = useState("Player 1's turn! Press SPIN to start!");
+
+  const players = gameLogicPlayers && gameLogicPlayers.length > 0 ? gameLogicPlayers : localPlayers;
+  const currentPlayerIndex = gameLogic ? gameLogicCurrentPlayerIndex : localCurrentPlayerIndex;
+  const diceValue = gameLogic ? gameLogicDiceValue : localDiceValue;
+  const isRolling = gameLogic ? gameLogicIsRolling : localIsRolling;
+  const message = gameLogic ? gameLogicMessage : localMessage;
+  const gameWon = gameLogic ? gameLogicGameWon : false;
+  const winner = gameLogic ? gameLogicWinner : null;
+  const animatingPlayer = gameLogic ? gameLogicAnimatingPlayer : null;
+  const animationType = gameLogic ? gameLogicAnimationType : null;
+  const alienBlink = gameLogic ? gameLogicAlienBlink : {};
+  const aliens = gameLogic ? gameLogicAliens : undefined;
+  const checkpoints = gameLogic ? gameLogicCheckpoints : undefined;
+  const difficulty = gameLogic ? gameLogicDifficulty : initialDifficulty;
+  const changeDifficulty = gameLogic ? gameLogicChangeDifficulty : undefined;
+  const hazards = gameLogic ? gameLogicHazards : null;
+  const jailStates = gameLogic ? gameLogicJailStates : undefined;
+  const payBail = gameLogic ? gameLogicPayBail : undefined;
+  const boardSize = gameLogic ? gameLogicBoardSize : 100;
+
+  // Fallback rollDice function if gameLogic doesn't provide it
+  const rollDice = gameLogicRollDice || (() => {
+    if (localIsRolling) return;
+    setLocalIsRolling(true);
+    const roll = Math.floor(Math.random() * 6) + 1;
+    setTimeout(() => {
+      setLocalDiceValue(roll);
+      setLocalIsRolling(false);
+      const currentPlayer = localPlayers[localCurrentPlayerIndex];
+      const newPosition = Math.min(currentPlayer.position + roll, 100);
+      setLocalPlayers(prev => prev.map((p, i) => 
+        i === localCurrentPlayerIndex ? { ...p, position: newPosition } : p
+      ));
+      if (newPosition >= 100) {
+        setLocalMessage(`${currentPlayer.name} wins!`);
+      } else {
+        setLocalCurrentPlayerIndex((localCurrentPlayerIndex + 1) % localPlayers.length);
+        setLocalMessage(`${localPlayers[(localCurrentPlayerIndex + 1) % localPlayers.length].name}'s turn!`);
+      }
+    }, 1000);
+  });
+
+  // Fallback resetGame function if gameLogic doesn't provide it
+  const resetGame = gameLogicResetGame || (() => {
+    setLocalPlayers([
+      { id: 1, name: 'Player 1', position: 0, lastCheckpoint: 0, icon: '🚀', color: 'text-yellow-300', isAI: false, corner: 'top-left' },
+      { id: 2, name: 'AI', position: 0, lastCheckpoint: 0, icon: '🤖', color: 'text-blue-300', isAI: true, corner: 'top-right' }
+    ]);
+    setLocalCurrentPlayerIndex(0);
+    setLocalDiceValue(null);
+    setLocalIsRolling(false);
+    setLocalMessage("Player 1's turn! Press SPIN to start!");
+  });
+
+  // Fallback changePlayerIcon function if gameLogic doesn't provide it
+  const changePlayerIcon = gameLogicChangePlayerIcon || ((playerId, iconData) => {
+    setLocalPlayers(prev => prev.map(p => 
+      p.id === playerId ? { ...p, icon: iconData.icon || iconData } : p
+    ));
+  });
 
   const isAITurn = currentPlayerIndex === 1;
 
