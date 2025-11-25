@@ -83,6 +83,13 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal', gameVa
     }
   }, [gameWon, winner]);
 
+  useEffect(() => {
+    if (players.length === 0) {
+      addPlayer();
+      addPlayer();
+    }
+  }, [players, addPlayer]);
+
   return (
     <div
       className="fixed inset-0 overflow-hidden flex flex-col bg-black"
