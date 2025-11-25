@@ -35,8 +35,16 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
   }, [progression.level]);
 
   const gameLogic = useGameLogic(initialDifficulty, gameVariant);
+  
+  // Debug: Log if gameLogic is missing
+  useEffect(() => {
+    if (!gameLogic) {
+      console.warn('AIGame: useGameLogic returned undefined. Player widgets may not function correctly.');
+    }
+  }, [gameLogic]);
+  
   const {
-    players = [],
+    players: gameLogicPlayers = [],
     currentPlayerIndex = 0,
     diceValue,
     isRolling,
@@ -48,7 +56,7 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
     alienBlink,
     aliens,
     checkpoints,
-    difficulty,
+    difficulty = initialDifficulty,
     changeDifficulty,
     rollDice,
     resetGame,
@@ -58,6 +66,14 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
     payBail,
     boardSize
   } = gameLogic || {};
+
+  // Ensure players array is always initialized with at least 2 players
+  const players = gameLogicPlayers && gameLogicPlayers.length > 0 
+    ? gameLogicPlayers 
+    : [
+        { id: 1, name: 'Player 1', position: 0, lastCheckpoint: 0, icon: '🚀', color: 'text-yellow-300', isAI: false, corner: 'top-left' },
+        { id: 2, name: 'AI', position: 0, lastCheckpoint: 0, icon: '🤖', color: 'text-blue-300', isAI: true, corner: 'top-right' }
+      ];
 
   const isAITurn = currentPlayerIndex === 1;
 
@@ -129,22 +145,26 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
           {/* Player Panels */}
           {players && players.length >= 2 && (
             <div className="grid grid-cols-2 gap-2">
-              <CompactPlayerPanel 
-                player={players[0]} 
-                isCurrentPlayer={currentPlayerIndex === 0} 
-                isMyPlayer={true}
-                onRollDice={currentPlayerIndex === 0 ? rollDice : null}
-                isRolling={isRolling}
-                gameWon={gameWon}
-              />
-              <CompactPlayerPanel 
-                player={players[1]} 
-                isCurrentPlayer={currentPlayerIndex === 1} 
-                isMyPlayer={false}
-                onRollDice={null}
-                isRolling={isRolling || isAIThinking}
-                gameWon={gameWon}
-              />
+              {players[0] && (
+                <CompactPlayerPanel 
+                  player={players[0]} 
+                  isCurrentPlayer={currentPlayerIndex === 0} 
+                  isMyPlayer={true}
+                  onRollDice={currentPlayerIndex === 0 && rollDice ? rollDice : null}
+                  isRolling={isRolling}
+                  gameWon={gameWon}
+                />
+              )}
+              {players[1] && (
+                <CompactPlayerPanel 
+                  player={players[1]} 
+                  isCurrentPlayer={currentPlayerIndex === 1} 
+                  isMyPlayer={false}
+                  onRollDice={null}
+                  isRolling={isRolling || isAIThinking}
+                  gameWon={gameWon}
+                />
+              )}
             </div>
           )}
 
@@ -175,10 +195,11 @@ export default function AIGame({ onBack, initialDifficulty = 'normal', aiDifficu
       </div>
 
       {/* Game Event Overlays */}
-      {players && players.length > 0 && players.map((player, index) => {
+      {players && players.length > 0 && jailStates && payBail && players.map((player, index) => {
+        if (!player) return null;
         const jailState = jailStates(player.id);
-        if (jailState.inJail && currentPlayerIndex === index) {
-          return <SpaceJail key={player.id} playerId={player.id} playerName={player.name} turnsRemaining={jailState.turnsRemaining} bailCost={50} playerCoins={currency.coins} onPayBail={() => { const result = payBail(player.id); if (result.success) { currency.removeCoins(result.cost); playSound('click'); } }} onRollForDoubles={rollDice} isCurrentPlayer={true} />;
+        if (jailState && jailState.inJail && currentPlayerIndex === index) {
+          return <SpaceJail key={player.id} playerId={player.id} playerName={player.name} turnsRemaining={jailState.turnsRemaining} bailCost={50} playerCoins={currency.coins} onPayBail={() => { const result = payBail(player.id); if (result && result.success) { currency.removeCoins(result.cost); playSound('click'); } }} onRollForDoubles={rollDice} isCurrentPlayer={true} />;
         }
         return null;
       })}

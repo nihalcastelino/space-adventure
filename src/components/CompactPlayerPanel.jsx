@@ -7,6 +7,15 @@ export default function CompactPlayerPanel({ player, isCurrentPlayer, isMyPlayer
   const { playSound } = useGameSounds();
   const [showIconSelector, setShowIconSelector] = useState(false);
 
+  // Safety check: ensure player exists
+  if (!player) {
+    return (
+      <div className="glass rounded-lg p-2 border-2 border-gray-700 border-opacity-30" style={{ minWidth: '70px', maxWidth: '90px' }}>
+        <div className="text-gray-400 text-xs">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <>
       <IconSelector
@@ -14,7 +23,7 @@ export default function CompactPlayerPanel({ player, isCurrentPlayer, isMyPlayer
         onClose={() => setShowIconSelector(false)}
         onSelectIcon={(iconData) => onChangeIcon && onChangeIcon(player.id, iconData)}
         currentIcon={player.icon || '🚀'}
-        playerName={player.name}
+        playerName={player.name || 'Player'}
       />
 
     <div
