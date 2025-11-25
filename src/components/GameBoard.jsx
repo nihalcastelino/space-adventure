@@ -169,6 +169,28 @@ export default function GameBoard({
     return 'rgba(31, 41, 55, 0.7)'; // More opaque dark gray for regular cells
   };
 
+  // Calculate cell position helper - accounts for snake pattern
+  const getCellPosition = (cellNumber) => {
+    const cols = 10;
+    const rows = Math.ceil(BOARD_SIZE / cols);
+    
+    // Calculate which row (0-indexed from top)
+    const row = Math.ceil(cellNumber / cols) - 1;
+    const isEvenRow = row % 2 === 0;
+    
+    // Calculate column within the row
+    const colInRow = ((cellNumber - 1) % cols);
+    // Reverse column order for odd rows (snake pattern)
+    const actualCol = isEvenRow ? colInRow : (cols - 1 - colInRow);
+    
+    // Calculate percentage positions (0-100%)
+    // Add half cell width to center in cell
+    const colPercent = ((actualCol + 0.5) / cols) * 100;
+    const rowPercent = ((rows - 1 - row + 0.5) / rows) * 100;
+    
+    return { colPercent, rowPercent, cellNumber };
+  };
+
   const renderBoard = () => {
     const cells = [];
     // Calculate grid dimensions based on board size
@@ -570,46 +592,7 @@ export default function GameBoard({
               </>
             )}
 
-            {/* Players */}
-            {playersHere.length > 0 && (
-              <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                zIndex: 20,
-                display: 'flex',
-                gap: '2px',
-                flexWrap: 'wrap',
-                justifyContent: 'center',
-                alignItems: 'center',
-                transition: 'all 0.15s ease-in-out'
-              }}>
-                {playersHere.map(player => {
-                  const playerIcon = player.icon || '🚀';
-                  const isAnimating = animatingPlayer === player.id;
-                  const animationClass = isAnimating && animationType ? `animate-rocket-${animationType}` : '';
-
-                  return (
-                    <div
-                      key={player.id}
-                      className={`player-rocket-moving ${animationClass} target-player-rocket`}
-                      data-player-id={player.id}
-                      data-is-ai={player.isAI}
-                      style={{
-                        fontSize: `${responsiveSize.rocket}px`,
-                        filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 12px currentColor) contrast(1.4) saturate(1.6)',
-                        animation: 'float 2s ease-in-out infinite',
-                        transition: 'transform 0.15s ease-in-out',
-                        lineHeight: 1
-                      }}
-                    >
-                      {playerIcon}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            {/* Players - rendered separately for smooth animation */}
           </div>
         );
       }
@@ -655,6 +638,49 @@ export default function GameBoard({
 
   // Render board cells before return statement
   const boardCells = renderBoard();
+
+  // Render animated players as absolutely positioned elements
+  const renderAnimatedPlayers = () => {
+    return players.map(player => {
+      const playerIcon = player.icon || '🚀';
+      const isAnimating = animatingPlayer === player.id;
+      const currentPos = animatedPositions[player.id] !== undefined ? animatedPositions[player.id] : player.position;
+      const cellPos = getCellPosition(currentPos);
+      
+      // Calculate transition duration based on animation state
+      // Match the timing from useRocketAnimation (120ms for long, 150ms for medium, 200ms for short)
+      let transitionDuration = '0.3s';
+      if (isAnimating) {
+        // Estimate move distance - if animating, assume we're moving
+        transitionDuration = '0.2s'; // Default for short moves
+      }
+      
+      return (
+        <div
+          key={player.id}
+          className={`player-rocket-moving target-player-rocket`}
+          data-player-id={player.id}
+          data-is-ai={player.isAI}
+          style={{
+            position: 'absolute',
+            left: `${cellPos.colPercent}%`,
+            top: `${cellPos.rowPercent}%`,
+            transform: 'translate(-50%, -50%)',
+            fontSize: `${responsiveSize.rocket}px`,
+            filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 12px currentColor) contrast(1.4) saturate(1.6)',
+            animation: isAnimating ? 'none' : 'float 2s ease-in-out infinite',
+            transition: `left ${transitionDuration} linear, top ${transitionDuration} linear, transform 0.2s ease-out`,
+            zIndex: isAnimating ? 25 : 20,
+            lineHeight: 1,
+            pointerEvents: 'none',
+            willChange: isAnimating ? 'left, top' : 'auto'
+          }}
+        >
+          {playerIcon}
+        </div>
+      );
+    });
+  };
 
   return (
     <>
@@ -896,6 +922,9 @@ export default function GameBoard({
         id="game-board-container"
       >
           {boardCells}
+          
+          {/* Animated Players - rendered as absolutely positioned elements */}
+          {renderAnimatedPlayers()}
 
         {/* Sparkle effects on special cells */}
         {sparkles.map(sparkle => (
