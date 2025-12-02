@@ -11,6 +11,12 @@
   port = 5173
   targetPort = 5173
 
+# SPA Redirect Rule - Essential for React Router
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
 # Headers for security
 [[headers]]
   for = "/*"
@@ -28,7 +34,7 @@
 [[headers]]
   for = "/robots.txt"
   [headers.values]
-    X-Robots-Tag = "noindex"
+    X-Robots-Tag = "all"
 
 [[headers]]
   for = "/ads.txt"
@@ -59,4 +65,3 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
-

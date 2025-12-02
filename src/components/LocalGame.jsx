@@ -128,45 +128,46 @@ export default function LocalGame({ onBack, initialDifficulty = 'normal', gameVa
         </header>
 
         {/* Scrollable Content */}
-        <main className="flex-grow flex-1 min-h-0 overflow-y-auto p-2 space-y-4">
-          
-          {/* Player Panels */}
-          <div className="grid grid-cols-2 gap-2">
+        <main className="flex-grow flex-1 min-h-0 overflow-y-auto p-2 space-y-2 md:space-y-4">
+
+          {/* Player Panels - Horizontal Scroll on Mobile, Grid on Desktop */}
+          <div className="flex overflow-x-auto pb-2 gap-2 md:grid md:grid-cols-2 md:overflow-visible md:pb-0 scrollbar-hide">
             {players.map((p, index) => (
-              <CompactPlayerPanel 
-                key={p.id} 
-                player={p} 
-                isCurrentPlayer={currentPlayerIndex === index}
-                onRollDice={currentPlayerIndex === index ? rollDice : null}
-                isRolling={isRolling}
-                gameWon={gameWon}
-              />
+              <div key={p.id} className="flex-shrink-0">
+                <CompactPlayerPanel
+                  player={p}
+                  isCurrentPlayer={currentPlayerIndex === index}
+                  onRollDice={currentPlayerIndex === index ? rollDice : null}
+                  isRolling={isRolling}
+                  gameWon={gameWon}
+                />
+              </div>
             ))}
           </div>
 
           {/* Game Board */}
           <div className="w-full max-w-[600px] mx-auto aspect-square">
-            <GameBoard 
-              players={players} 
-              animatingPlayer={animatingPlayer} 
-              animationType={animationType} 
-              alienBlink={alienBlink} 
-              aliens={aliens} 
-              rogueState={rogueState} 
-              checkpoints={checkpoints} 
-              hazards={hazards} 
-              boardSize={boardSize} 
+            <GameBoard
+              players={players}
+              animatingPlayer={animatingPlayer}
+              animationType={animationType}
+              alienBlink={alienBlink}
+              aliens={aliens}
+              rogueState={rogueState}
+              checkpoints={checkpoints}
+              hazards={hazards}
+              boardSize={boardSize}
             />
           </div>
 
           {/* Game Controls */}
           <div className="flex-shrink-0">
-            <GameControls 
-              diceValue={diceValue} 
-              message={message} 
-              onReset={resetGame} 
-              onAddPlayer={addPlayer} 
-              onRemovePlayer={removePlayer} 
+            <GameControls
+              diceValue={diceValue}
+              message={message}
+              onReset={resetGame}
+              onAddPlayer={addPlayer}
+              onRemovePlayer={removePlayer}
               numPlayers={numPlayers}
             />
           </div>

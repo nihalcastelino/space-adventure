@@ -22,7 +22,7 @@ export default function MatchmakingGame({ onBack, difficulty = 'normal', variant
   const [userProfile, setUserProfile] = useState(null);
   const [showModeSelection, setShowModeSelection] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  
+
   const {
     isQueued,
     queueStatus,
@@ -84,7 +84,7 @@ export default function MatchmakingGame({ onBack, difficulty = 'normal', variant
               .select('username, display_name')
               .eq('id', user.id)
               .single();
-            
+
             const playerName = profile?.username || profile?.display_name || 'Player';
             // Join the matched game
             await joinGame(matchedGameId, playerName);
@@ -156,12 +156,31 @@ export default function MatchmakingGame({ onBack, difficulty = 'normal', variant
           backgroundColor: '#000'
         }}
       >
-        {/* Game UI - same as OnlineGame */}
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-          {/* Left Panel - Players */}
-          <div className="w-full md:w-64 lg:w-80 bg-gray-900 bg-opacity-90 border-r border-gray-700 p-2 md:p-4 overflow-y-auto">
+        {/* Game UI - Responsive Layout */}
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+
+          {/* Mobile Player Bar (Top) */}
+          <div className="md:hidden w-full bg-gray-900 bg-opacity-90 border-b border-gray-700 p-2 flex overflow-x-auto gap-2 scrollbar-hide z-10">
             {gameState.players.map((player, index) => (
-              <div key={player.id} className="mb-2 md:mb-4">
+              <div key={player.id} className="flex-shrink-0">
+                <CompactPlayerPanel
+                  player={player}
+                  isCurrentPlayer={index === gameState.currentPlayerIndex}
+                  isWinner={gameState.gameWon && gameState.winner?.id === player.id}
+                  onRollDice={index === gameState.currentPlayerIndex && player.id === playerId ? handleRollDice : null}
+                  isRolling={gameState.isRolling}
+                  gameWon={gameState.gameWon}
+                  isOnline={true}
+                  isMyPlayer={player.id === playerId}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop Left Panel - Players */}
+          <div className="hidden md:block w-64 lg:w-80 bg-gray-900 bg-opacity-90 border-r border-gray-700 p-4 overflow-y-auto">
+            {gameState.players.map((player, index) => (
+              <div key={player.id} className="mb-4">
                 <PlayerPanel
                   player={player}
                   isCurrentPlayer={index === gameState.currentPlayerIndex}
@@ -179,27 +198,40 @@ export default function MatchmakingGame({ onBack, difficulty = 'normal', variant
           </div>
 
           {/* Center - Game Board */}
-          <div className="flex-1 flex flex-col items-center justify-center p-2 md:p-4 overflow-hidden">
-            <GameBoard
-              boardSize={gameState.boardSize || 100}
-              players={gameState.players}
-              currentPlayerIndex={gameState.currentPlayerIndex}
-              aliens={gameState.aliens || []}
-              checkpoints={gameState.checkpoints || []}
-              spaceports={gameState.spaceports || {}}
-              animatingPlayer={animatingPlayer}
-              animationType={animationType}
-              alienBlink={alienBlink}
-              diceRolling={diceRolling}
-              animatedPositions={animatedPositions}
-              encounterType={encounterType}
-              hazards={gameState.hazards}
-              rogueState={gameState.rogueState}
+          <div className="flex-1 flex flex-col items-center justify-center p-2 md:p-4 overflow-hidden relative">
+            <div className="w-full max-w-[600px] aspect-square max-h-[calc(100dvh-220px)] md:max-h-full">
+              <GameBoard
+                boardSize={gameState.boardSize || 100}
+                players={gameState.players}
+                currentPlayerIndex={gameState.currentPlayerIndex}
+                aliens={gameState.aliens || []}
+                checkpoints={gameState.checkpoints || []}
+                spaceports={gameState.spaceports || {}}
+                animatingPlayer={animatingPlayer}
+                animationType={animationType}
+                alienBlink={alienBlink}
+                diceRolling={diceRolling}
+                animatedPositions={animatedPositions}
+                encounterType={encounterType}
+                hazards={gameState.hazards}
+                rogueState={gameState.rogueState}
+              />
+            </div>
+          </div>
+
+          {/* Mobile Controls (Bottom) */}
+          <div className="md:hidden w-full bg-gray-900 bg-opacity-90 border-t border-gray-700 p-2 z-10">
+            <GameControls
+              diceValue={gameState.diceValue}
+              message={gameState.message}
+              onReset={handleResetGame}
+              numPlayers={gameState.players.length}
+              isOnline={true}
             />
           </div>
 
-          {/* Right Panel - Controls */}
-          <div className="w-full md:w-64 lg:w-80 bg-gray-900 bg-opacity-90 border-l border-gray-700 p-2 md:p-4 overflow-y-auto">
+          {/* Desktop Right Panel - Controls */}
+          <div className="hidden md:block w-64 lg:w-80 bg-gray-900 bg-opacity-90 border-l border-gray-700 p-4 overflow-y-auto">
             <GameControls
               diceValue={gameState.diceValue}
               message={gameState.message}
@@ -263,11 +295,10 @@ export default function MatchmakingGame({ onBack, difficulty = 'normal', variant
             <div className="space-y-4 mb-6">
               <button
                 onClick={() => setGameMode('quick')}
-                className={`w-full p-4 rounded-lg border-2 transition-all ${
-                  gameMode === 'quick'
+                className={`w-full p-4 rounded-lg border-2 transition-all ${gameMode === 'quick'
                     ? 'border-yellow-500 bg-yellow-500 bg-opacity-20'
                     : 'border-gray-700 hover:border-gray-600'
-                }`}
+                  }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -286,11 +317,10 @@ export default function MatchmakingGame({ onBack, difficulty = 'normal', variant
               <button
                 onClick={() => setGameMode('ranked')}
                 disabled={!premium.isPremium}
-                className={`w-full p-4 rounded-lg border-2 transition-all ${
-                  gameMode === 'ranked'
+                className={`w-full p-4 rounded-lg border-2 transition-all ${gameMode === 'ranked'
                     ? 'border-yellow-500 bg-yellow-500 bg-opacity-20'
                     : 'border-gray-700 hover:border-gray-600'
-                } ${!premium.isPremium ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  } ${!premium.isPremium ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">

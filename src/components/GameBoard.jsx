@@ -1,16 +1,18 @@
 import { Rocket, Zap, Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
+import { DEFAULT_BOARD_SIZE, SPACEPORTS, DEFAULT_ALIENS, DEFAULT_CHECKPOINTS } from '../utils/constants';
+
 // Hook to get responsive font size and styling
 const useResponsiveSize = () => {
-  const [size, setSize] = useState({ 
-    spaceport: 32, 
+  const [size, setSize] = useState({
+    spaceport: 32,
     rocket: 28,
     spaceportOpacity: 0.25,
     spaceportGlow: '10px',
     spaceportGlowOpacity: 0.3
   });
-  
+
   useEffect(() => {
     const updateSize = () => {
       const width = window.innerWidth;
@@ -22,24 +24,14 @@ const useResponsiveSize = () => {
         spaceportGlowOpacity: width < 640 ? 0.15 : 0.3
       });
     };
-    
+
     updateSize();
     window.addEventListener('resize', updateSize);
     return () => window.removeEventListener('resize', updateSize);
   }, []);
-  
+
   return size;
 };
-
-const DEFAULT_BOARD_SIZE = 100;
-const SPACEPORTS = {
-  4: 18, 9: 31, 15: 42, 21: 56, 28: 64,
-  36: 70, 51: 77, 62: 85, 71: 91, 80: 96
-};
-
-// Default values for backward compatibility
-const DEFAULT_ALIENS = [14, 23, 29, 38, 45, 50, 54, 61, 68, 75, 82, 88, 94, 98];
-const DEFAULT_CHECKPOINTS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90];
 
 export default function GameBoard({
   players = [],
@@ -55,7 +47,8 @@ export default function GameBoard({
   checkpoints = DEFAULT_CHECKPOINTS,
   hazards = null, // Jeopardy mechanics hazards
   rogueState = null, // Rogue player state
-  boardSize = DEFAULT_BOARD_SIZE // Variant-specific board size
+  boardSize = DEFAULT_BOARD_SIZE, // Variant-specific board size
+  gems = {} // Campaign gems
 }) {
   const ALIENS = aliens || DEFAULT_ALIENS;
   const CHECKPOINTS = checkpoints || DEFAULT_CHECKPOINTS;
@@ -63,7 +56,7 @@ export default function GameBoard({
   const responsiveSize = useResponsiveSize();
 
   const BOARD_SIZE = boardSize; // Use variant-specific board size
-  
+
   // Override getCellColor to use responsive opacity for spaceports
   const getCellColorResponsive = (cellNumber) => {
     const hazard = getHazardAtCell(cellNumber);
@@ -74,13 +67,14 @@ export default function GameBoard({
       if (hazard.type === 'meteor') return 'rgba(234, 88, 12, 0.5)';
       if (hazard.type === 'tactical') return 'rgba(168, 85, 247, 0.4)'; // Purple for tactical squares
     }
+    if (gems[cellNumber]) return 'rgba(236, 72, 153, 0.4)'; // Pink for gems
     if (cellNumber === BOARD_SIZE) return 'rgba(251, 191, 36, 0.25)';
     if (SPACEPORTS[cellNumber]) return `rgba(16, 185, 129, ${responsiveSize.spaceportOpacity})`;
     if (ALIENS.includes(cellNumber)) return 'rgba(239, 68, 68, 0.25)';
     if (CHECKPOINTS.includes(cellNumber)) return 'rgba(59, 130, 246, 0.25)';
     return 'rgba(31, 41, 55, 0.7)';
   };
-  
+
   useEffect(() => {
     const interval = setInterval(() => {
       const newSparkles = [];
@@ -159,6 +153,8 @@ export default function GameBoard({
       if (hazard.type === 'tactical') return 'rgba(168, 85, 247, 0.4)'; // Purple for tactical squares
     }
 
+    if (gems[cellNumber]) return 'rgba(236, 72, 153, 0.4)'; // Pink for gems
+
     if (cellNumber === BOARD_SIZE) return 'rgba(251, 191, 36, 0.25)'; // Gold for finish
     if (SPACEPORTS[cellNumber]) {
       // Use responsive opacity from hook (will be set in component)
@@ -173,21 +169,21 @@ export default function GameBoard({
   const getCellPosition = (cellNumber) => {
     const cols = 10;
     const rows = Math.ceil(BOARD_SIZE / cols);
-    
+
     // Calculate which row (0-indexed from top)
     const row = Math.ceil(cellNumber / cols) - 1;
     const isEvenRow = row % 2 === 0;
-    
+
     // Calculate column within the row
     const colInRow = ((cellNumber - 1) % cols);
     // Reverse column order for odd rows (snake pattern)
     const actualCol = isEvenRow ? colInRow : (cols - 1 - colInRow);
-    
+
     // Calculate percentage positions (0-100%)
     // Add half cell width to center in cell
     const colPercent = ((actualCol + 0.5) / cols) * 100;
     const rowPercent = ((rows - 1 - row + 0.5) / rows) * 100;
-    
+
     return { colPercent, rowPercent, cellNumber };
   };
 
@@ -219,6 +215,7 @@ export default function GameBoard({
         const hazard = getHazardAtCell(cellNumber);
         const isRogue = rogueState && rogueState.active && rogueState.position === cellNumber;
         const isTactical = hazard && hazard.type === 'tactical';
+        const hasGem = gems[cellNumber];
 
         // Check if this cell has encounter effect
         const hasSpaceportEffect = encounterType === 'spaceport' && playersHere.some(p => p.id === animatingPlayer);
@@ -246,15 +243,15 @@ export default function GameBoard({
               boxShadow: hasSpaceportEffect
                 ? '0 0 30px rgba(16, 185, 129, 0.9), inset 0 0 20px rgba(16, 185, 129, 0.5), 0 0 40px rgba(16, 185, 129, 0.4)'
                 : hasAlienEffect
-                ? '0 0 30px rgba(239, 68, 68, 0.9), inset 0 0 20px rgba(239, 68, 68, 0.5), 0 0 40px rgba(239, 68, 68, 0.4)'
-                : isSpaceport || isAlien || isCheckpoint || isFinish
-                ? 'inset 0 0 20px rgba(0, 0, 0, 0.3), 0 0 ' + (
-                    isFinish ? '12px rgba(251, 191, 36, 0.4), 0 0 24px rgba(251, 191, 36, 0.2)' :
-                    isSpaceport ? `${responsiveSize.spaceportGlow} rgba(16, 185, 129, ${responsiveSize.spaceportGlowOpacity}), 0 0 ${parseInt(responsiveSize.spaceportGlow) * 2}px rgba(16, 185, 129, ${responsiveSize.spaceportGlowOpacity * 0.5})` :
-                    isAlien ? '12px rgba(239, 68, 68, 0.4), 0 0 24px rgba(239, 68, 68, 0.2)' :
-                    '12px rgba(59, 130, 246, 0.4), 0 0 24px rgba(59, 130, 246, 0.2)'
-                  )
-                : 'inset 0 0 10px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3)',
+                  ? '0 0 30px rgba(239, 68, 68, 0.9), inset 0 0 20px rgba(239, 68, 68, 0.5), 0 0 40px rgba(239, 68, 68, 0.4)'
+                  : isSpaceport || isAlien || isCheckpoint || isFinish
+                    ? 'inset 0 0 20px rgba(0, 0, 0, 0.3), 0 0 ' + (
+                      isFinish ? '12px rgba(251, 191, 36, 0.4), 0 0 24px rgba(251, 191, 36, 0.2)' :
+                        isSpaceport ? `${responsiveSize.spaceportGlow} rgba(16, 185, 129, ${responsiveSize.spaceportGlowOpacity}), 0 0 ${parseInt(responsiveSize.spaceportGlow) * 2}px rgba(16, 185, 129, ${responsiveSize.spaceportGlowOpacity * 0.5})` :
+                          isAlien ? '12px rgba(239, 68, 68, 0.4), 0 0 24px rgba(239, 68, 68, 0.2)' :
+                            '12px rgba(59, 130, 246, 0.4), 0 0 24px rgba(59, 130, 246, 0.2)'
+                    )
+                    : 'inset 0 0 10px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3)',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               overflow: 'hidden',
               animation: hasSpaceportEffect ? 'warp-pulse 0.8s ease-in-out' : hasAlienEffect ? 'alien-shake 0.5s ease-in-out' : 'none',
@@ -279,7 +276,7 @@ export default function GameBoard({
 
             {/* Spaceport - Enhanced with modern glow */}
             {isSpaceport && (
-              <div 
+              <div
                 className="spaceport-container"
                 style={{
                   position: 'absolute',
@@ -293,7 +290,7 @@ export default function GameBoard({
                 }}
               >
                 {/* Glow effect */}
-                <div 
+                <div
                   style={{
                     position: 'absolute',
                     top: '50%',
@@ -316,7 +313,7 @@ export default function GameBoard({
 
             {/* Alien - Enhanced with retro space shooter styling */}
             {isAlien && !isRogue && (
-              <div 
+              <div
                 className="alien-container"
                 style={{
                   position: 'absolute',
@@ -331,7 +328,7 @@ export default function GameBoard({
                   WebkitImageRendering: 'pixelated'
                 }}
               >
-                <div 
+                <div
                   className="alien-scanline-overlay"
                   style={{
                     position: 'absolute',
@@ -348,7 +345,7 @@ export default function GameBoard({
                   👾
                 </div>
                 {/* Retro glow effect */}
-                <div 
+                <div
                   className="alien-glow"
                   style={{
                     position: 'absolute',
@@ -369,7 +366,7 @@ export default function GameBoard({
 
             {/* Rogue Alien - Enhanced with retro effects */}
             {isRogue && (
-              <div 
+              <div
                 className="rogue-alien-container"
                 style={{
                   position: 'absolute',
@@ -384,7 +381,7 @@ export default function GameBoard({
                   WebkitImageRendering: 'pixelated'
                 }}
               >
-                <div 
+                <div
                   className="rogue-alien-scanline-overlay"
                   style={{
                     position: 'absolute',
@@ -401,7 +398,7 @@ export default function GameBoard({
                   👽
                 </div>
                 {/* Dual-color glow effect */}
-                <div 
+                <div
                   style={{
                     position: 'absolute',
                     top: '50%',
@@ -421,7 +418,7 @@ export default function GameBoard({
 
             {/* Tactical Square */}
             {isTactical && !isSpaceport && !isAlien && !isRogue && !isCheckpoint && (
-              <div 
+              <div
                 className="tactical-container"
                 style={{
                   position: 'absolute',
@@ -437,7 +434,7 @@ export default function GameBoard({
                 <div style={{ position: 'relative', zIndex: 1 }}>
                   ⚔️
                 </div>
-                <div 
+                <div
                   style={{
                     position: 'absolute',
                     top: '50%',
@@ -457,7 +454,7 @@ export default function GameBoard({
 
             {/* Checkpoint - Enhanced */}
             {isCheckpoint && !isSpaceport && !isAlien && !isRogue && !isTactical && (
-              <div 
+              <div
                 className="checkpoint-container"
                 style={{
                   position: 'absolute',
@@ -470,7 +467,7 @@ export default function GameBoard({
                   animation: 'checkpoint-pulse 2.5s ease-in-out infinite'
                 }}
               >
-                <div 
+                <div
                   style={{
                     position: 'absolute',
                     top: '50%',
@@ -493,7 +490,7 @@ export default function GameBoard({
 
             {/* Finish line - Enhanced */}
             {isFinish && (
-              <div 
+              <div
                 className="finish-container"
                 style={{
                   position: 'absolute',
@@ -506,7 +503,7 @@ export default function GameBoard({
                   animation: 'finish-glow 2s ease-in-out infinite'
                 }}
               >
-                <div 
+                <div
                   style={{
                     position: 'absolute',
                     top: '50%',
@@ -527,6 +524,27 @@ export default function GameBoard({
               </div>
             )}
 
+            {/* Gems */}
+            {hasGem && (
+              <div
+                className="gem-container"
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  fontSize: `${Math.max(20, Math.min(28, responsiveSize.rocket + 4))}px`,
+                  zIndex: 5,
+                  filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 12px rgba(236, 72, 153, 0.9)) contrast(1.3) saturate(1.4)',
+                  animation: 'gem-float 2s ease-in-out infinite'
+                }}
+              >
+                <div style={{ position: 'relative', zIndex: 1 }}>
+                  💎
+                </div>
+              </div>
+            )}
+
             {/* Hazards */}
             {hazard && (
               <>
@@ -542,12 +560,12 @@ export default function GameBoard({
                   animation: hazard.type === 'blackHole'
                     ? 'black-hole-swirl 2s linear infinite'
                     : hazard.type === 'blackHoleWarning'
-                    ? 'warning-pulse 1s ease-in-out infinite'
-                    : hazard.type === 'patrol'
-                    ? 'patrol-blink 1s step-end infinite'
-                    : hazard.type === 'meteor'
-                    ? 'meteor-flicker 0.5s ease-in-out infinite'
-                    : 'none'
+                      ? 'warning-pulse 1s ease-in-out infinite'
+                      : hazard.type === 'patrol'
+                        ? 'patrol-blink 1s step-end infinite'
+                        : hazard.type === 'meteor'
+                          ? 'meteor-flicker 0.5s ease-in-out infinite'
+                          : 'none'
                 }}>
                   {hazard.icon}
                 </div>
@@ -601,40 +619,36 @@ export default function GameBoard({
     return cells;
   };
 
-  // Parallax effect hook
-  const useParallax = () => {
-    const [offset, setOffset] = useState({ x: 0, y: 0 });
-    
-    useEffect(() => {
-      const handleMouseMove = (e) => {
-        const x = (e.clientX / window.innerWidth - 0.5) * 20;
-        const y = (e.clientY / window.innerHeight - 0.5) * 20;
-        setOffset({ x, y });
-      };
-      
-      // Device orientation for mobile
-      const handleOrientation = (e) => {
-        if (e.beta && e.gamma) {
-           // beta is front-back tilt (-180 to 180)
-           // gamma is left-right tilt (-90 to 90)
-           const x = (e.gamma / 45) * 20; 
-           const y = (e.beta / 45) * 20;
-           setOffset({ x, y });
-        }
-      };
-      
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('deviceorientation', handleOrientation);
-      return () => {
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('deviceorientation', handleOrientation);
-      };
-    }, []);
-    
-    return offset;
-  };
+  // Parallax effect hook - Optimized to use CSS variables
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      const x = (e.clientX / window.innerWidth - 0.5) * 20;
+      const y = (e.clientY / window.innerHeight - 0.5) * 20;
+      document.documentElement.style.setProperty('--parallax-x', `${x}px`);
+      document.documentElement.style.setProperty('--parallax-y', `${y}px`);
+    };
 
-  const parallax = useParallax();
+    // Device orientation for mobile
+    const handleOrientation = (e) => {
+      if (e.beta && e.gamma) {
+        // beta is front-back tilt (-180 to 180)
+        // gamma is left-right tilt (-90 to 90)
+        const x = (e.gamma / 45) * 20;
+        const y = (e.beta / 45) * 20;
+        document.documentElement.style.setProperty('--parallax-x', `${x}px`);
+        document.documentElement.style.setProperty('--parallax-y', `${y}px`);
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('deviceorientation', handleOrientation);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('deviceorientation', handleOrientation);
+    };
+  }, []);
+
+
 
   // Render board cells before return statement
   const boardCells = renderBoard();
@@ -646,7 +660,7 @@ export default function GameBoard({
       const isAnimating = animatingPlayer === player.id;
       const currentPos = animatedPositions[player.id] !== undefined ? animatedPositions[player.id] : player.position;
       const cellPos = getCellPosition(currentPos);
-      
+
       // Calculate transition duration based on animation state
       // Match the timing from useRocketAnimation (120ms for long, 150ms for medium, 200ms for short)
       let transitionDuration = '0.3s';
@@ -654,7 +668,7 @@ export default function GameBoard({
         // Estimate move distance - if animating, assume we're moving
         transitionDuration = '0.2s'; // Default for short moves
       }
-      
+
       return (
         <div
           key={player.id}
@@ -677,6 +691,18 @@ export default function GameBoard({
           }}
         >
           {playerIcon}
+          {/* Player Color Indicator */}
+          <div style={{
+            position: 'absolute',
+            bottom: '-5px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            backgroundColor: player.isAI ? '#ef4444' : '#3b82f6', // Red for AI, Blue for Player
+            boxShadow: `0 0 5px ${player.isAI ? '#ef4444' : '#3b82f6'}`
+          }} />
         </div>
       );
     });
@@ -705,21 +731,6 @@ export default function GameBoard({
         }
         @keyframes warp-pulse {
           0% { transform: scale(1); filter: brightness(1); }
-          25% { transform: scale(1.15); filter: brightness(1.5); }
-          50% { transform: scale(1.3); filter: brightness(2); }
-          75% { transform: scale(1.15); filter: brightness(1.5); }
-          100% { transform: scale(1); filter: brightness(1); }
-        }
-        @keyframes alien-shake {
-          0%, 100% { transform: translateX(0); }
-          10%, 30%, 50%, 70%, 90% { transform: translateX(-5px) rotate(-2deg); }
-          20%, 40%, 60%, 80% { transform: translateX(5px) rotate(2deg); }
-        }
-        /* Retro Space Shooter Alien Animations */
-        @keyframes alien-idle {
-          0%, 100% { 
-            transform: translate(-50%, -50%) scale(1) rotate(0deg);
-            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 1)) drop-shadow(0 0 12px rgba(239, 68, 68, 0.9)) drop-shadow(0 0 20px rgba(239, 68, 68, 0.6)) contrast(1.4) saturate(1.5);
           }
           25% { 
             transform: translate(-50%, -50%) scale(1.05) rotate(-2deg);
@@ -892,7 +903,7 @@ export default function GameBoard({
           // Use clamp for responsive sizing but respect maxWidth if provided
           maxWidth: maxWidth ? `${maxWidth}px` : '100%',
           // Calculate height to maintain aspect ratio based on grid dimensions
-          aspectRatio: `${10} / ${Math.ceil(BOARD_SIZE / 10)}`, 
+          aspectRatio: `${10} / ${Math.ceil(BOARD_SIZE / 10)}`,
           height: 'auto', // Let aspect ratio drive height
           maxHeight: maxHeight ? `${maxHeight}px` : '90vh',
           backgroundColor: 'rgba(15, 23, 42, 0.9)',
@@ -911,20 +922,20 @@ export default function GameBoard({
           WebkitBackdropFilter: 'blur(2px)',
           transformOrigin: 'center top',
           // Combine existing scale with parallax and shake
-          transform: `${scaleFactor !== 1 ? `scale(${scaleFactor})` : ''} translate(${parallax.x}px, ${parallax.y}px)`,
+          transform: `${scaleFactor !== 1 ? `scale(${scaleFactor})` : ''} translate(var(--parallax-x, 0px), var(--parallax-y, 0px))`,
           transition: 'transform 0.1s ease-out, max-height 0.2s ease-out',
           marginBottom: '0.5rem',
           animation: encounterType === 'alien' || (players && players.length > 0 && getHazardAtCell(players.find(p => p.id === animatingPlayer)?.position)?.type === 'blackHole')
-            ? 'screen-shake 0.5s cubic-bezier(.36,.07,.19,.97) both' 
+            ? 'screen-shake 0.5s cubic-bezier(.36,.07,.19,.97) both'
             : 'none'
         }}
         className="board-container"
         id="game-board-container"
       >
-          {boardCells}
-          
-          {/* Animated Players - rendered as absolutely positioned elements */}
-          {renderAnimatedPlayers()}
+        {boardCells}
+
+        {/* Animated Players - rendered as absolutely positioned elements */}
+        {renderAnimatedPlayers()}
 
         {/* Sparkle effects on special cells */}
         {sparkles.map(sparkle => (

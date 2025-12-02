@@ -1,9 +1,10 @@
-import { Rocket, Users, Wifi, Zap, Shield, Skull, Bot, Lock, Crown, Flame, Moon, AlertTriangle, Info, Search, Sword, ShoppingBag, Sparkles, X, Trophy } from 'lucide-react';
+import { Rocket, Users, Wifi, Zap, Shield, Skull, Bot, Lock, Crown, Flame, Moon, AlertTriangle, Info, Search, Sword, ShoppingBag, Sparkles, X, Trophy, Map } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import AuthButton from './AuthButton';
 import AdSenseAd from './AdSenseAd';
 import PremiumModal from './PremiumModal';
 import AchievementPanel from './AchievementPanel';
+
 import { supabase } from '../lib/supabase';
 import { useGameSounds } from '../hooks/useGameSounds';
 import { useFreemiumLimits } from '../hooks/useFreemiumLimits';
@@ -24,6 +25,7 @@ export default function GameModeSelector({ onSelectMode, onUpgrade }) {
   const currency = useCurrency();
 
   const handleSelectMode = (mode) => {
+    console.log('GameModeSelector selected:', mode);
     playSound('click');
     const isOnline = mode === 'online';
     const canPlay = freemium.canPlayGame(isOnline);
@@ -76,76 +78,88 @@ export default function GameModeSelector({ onSelectMode, onUpgrade }) {
 
         {/* Scrollable Main Content */}
         <main className="flex-grow flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
-          
-            {/* Difficulty Selector */}
-            <div className="glass rounded-lg p-3">
-              <h3 className="text-lg font-bold text-white mb-3 text-center">Difficulty</h3>
-              <div className="flex flex-wrap justify-center gap-2">
-                {['easy', 'normal', 'hard', 'extreme', 'nightmare', 'chaos'].map(d => {
-                  const isLocked = (d === 'hard' && !premium.isPremium && !freemium.canUseDifficulty('hard')) || (['extreme', 'nightmare', 'chaos'].includes(d) && !premium.isPremium);
-                  return (
-                    <button
-                      key={d}
-                      onClick={() => {
-                        if (isLocked) { playSound('error'); onUpgrade?.(); return; }
-                        playSound('click');
-                        setDifficulty(d);
-                      }}
-                      disabled={isLocked}
-                      className={`p-2 rounded-lg ${difficulty === d ? 'bg-yellow-600' : 'bg-gray-800'} ${isLocked ? 'opacity-50' : ''}`}
-                    >
-                      <span className="font-bold text-sm text-white">{d.charAt(0).toUpperCase() + d.slice(1)}</span>
-                      {isLocked && <Lock className="w-3 h-3 inline-block ml-1 text-yellow-400" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
 
-            {/* Game Variants Selector */}
-            <div className="glass rounded-lg p-3">
-              <h3 className="text-lg font-bold text-white mb-3 text-center">Variant</h3>
-              <div className="flex flex-wrap justify-center gap-2">
-                {Object.values(GAME_VARIANTS).map((variant) => {
-                  const isLocked = variant.requiresPremium && !premium.isPremium;
-                  return (
-                    <button
-                      key={variant.id}
-                      onClick={() => {
-                        if (isLocked) { playSound('error'); onUpgrade?.(); return; }
-                        playSound('click');
-                        setSelectedVariant(variant.id);
-                      }}
-                      disabled={isLocked}
-                      className={`p-2 rounded-lg ${selectedVariant === variant.id ? 'bg-yellow-600' : 'bg-gray-800'} ${isLocked ? 'opacity-50' : ''}`}
-                    >
-                      <span className="font-bold text-sm text-white">{variant.name}</span>
-                      {isLocked && <Lock className="w-3 h-3 inline-block ml-1 text-yellow-400" />}
-                    </button>
-                  );
-                })}
-              </div>
+          {/* Difficulty Selector */}
+          <div className="glass rounded-lg p-3">
+            <h3 className="text-lg font-bold text-white mb-3 text-center">Difficulty</h3>
+            <div className="flex flex-wrap justify-center gap-2">
+              {['easy', 'normal', 'hard', 'extreme', 'nightmare', 'chaos'].map(d => {
+                const isLocked = (d === 'hard' && !premium.isPremium && !freemium.canUseDifficulty('hard')) || (['extreme', 'nightmare', 'chaos'].includes(d) && !premium.isPremium);
+                return (
+                  <button
+                    key={d}
+                    onClick={() => {
+                      if (isLocked) { playSound('error'); onUpgrade?.(); return; }
+                      playSound('click');
+                      setDifficulty(d);
+                    }}
+                    disabled={isLocked}
+                    className={`p-2 rounded-lg ${difficulty === d ? 'bg-yellow-600' : 'bg-gray-800'} ${isLocked ? 'opacity-50' : ''}`}
+                  >
+                    <span className="font-bold text-sm text-white">{d.charAt(0).toUpperCase() + d.slice(1)}</span>
+                    {isLocked && <Lock className="w-3 h-3 inline-block ml-1 text-yellow-400" />}
+                  </button>
+                );
+              })}
             </div>
+          </div>
 
-            {/* Game Mode Buttons */}
-            <div className="space-y-4 pt-4">
-              <button onClick={() => handleSelectMode('ai')} className="w-full glass p-4 rounded-lg text-left">
-                <h2 className="text-lg font-bold text-white">vs AI</h2>
-                <p className="text-sm text-gray-400">Challenge an AI opponent</p>
-              </button>
-              <button onClick={() => handleSelectMode('local')} className="w-full glass p-4 rounded-lg text-left">
-                <h2 className="text-lg font-bold text-white">Local Multiplayer</h2>
-                <p className="text-sm text-gray-400">Play with friends on this device</p>
-              </button>
-              <button onClick={() => handleSelectMode('online')} className="w-full glass p-4 rounded-lg text-left">
-                <h2 className="text-lg font-bold text-white">Online Multiplayer</h2>
-                <p className="text-sm text-gray-400">Play with friends online</p>
-              </button>
+          {/* Game Variants Selector */}
+          <div className="glass rounded-lg p-3">
+            <h3 className="text-lg font-bold text-white mb-3 text-center">Variant</h3>
+            <div className="flex flex-wrap justify-center gap-2">
+              {Object.values(GAME_VARIANTS).map((variant) => {
+                const isLocked = variant.requiresPremium && !premium.isPremium;
+                return (
+                  <button
+                    key={variant.id}
+                    onClick={() => {
+                      if (isLocked) { playSound('error'); onUpgrade?.(); return; }
+                      playSound('click');
+                      setSelectedVariant(variant.id);
+                    }}
+                    disabled={isLocked}
+                    className={`p-2 rounded-lg ${selectedVariant === variant.id ? 'bg-yellow-600' : 'bg-gray-800'} ${isLocked ? 'opacity-50' : ''}`}
+                  >
+                    <span className="font-bold text-sm text-white">{variant.name}</span>
+                    {isLocked && <Lock className="w-3 h-3 inline-block ml-1 text-yellow-400" />}
+                  </button>
+                );
+              })}
             </div>
-            
-            <div className="pt-4">
-               <AdSenseAd adFormat="horizontal" className="w-full" style={{ minHeight: '100px' }} />
-            </div>
+          </div>
+
+          {/* Game Mode Buttons */}
+          <div className="space-y-4 pt-4">
+            <button onClick={() => handleSelectMode('campaign')} className="w-full glass p-4 rounded-lg text-left bg-gradient-to-r from-purple-900/50 to-blue-900/50 border border-purple-500/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-600 rounded-lg">
+                  <Map className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white">Campaign Mode</h2>
+                  <p className="text-sm text-gray-300">Embark on a cosmic voyage! Unique levels & rewards.</p>
+                </div>
+              </div>
+            </button>
+
+            <button onClick={() => handleSelectMode('ai')} className="w-full glass p-4 rounded-lg text-left">
+              <h2 className="text-lg font-bold text-white">vs AI</h2>
+              <p className="text-sm text-gray-400">Challenge an AI opponent</p>
+            </button>
+            <button onClick={() => handleSelectMode('local')} className="w-full glass p-4 rounded-lg text-left">
+              <h2 className="text-lg font-bold text-white">Local Multiplayer</h2>
+              <p className="text-sm text-gray-400">Play with friends on this device</p>
+            </button>
+            <button onClick={() => handleSelectMode('online')} className="w-full glass p-4 rounded-lg text-left">
+              <h2 className="text-lg font-bold text-white">Online Multiplayer</h2>
+              <p className="text-sm text-gray-400">Play with friends online</p>
+            </button>
+          </div>
+
+          <div className="pt-4">
+            <AdSenseAd adFormat="horizontal" className="w-full" style={{ minHeight: '100px' }} />
+          </div>
         </main>
       </div>
     </div>
@@ -156,7 +170,7 @@ export default function GameModeSelector({ onSelectMode, onUpgrade }) {
 function ShopModal({ coins, onClose, onUpgrade }) {
   const { playSound } = useGameSounds();
   const { isPremium } = usePremium();
-  
+
   const coinPriceIds = {
     starter_pack: import.meta.env.VITE_STRIPE_PRICE_STARTER_PACK,
     coins_small: import.meta.env.VITE_STRIPE_PRICE_COINS_SMALL,
@@ -203,7 +217,7 @@ function ShopModal({ coins, onClose, onUpgrade }) {
   };
 
   const starterPack = { id: 'starter_pack', name: 'Starter Pack', coins: 1000, price: '$1.99', icon: '🎁', description: 'Get a massive coin boost and an exclusive ship!' };
-  
+
   const coinPackages = [
     { id: 'coins_small', coins: 100, price: '$0.99' },
     { id: 'coins_medium', coins: 350, price: '$2.99' },

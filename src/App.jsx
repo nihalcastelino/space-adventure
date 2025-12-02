@@ -3,6 +3,7 @@ import LocalGame from './components/LocalGame';
 import OnlineGame from './components/OnlineGame';
 import AIGame from './components/AIGame';
 import MatchmakingGame from './components/MatchmakingGame';
+import CampaignGame from './components/CampaignGame';
 import RPGGame from './components/RPGGame';
 import GameModeSelector from './components/GameModeSelector';
 import PremiumModal from './components/PremiumModal';
@@ -30,7 +31,7 @@ function App() {
         if (window.location.hash && (window.location.hash.includes('access_token') || window.location.hash.includes('error'))) {
           window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
         }
-        
+
         // Remove query parameters (OAuth code, errors, checkout)
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('error') || urlParams.has('code') || urlParams.has('checkout')) {
@@ -43,11 +44,11 @@ function App() {
         if (session) {
           // User is authenticated, clean up URL
           cleanUpURL();
-          
+
           // Handle Stripe checkout redirects
           const urlParams = new URLSearchParams(window.location.search);
           const checkoutStatus = urlParams.get('checkout');
-          
+
           if (checkoutStatus === 'success') {
             const sessionId = urlParams.get('session_id');
             console.log('✅ Checkout successful! Session ID:', sessionId);
@@ -123,7 +124,7 @@ function App() {
         )}
 
         {checkoutSessionId && (
-          <CheckoutSuccess 
+          <CheckoutSuccess
             sessionId={checkoutSessionId}
             onClose={() => {
               setCheckoutSessionId(null);
@@ -145,6 +146,8 @@ function App() {
     );
   }
 
+  console.log('Current gameMode:', gameMode);
+
   return (
     <div className="fixed inset-0">
       {gameMode === 'ai' ? (
@@ -162,6 +165,10 @@ function App() {
           gameVariant={gameVariant}
           randomizationSeed={randomizationSeed}
         />
+      ) : gameMode === 'campaign' ? (
+        <CampaignGame
+          onBack={handleBack}
+        />
       ) : gameMode === 'matchmaking' ? (
         <MatchmakingGame
           onBack={handleBack}
@@ -174,13 +181,26 @@ function App() {
           initialDifficulty={difficulty}
           gameVariant={gameVariant}
         />
-      ) : (
+      ) : gameMode === 'online' ? (
         <OnlineGame
           onBack={handleBack}
           initialDifficulty={difficulty}
           gameVariant={gameVariant}
           randomizationSeed={randomizationSeed}
         />
+      ) : (
+        <div className="flex items-center justify-center h-screen bg-black text-white">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-red-500">Error: Unknown Game Mode</h1>
+            <p className="mt-2">Mode: {JSON.stringify(gameMode)}</p>
+            <button
+              onClick={handleBack}
+              className="mt-4 px-4 py-2 bg-blue-600 rounded hover:bg-blue-500"
+            >
+              Go Back
+            </button>
+          </div>
+        </div>
       )}
       <InstallPrompt />
       <ConsentBanner />

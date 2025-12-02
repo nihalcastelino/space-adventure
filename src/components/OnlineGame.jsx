@@ -46,7 +46,7 @@ export default function OnlineGame({ onBack }) {
     handlePauseGame,
     handleResumeGame
   } = useFirebaseGame();
-  
+
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -54,7 +54,7 @@ export default function OnlineGame({ onBack }) {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    
+
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -314,13 +314,13 @@ export default function OnlineGame({ onBack }) {
       >
         <div className="bg-gray-900 bg-opacity-95 rounded-lg p-8 shadow-2xl border-2 border-gray-700 max-w-md w-full space-y-4">
           <h2 className="text-2xl font-bold text-white mb-6 text-center">Join or Create Game</h2>
-          
+
           {error && (
             <div className="bg-red-900 bg-opacity-50 text-red-200 px-4 py-2 rounded text-sm">
               {error}
             </div>
           )}
-          
+
           <div>
             <button
               onClick={handleCreateGame}
@@ -500,9 +500,8 @@ export default function OnlineGame({ onBack }) {
         )}
 
         {/* Connection status */}
-        <div className={`hidden sm:flex items-center gap-2 glass rounded-lg px-3 py-2 border-2 ${
-          connected ? 'border-green-400 border-opacity-50' : 'border-red-400 border-opacity-50'
-        }`}>
+        <div className={`hidden sm:flex items-center gap-2 glass rounded-lg px-3 py-2 border-2 ${connected ? 'border-green-400 border-opacity-50' : 'border-red-400 border-opacity-50'
+          }`}>
           {connected ? (
             <>
               <Wifi className="w-4 h-4 text-green-400 animate-pulse" />
@@ -758,102 +757,103 @@ export default function OnlineGame({ onBack }) {
           width: windowWidth < 640 ? 'min(85vw, 600px)' : 'min(90vw, 600px)',
           // Account for dice controls at bottom (approx 140px) + top panels (approx 100px) + padding
           // Increased safety margins to prevent overlap on Fold/Tablet devices
-          maxHeight: windowWidth < 640 
-            ? 'calc(100vh - 300px)' // Mobile: controls + panels + padding
-            : 'calc(100vh - 340px)' // Desktop/Tablet: controls + larger panels + padding
+          // Using dvh (dynamic viewport height) to account for mobile browser bars
+          maxHeight: windowWidth < 640
+            ? 'calc(100dvh - 340px)' // Mobile: controls + panels + padding (increased safety)
+            : 'calc(100dvh - 380px)' // Desktop/Tablet: controls + larger panels + padding
         }}
       >
         {/* Board Content */}
         <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', width: '100%' }}>
-        {/* Starting Area - Outside the square board */}
-        {gameState.players.filter(p => p.position === 0).length > 0 && (
+          {/* Starting Area - Outside the square board */}
+          {gameState.players.filter(p => p.position === 0).length > 0 && (
+            <div
+              className="w-[min(70vw,400px)] md:w-[min(50vw,450px)] lg:w-[min(55vw,500px)] xl:w-[min(60vw,550px)] starting-spaceport"
+              style={{
+                minHeight: '45px',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                border: '2px solid rgba(16, 185, 129, 0.3)',
+                borderRadius: '8px',
+                padding: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxShadow: '0 0 10px rgba(16, 185, 129, 0.2), inset 0 0 15px rgba(0, 0, 0, 0.4)',
+                position: 'relative'
+              }}
+            >
+              <div style={{
+                position: 'absolute',
+                top: '3px',
+                left: '8px',
+                fontSize: '9px',
+                color: 'rgba(255, 255, 255, 0.7)',
+                fontWeight: 'bold'
+              }}>
+                🚀 Starting Spaceport
+              </div>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', marginTop: '12px' }}>
+                {gameState.players.filter(p => p.position === 0).map(player => {
+                  const isAnimating = animatingPlayer === player.id;
+                  const animationClass = isAnimating && animationType ? `animate-rocket-${animationType}` : '';
+                  return (
+                    <div
+                      key={player.id}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '4px 8px',
+                        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                        borderRadius: '6px',
+                        border: `2px solid ${player.color.includes('yellow') ? 'rgba(253, 224, 71, 0.6)' :
+                          player.color.includes('blue') ? 'rgba(147, 197, 253, 0.6)' :
+                            player.color.includes('green') ? 'rgba(134, 239, 172, 0.6)' :
+                              'rgba(249, 168, 212, 0.6)'}`
+                      }}
+                    >
+                      <Rocket
+                        className={`${player.color} ${animationClass} target-player-rocket`}
+                        data-player-id={player.id}
+                        style={{
+                          width: '20px',
+                          height: '20px',
+                          filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 8px currentColor)',
+                          animation: animationClass ? undefined : 'float 2s ease-in-out infinite'
+                        }}
+                      />
+                      <span style={{ fontSize: '9px', color: 'rgba(255, 255, 255, 0.9)', fontWeight: 'bold' }}>
+                        {player.name}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Game Board - always square, respects container constraints */}
           <div
-            className="w-[min(70vw,400px)] md:w-[min(50vw,450px)] lg:w-[min(55vw,500px)] xl:w-[min(60vw,550px)] starting-spaceport"
+            className="w-[min(75vw,600px)] h-[min(75vw,600px)] md:w-[min(60vw,600px)] md:h-[min(60vw,600px)] lg:w-[min(70vw,600px)] lg:h-[min(70vw,600px)] xl:w-[min(90vw,600px)] xl:h-[min(90vw,600px)] 2xl:w-[min(70vw,600px)] 2xl:h-[min(70vw,600px)]"
             style={{
-              minHeight: '45px',
-              backgroundColor: 'rgba(16, 185, 129, 0.1)',
-              border: '2px solid rgba(16, 185, 129, 0.3)',
-              borderRadius: '8px',
-              padding: '6px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              boxShadow: '0 0 10px rgba(16, 185, 129, 0.2), inset 0 0 15px rgba(0, 0, 0, 0.4)',
-              position: 'relative'
+              maxWidth: '600px',
+              maxHeight: '600px',
+              // Ensure board doesn't exceed container height
+              height: 'min(100%, 600px)',
+              width: 'min(100%, 600px)'
             }}
           >
-            <div style={{
-              position: 'absolute',
-              top: '3px',
-              left: '8px',
-              fontSize: '9px',
-              color: 'rgba(255, 255, 255, 0.7)',
-              fontWeight: 'bold'
-            }}>
-              🚀 Starting Spaceport
-            </div>
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', marginTop: '12px' }}>
-              {gameState.players.filter(p => p.position === 0).map(player => {
-                const isAnimating = animatingPlayer === player.id;
-                const animationClass = isAnimating && animationType ? `animate-rocket-${animationType}` : '';
-                return (
-                  <div
-                    key={player.id}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: '4px 8px',
-                      backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                      borderRadius: '6px',
-                      border: `2px solid ${player.color.includes('yellow') ? 'rgba(253, 224, 71, 0.6)' :
-                                player.color.includes('blue') ? 'rgba(147, 197, 253, 0.6)' :
-                                player.color.includes('green') ? 'rgba(134, 239, 172, 0.6)' :
-                                'rgba(249, 168, 212, 0.6)'}`
-                    }}
-                  >
-                    <Rocket
-                      className={`${player.color} ${animationClass} target-player-rocket`}
-                      data-player-id={player.id}
-                      style={{
-                        width: '20px',
-                        height: '20px',
-                        filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 8px currentColor)',
-                        animation: animationClass ? undefined : 'float 2s ease-in-out infinite'
-                      }}
-                    />
-                    <span style={{ fontSize: '9px', color: 'rgba(255, 255, 255, 0.9)', fontWeight: 'bold' }}>
-                      {player.name}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+            <GameBoard
+              players={gameState.players}
+              animatingPlayer={animatingPlayer}
+              animationType={animationType}
+              alienBlink={alienBlink}
+              animatedPositions={animatedPositions}
+              encounterType={encounterType}
+            />
           </div>
-        )}
-
-        {/* Game Board - always square, respects container constraints */}
-        <div
-          className="w-[min(75vw,600px)] h-[min(75vw,600px)] md:w-[min(60vw,600px)] md:h-[min(60vw,600px)] lg:w-[min(70vw,600px)] lg:h-[min(70vw,600px)] xl:w-[min(90vw,600px)] xl:h-[min(90vw,600px)] 2xl:w-[min(70vw,600px)] 2xl:h-[min(70vw,600px)]"
-          style={{
-            maxWidth: '600px',
-            maxHeight: '600px',
-            // Ensure board doesn't exceed container height
-            height: 'min(100%, 600px)',
-            width: 'min(100%, 600px)'
-          }}
-        >
-          <GameBoard
-            players={gameState.players}
-            animatingPlayer={animatingPlayer}
-            animationType={animationType}
-            alienBlink={alienBlink}
-            animatedPositions={animatedPositions}
-            encounterType={encounterType}
-          />
-        </div>
         </div>
       </div>
 
